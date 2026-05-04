@@ -1,0 +1,60 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <h2>{{ isSignUp() ? 'Create an Account' : 'Welcome Back' }}</h2>
+      <p>{{ isSignUp() ? 'Sign up to get started' : 'Sign in to your account' }}</p>
+    </div>
+
+    <form class="auth-form" (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input 
+          type="email" 
+          id="email" 
+          name="email" 
+          [(ngModel)]="email" 
+          placeholder="you@example.com" 
+          required 
+          autocomplete="email"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input 
+          type="password" 
+          id="password" 
+          name="password" 
+          [(ngModel)]="password" 
+          placeholder="••••••••" 
+          required 
+          autocomplete="current-password"
+        />
+      </div>
+
+      <div *ngIf="errorMessage()" class="alert error-alert">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        <span>{{ errorMessage() }}</span>
+      </div>
+
+      <div *ngIf="successMessage()" class="alert success-alert">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        <span>{{ successMessage() }}</span>
+      </div>
+
+      <button type="submit" class="submit-btn" [disabled]="loading()">
+        <span *ngIf="!loading()">{{ isSignUp() ? 'Sign Up' : 'Sign In' }}</span>
+        <span *ngIf="loading()" class="loader"></span>
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      <p>
+        {{ isSignUp() ? 'Already have an account?' : "Don't have an account?" }}
+        <button type="button" class="toggle-btn" (click)="toggleMode()">
+          {{ isSignUp() ? 'Sign In' : 'Sign Up' }}
+        </button>
+      </p>
+    </div>
+  </div>
+</div>

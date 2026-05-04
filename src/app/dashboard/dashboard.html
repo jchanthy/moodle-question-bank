@@ -1,0 +1,75 @@
+<div class="min-h-screen bg-gray-100 p-8">
+  <div class="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
+    <div class="flex justify-between items-center mb-8">
+      <h1 class="text-3xl font-bold text-gray-800">QuizVault Dashboard</h1>
+      <div class="flex items-center gap-4">
+        <span class="text-sm bg-blue-100 text-blue-800 py-1 px-3 rounded-full font-semibold">
+          Role: {{ supabaseService.currentUserRole() || 'Loading...' }}
+        </span>
+        <button (click)="signOut()" class="text-red-600 hover:text-red-800 text-sm font-medium">
+          Sign Out
+        </button>
+      </div>
+    </div>
+
+    <!-- TEACHER VIEW: Add Question -->
+    <div *ngIf="supabaseService.currentUserRole() === 'teacher'" class="mb-10">
+      <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Add New Question (Submit for Review)</h2>
+      <div class="space-y-4 bg-gray-50 p-4 rounded-lg border">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Title</label>
+          <input type="text" [(ngModel)]="newQuestionTitle" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" placeholder="e.g. History Q1">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Content</label>
+          <textarea [(ngModel)]="newQuestionContent" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" placeholder="What is the capital of France?"></textarea>
+        </div>
+        <button (click)="addQuestion()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">
+          Submit Question
+        </button>
+      </div>
+    </div>
+
+    <!-- TEACHER/ADMIN VIEW: My Questions -->
+    <div *ngIf="supabaseService.currentUserRole()" class="mb-10">
+      <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">My Questions</h2>
+      <div *ngIf="myQuestions().length === 0" class="text-gray-500 italic">No questions created yet.</div>
+      <ul class="space-y-3">
+        <li *ngFor="let q of myQuestions()" class="flex justify-between items-center p-3 bg-gray-50 rounded-lg border">
+          <div>
+            <p class="font-medium text-gray-800">{{ q.title }}</p>
+            <p class="text-sm text-gray-600 truncate max-w-md">{{ q.content }}</p>
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold"
+                [ngClass]="{
+                  'bg-yellow-100 text-yellow-800': q.status === 'pending_review',
+                  'bg-green-100 text-green-800': q.status === 'approved',
+                  'bg-red-100 text-red-800': q.status === 'rejected',
+                  'bg-gray-200 text-gray-800': q.status === 'draft'
+                }">
+            {{ q.status }}
+          </span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- ADMIN VIEW: Approve Questions -->
+    <div *ngIf="supabaseService.currentUserRole() === 'admin'">
+      <h2 class="text-xl font-semibold mb-4 text-purple-700 border-b border-purple-200 pb-2">Pending Approvals (Admin)</h2>
+      <div *ngIf="pendingQuestions().length === 0" class="text-gray-500 italic">No questions pending review.</div>
+      <ul class="space-y-3">
+        <li *ngFor="let q of pendingQuestions()" class="flex justify-between items-center p-4 bg-purple-50 rounded-lg border border-purple-100">
+          <div>
+            <p class="font-medium text-gray-800">{{ q.title }}</p>
+            <p class="text-sm text-gray-600 mt-1">{{ q.content }}</p>
+          </div>
+          <div class="flex gap-2">
+            <button (click)="approveQuestion(q.id)" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition text-sm">Approve</button>
+            <button (click)="rejectQuestion(q.id)" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition text-sm">Reject</button>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+  </div>
+</div>

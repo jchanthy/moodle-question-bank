@@ -1,0 +1,55 @@
+<div class="min-h-screen bg-gray-50 p-6 md:p-12">
+  <div class="max-w-5xl mx-auto">
+    
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-10">
+      <div>
+        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Review Queue</h1>
+        <p class="text-gray-500 mt-1">Quality assurance and question approval portal.</p>
+      </div>
+      <button (click)="signOut()" class="text-gray-400 hover:text-red-600 transition p-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Review List -->
+    <div class="space-y-6">
+      <div *ngIf="pendingQuestions().length === 0 && !loading()" class="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm">
+        <div class="bg-green-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h3 class="text-xl font-bold text-gray-800">Inbox Zero!</h3>
+        <p class="text-gray-500 mt-1">All questions have been reviewed.</p>
+      </div>
+
+      <div *ngFor="let q of pendingQuestions()" class="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm hover:shadow-md transition group animate-fade-in">
+        <div class="flex flex-col md:flex-row justify-between gap-6">
+          <div class="flex-1">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded">MULTICHOICE</span>
+              <span class="text-xs text-gray-400 font-medium">{{ q.created_at | date:'medium' }}</span>
+            </div>
+            <h2 class="text-xl font-black text-gray-900 group-hover:text-blue-600 transition">{{ q.name }}</h2>
+            <p class="text-gray-600 mt-3 leading-relaxed">{{ q.question_text }}</p>
+          </div>
+          
+          <div class="flex flex-row md:flex-col justify-end gap-3">
+            <button (click)="updateStatus(q.id, 'approved')" 
+                    class="bg-green-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-green-700 transition shadow-lg shadow-green-100">
+              Approve
+            </button>
+            <button (click)="updateStatus(q.id, 'rejected')" 
+                    class="bg-white text-red-600 border-2 border-red-50 px-6 py-2 rounded-xl font-bold hover:bg-red-50 transition">
+              Reject
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

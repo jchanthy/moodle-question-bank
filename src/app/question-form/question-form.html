@@ -1,0 +1,135 @@
+<div class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-3xl mx-auto">
+    <div class="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
+      
+      <!-- Header -->
+      <div class="bg-blue-600 px-8 py-6">
+        <h1 class="text-2xl font-bold text-white flex items-center gap-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Create New Moodle Question
+        </h1>
+        <p class="text-blue-100 mt-1">Fill in the details below to submit your question for review.</p>
+      </div>
+
+      <form [formGroup]="questionForm" (ngSubmit)="onSubmit()" class="p-8 space-y-8">
+        
+        <!-- General Information Section -->
+        <section class="space-y-6">
+          <h2 class="text-lg font-semibold text-gray-900 border-b pb-2 flex items-center gap-2">
+            <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span>
+            General Information
+          </h2>
+          
+          <div class="grid grid-cols-1 gap-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Question Name (Internal)</label>
+              <input type="text" formControlName="name" placeholder="e.g. History_Q1_FrenchRevolution"
+                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 p-3 border">
+              <p class="mt-1 text-xs text-gray-400 italic">This name is used for organization and won't be seen by students.</p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Question Text</label>
+              <textarea formControlName="question_text" rows="4" placeholder="What was the primary cause of the French Revolution?"
+                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 p-3 border"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <!-- Scoring Section -->
+        <section class="space-y-6">
+          <h2 class="text-lg font-semibold text-gray-900 border-b pb-2 flex items-center gap-2">
+            <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span>
+            Scoring & Feedback
+          </h2>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Default Grade</label>
+              <input type="number" formControlName="default_grade" step="0.1"
+                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 p-3 border">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Penalty for each incorrect try</label>
+              <input type="number" formControlName="penalty" step="0.01"
+                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 p-3 border">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700">General Feedback</label>
+              <textarea formControlName="general_feedback" rows="2" placeholder="This feedback is shown to everyone after they attempt the question."
+                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 p-3 border"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <!-- Answers Section (Multichoice) -->
+        <section class="space-y-6">
+          <div class="flex justify-between items-center border-b pb-2">
+            <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center text-xs">3</span>
+              Answers (Choices)
+            </h2>
+            <button type="button" (click)="addAnswer()" class="text-blue-600 hover:text-blue-800 text-sm font-bold flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Add Choice
+            </button>
+          </div>
+
+          <div formArrayName="answers" class="space-y-6">
+            <div *ngFor="let answer of answers.controls; let i=index" [formGroupName]="i" 
+              class="p-5 bg-gray-50 rounded-xl border border-gray-200 relative group animate-fade-in">
+              
+              <button *ngIf="answers.length > 2" type="button" (click)="removeAnswer(i)"
+                class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="md:col-span-3">
+                  <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Choice {{ i + 1 }}</label>
+                  <input type="text" formControlName="answer_text" placeholder="Enter answer text"
+                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2.5 border">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Grade %</label>
+                  <select formControlName="fraction" 
+                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2.5 border">
+                    <option [value]="100">100% (Correct)</option>
+                    <option [value]="50">50%</option>
+                    <option [value]="33.33">33.33%</option>
+                    <option [value]="0">None (Wrong)</option>
+                    <option [value]="-25">-25% (Penalty)</option>
+                  </select>
+                </div>
+                <div class="md:col-span-4">
+                  <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Specific Feedback</label>
+                  <input type="text" formControlName="feedback" placeholder="Optional: Explains why this choice is right/wrong"
+                    class="block w-full rounded-lg border-gray-200 shadow-inner focus:ring-blue-500 focus:border-blue-500 p-2 border bg-white">
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Actions -->
+        <div class="pt-6 flex items-center justify-end gap-4 border-t mt-8">
+          <button type="button" (click)="cancel()" class="px-6 py-2.5 text-gray-600 hover:text-gray-800 font-medium transition">
+            Cancel
+          </button>
+          <button type="submit" [disabled]="questionForm.invalid || loading()"
+            class="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all transform active:scale-95 flex items-center gap-2">
+            <span *ngIf="loading()" class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+            {{ loading() ? 'Submitting...' : 'Submit for Review' }}
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
