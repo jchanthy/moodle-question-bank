@@ -12,6 +12,12 @@ export class SupabaseService {
   currentUser = signal<User | null>(null);
   currentUserRole = signal<'teacher' | 'admin' | null>(null);
 
+  get currentUserName(): string {
+    const user = this.currentUser();
+    if (!user) return 'Guest';
+    return user.user_metadata?.['full_name'] || user.email?.split('@')[0] || 'Teacher';
+  }
+
   constructor() {
     this.supabase = createClient(environment.supabaseUrl, environment.supabaseKey);
     

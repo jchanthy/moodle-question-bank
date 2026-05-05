@@ -1,20 +1,57 @@
+<!-- Toast Notification -->
+<p-toast position="top-center"></p-toast>
+
 <div class="min-h-screen bg-gray-50 p-6 md:p-12">
   <div class="max-w-5xl mx-auto">
     
     <!-- Header Area -->
     <div class="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
       <div>
-        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Teacher Workspace</h1>
+        <h1 class="text-3xl font-extrabold text-brand-dark tracking-tight">Teacher Workspace</h1>
         <p class="text-gray-500 mt-1">Manage your question bank and track review status.</p>
       </div>
       <div class="flex items-center gap-3">
-        <a routerLink="/teacher/new-question" 
-           class="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+        <a routerLink="/teacher/guide" 
+           class="text-gray-500 hover:text-blue-600 font-bold text-sm transition flex items-center gap-1 border-r pr-4 mr-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          Add New Question
+          Help & Guides
         </a>
+
+        <!-- Import / Export Dropdown -->
+        <div class="relative group">
+          <button class="flex items-center gap-2 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-gray-50 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+            </svg>
+            Import / Export
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <div class="absolute right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-2 w-56 z-50 hidden group-hover:block">
+            <div class="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Import</div>
+            <button (click)="showImportModal.set(true); resetImport()" 
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium flex items-center gap-2 transition-colors">
+              <span class="text-base">📥</span> Upload / Import Questions
+            </button>
+            
+            <div class="border-t border-gray-50 my-2"></div>
+            
+            <div class="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Export Selection</div>
+            <button (click)="exportXML()" 
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium flex items-center gap-2 transition-colors">
+              <span class="text-base">📄</span> Moodle XML (.xml)
+            </button>
+            <button (click)="exportGIFT()" 
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium flex items-center gap-2 transition-colors">
+              <span class="text-base">🎁</span> GIFT Format (.txt)
+            </button>
+          </div>
+        </div>
+
+        <p-button label="Add New Question" icon="pi pi-plus" [routerLink]="['/teacher/new-question']" />
         <button (click)="signOut()" class="text-gray-400 hover:text-red-600 transition p-2">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -23,65 +60,434 @@
       </div>
     </div>
 
-    <!-- Stats Summary -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <p class="text-sm font-semibold text-gray-400 uppercase">Total Submitted</p>
-        <p class="text-3xl font-black text-gray-800">{{ myQuestions().length }}</p>
+    <!-- IMPORT MODAL -->
+    <p-dialog [visible]="showImportModal()" (visibleChange)="showImportModal.set($event)" [modal]="true" [style]="{ width: '50rem' }" [breakpoints]="{ '1199px': '75vw', '575px': '90vw' }" [draggable]="false" [resizable]="false">
+      <ng-template pTemplate="header">
+        <div>
+          <h2 class="text-xl font-extrabold text-gray-900">Import Questions</h2>
+          <p class="text-xs text-gray-400 mt-0.5">Moodle XML &bull; GIFT &bull; Aiken</p>
+        </div>
+      </ng-template>
+
+      <div class="space-y-5 py-2">
+        <!-- Format tabs -->
+        <div class="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+          <button (click)="importFormat.set('moodle_xml'); resetImport()"
+                  [class.bg-white]="importFormat() === 'moodle_xml'"
+                  [class.shadow]="importFormat() === 'moodle_xml'"
+                  [class.text-blue-600]="importFormat() === 'moodle_xml'"
+                  [class.font-bold]="importFormat() === 'moodle_xml'"
+                  class="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 transition-all">
+            Moodle XML
+          </button>
+          <button (click)="importFormat.set('gift'); resetImport()"
+                  [class.bg-white]="importFormat() === 'gift'"
+                  [class.shadow]="importFormat() === 'gift'"
+                  [class.text-blue-600]="importFormat() === 'gift'"
+                  [class.font-bold]="importFormat() === 'gift'"
+                  class="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 transition-all">
+            GIFT
+          </button>
+          <button (click)="importFormat.set('aiken'); resetImport()"
+                  [class.bg-white]="importFormat() === 'aiken'"
+                  [class.shadow]="importFormat() === 'aiken'"
+                  [class.text-blue-600]="importFormat() === 'aiken'"
+                  [class.font-bold]="importFormat() === 'aiken'"
+                  class="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 transition-all">
+            Aiken
+          </button>
+        </div>
+        <!-- Format hint -->
+        <div class="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700 leading-relaxed">
+          <span *ngIf="importFormat() === 'moodle_xml'">📄 <strong>Moodle XML</strong> — Upload a .xml file exported from Moodle or this system. Supports all question types with full metadata.</span>
+          <span *ngIf="importFormat() === 'gift'">🎁 <strong>GIFT</strong> — Plain text format. Example: <code class="bg-blue-100 px-1 rounded">::Name::What is 2+2? {{ '{' }}=4 ~3 ~5{{ '}' }}</code></span>
+          <span *ngIf="importFormat() === 'aiken'">📋 <strong>Aiken</strong> — MC only. Choices as <code class="bg-blue-100 px-1 rounded">A. text</code>, answer line as <code class="bg-blue-100 px-1 rounded">ANSWER: A</code></span>
+        </div>
+        <!-- File upload -->
+        <div>
+          <label class="block text-sm font-bold text-gray-700 mb-2">Upload File</label>
+          <input type="file" [accept]="importFormat() === 'moodle_xml' ? '.xml' : '.txt,.gift'"
+                 (change)="onImportFileSelected($event)"
+                 class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+        </div>
+        <!-- Paste -->
+        <div>
+          <label class="block text-sm font-bold text-gray-700 mb-2">Or Paste Text</label>
+          <textarea [(ngModel)]="importText" (input)="parseImportPreview()" rows="5"
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                    placeholder="Paste content here..."></textarea>
+        </div>
+        <!-- Error -->
+        <div *ngIf="importError()" class="bg-red-50 border border-red-100 rounded-xl p-3 text-sm text-red-700 font-medium">
+          ⚠️ {{ importError() }}
+        </div>
+        <!-- Preview -->
+        <div *ngIf="importPreview().length > 0">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-extrabold text-gray-800">{{ importPreview().length }} question(s) found</h3>
+            <span class="text-xs text-gray-400">Will be saved as <strong>Draft</strong></span>
+          </div>
+          <div class="border border-gray-100 rounded-xl overflow-hidden max-h-44 overflow-y-auto">
+            <table class="w-full text-xs">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr>
+                  <th class="px-3 py-2 text-left text-gray-500 font-bold uppercase tracking-wider">#</th>
+                  <th class="px-3 py-2 text-left text-gray-500 font-bold uppercase tracking-wider">Name</th>
+                  <th class="px-3 py-2 text-left text-gray-500 font-bold uppercase tracking-wider w-20">Type</th>
+                  <th class="px-3 py-2 text-left text-gray-500 font-bold uppercase tracking-wider">Category Path</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-50">
+                <tr *ngFor="let q of importPreview(); let i = index" class="hover:bg-blue-50/30">
+                  <td class="px-3 py-2 text-gray-400 font-bold">{{ i + 1 }}</td>
+                  <td class="px-3 py-2 text-gray-700 max-w-xs truncate">{{ q.name }}</td>
+                  <td class="px-3 py-2"><span class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-bold uppercase text-[10px]">{{ q.qtype.substring(0,4) }}</span></td>
+                  <td class="px-3 py-2 text-gray-400 truncate max-w-[200px]" [title]="q.category_path || 'Selected Category'">{{ q.category_path || '---' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Detailed Log -->
+        <div *ngIf="importLoading()" class="bg-gray-900 rounded-xl p-4 font-mono text-[10px] text-green-400 space-y-1 max-h-40 overflow-y-auto">
+          <div *ngFor="let log of importLogs()">> {{ log }}</div>
+          <div class="animate-pulse">_</div>
+        </div>
       </div>
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <p class="text-sm font-semibold text-yellow-500 uppercase">Pending Review</p>
-        <p class="text-3xl font-black text-gray-800">{{ myQuestions().length }}</p> <!-- Simplified for now -->
+
+      <ng-template pTemplate="footer">
+        <p-button label="Cancel" severity="secondary" (click)="showImportModal.set(false)" text="true" />
+        <p-button [label]="importLoading() ? 'Importing...' : 'Import ' + importPreview().length + ' Questions'" 
+                  [loading]="importLoading()" 
+                  [disabled]="importPreview().length === 0 || importLoading()" 
+                  (click)="confirmImport()" />
+      </ng-template>
+    </p-dialog>
+
+    <!-- Header Actions removed (duplicate button) -->
+
+    <!-- Category Management -->
+    <div class="mb-6">
+      <div class="flex items-center justify-between mb-3">
+        <button (click)="showCategoryPanel.set(!showCategoryPanel())" 
+                class="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+          Categories
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 transition-transform" 
+               [class.rotate-180]="showCategoryPanel()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        <div class="flex items-center gap-2">
+          <button *ngIf="selectedCategoryId()" (click)="selectCategory(null)" 
+                  class="text-xs font-bold text-blue-600 hover:underline">
+            Show All Questions
+          </button>
+        </div>
       </div>
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-blue-600">
-        <p class="text-sm font-semibold text-blue-400 uppercase">Approved</p>
-        <p class="text-3xl font-black">0</p>
+
+      <!-- Category Filter Pills (always visible) -->
+      <div class="flex flex-wrap gap-2 mb-4" *ngIf="categories().length > 0">
+        <button (click)="selectCategory(null)"
+                [class.bg-blue-600]="!selectedCategoryId()"
+                [class.text-white]="!selectedCategoryId()"
+                [class.bg-gray-100]="selectedCategoryId()"
+                [class.text-gray-600]="selectedCategoryId()"
+                class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:shadow-sm">
+          All
+        </button>
+        <ng-container *ngFor="let cat of getFlatCategories()">
+          <button (click)="selectCategory(cat.id)"
+                  [class.bg-blue-600]="selectedCategoryId() === cat.id"
+                  [class.text-white]="selectedCategoryId() === cat.id"
+                  [class.bg-gray-100]="selectedCategoryId() !== cat.id"
+                  [class.text-gray-600]="selectedCategoryId() !== cat.id"
+                  class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:shadow-sm"
+                  [style.margin-left.px]="cat.depth * 12">
+            {{ cat.depth > 0 ? '↳ ' : '' }}{{ cat.name }}
+          </button>
+        </ng-container>
+      </div>
+
+      <!-- Expanded Category Panel -->
+      <div *ngIf="showCategoryPanel()" class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-6">
+        <h3 class="text-sm font-extrabold text-gray-800 uppercase tracking-wider mb-4">Manage Categories</h3>
+
+        <!-- Category List -->
+        <div class="space-y-1 mb-6 max-h-60 overflow-y-auto">
+          <div *ngIf="categories().length === 0" class="text-sm text-gray-400 py-4 text-center">
+            No categories yet. Create one below.
+          </div>
+          <ng-container *ngFor="let cat of getFlatCategories()">
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 group"
+                 [style.padding-left.px]="16 + cat.depth * 20">
+              <div class="flex items-center gap-2 flex-1 min-w-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-yellow-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
+                </svg>
+                <span class="text-sm font-medium text-gray-700 truncate">{{ cat.name }}</span>
+              </div>
+              <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button (click)="initiateDeleteCategory(cat.id)" 
+                        class="text-red-400 hover:text-red-600 transition-colors p-1"
+                        title="Delete Category">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </ng-container>
+        </div>
+
+        <!-- Add Category Form -->
+        <div class="border-t border-gray-100 pt-4">
+          <div class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Add New Category</div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <input [(ngModel)]="newCategoryName" 
+                   placeholder="Category name"
+                   class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+            <select [(ngModel)]="newCategoryParent"
+                    class="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+              <option [ngValue]="null">Top Level (No Parent)</option>
+              <option *ngFor="let cat of getFlatCategories()" [ngValue]="cat.id">
+                {{ '—'.repeat(cat.depth) }} {{ cat.name }}
+              </option>
+            </select>
+            <p-button label="Add Category" 
+                      (onClick)="addCategory()" 
+                      [disabled]="!newCategoryName.trim()"
+                      styleClass="w-full">
+            </p-button>
+          </div>
+          <input [(ngModel)]="newCategoryDescription" 
+                 placeholder="Optional description"
+                 class="mt-2 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+        </div>
       </div>
     </div>
 
-    <!-- Questions Table -->
-    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-      <div class="px-8 py-6 border-b border-gray-50 flex justify-between items-center">
-        <h2 class="text-lg font-bold text-gray-800">My Question Bank</h2>
-      </div>
+    <!-- Floating Bulk Actions Bar (Modern Fixed Bottom) -->
+    <div *ngIf="selectedIds().size > 0" 
+         class="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-8 duration-300 w-full max-w-fit px-4">
+      <div class="bg-brand-dark text-white rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-4 border border-white/10 backdrop-blur-xl bg-opacity-95 overflow-x-auto whitespace-nowrap">
+        
+        <!-- Selection Info -->
+        <div class="flex items-center gap-3 border-r border-white/10 pr-4">
+          <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-black text-xs">
+            {{ selectedIds().size }}
+          </div>
+          <div class="hidden sm:flex flex-col">
+            <span class="text-[10px] font-black uppercase tracking-widest text-blue-400">Selected</span>
+            <span class="text-[9px] text-gray-500">Items</span>
+          </div>
+        </div>
 
+        <!-- Bulk Move -->
+        <div class="flex items-center gap-2">
+          <p-select [ngModel]="bulkTargetCategoryId()" 
+                    (ngModelChange)="bulkTargetCategoryId.set($event)"
+                    [options]="categoryOptions"
+                    placeholder="Move to category..."
+                    styleClass="w-44 text-xs bg-white/5 border-white/10 text-gray-200"
+                    panelStyleClass="bg-brand-dark text-gray-200 border-gray-700">
+          </p-select>
+          <p-button [label]="!loading() ? 'Move' : ''" 
+                    [icon]="loading() ? 'pi pi-spin pi-spinner' : ''" 
+                    (onClick)="moveSelectedQuestions(bulkTargetCategoryId())"
+                    [disabled]="!bulkTargetCategoryId() || loading()"
+                    styleClass="p-button-sm">
+          </p-button>
+        </div>
+
+        <div class="w-px h-8 bg-white/10"></div>
+
+        <!-- Bulk Delete (Prominent Button) -->
+        <p-button label="Delete Selected" 
+                  icon="pi pi-trash" 
+                  severity="danger" 
+                  [text]="true" 
+                  (onClick)="bulkDeleteQuestions()"
+                  styleClass="p-button-sm">
+        </p-button>
+
+        <div class="w-px h-8 bg-white/10"></div>
+
+        <!-- Cancel -->
+        <button (click)="clearSelection()" 
+                class="text-xs font-bold text-gray-500 hover:text-white transition-colors">
+          Cancel
+        </button>
+      </div>
+    </div>
+
+    <!-- Moodle Style Question Bank Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="w-full text-left">
-          <thead class="bg-gray-50 text-gray-400 text-xs font-bold uppercase tracking-wider">
-            <tr>
-              <th class="px-8 py-4">Question Title</th>
-              <th class="px-8 py-4">Status</th>
-              <th class="px-8 py-4">Date Created</th>
-              <th class="px-8 py-4"></th>
+        <table class="w-full text-left border-collapse">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr class="text-[11px] font-bold text-blue-600 uppercase tracking-wider">
+              <th class="px-4 py-3 w-10">
+                <input type="checkbox" 
+                       [checked]="isAllSelected()"
+                       (change)="toggleSelectAll($event)"
+                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+              </th>
+              <th class="px-2 py-3 w-8">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                </svg>
+              </th>
+              <th class="px-4 py-3">Actions</th>
+              <th class="px-4 py-3 bg-yellow-50/50">Question <div class="text-[9px] font-normal text-green-600">Question name / ID number</div></th>
+              <th class="px-4 py-3">Status</th>
+              <th class="px-4 py-3">Version</th>
+              <th class="px-4 py-3">Author <div class="text-[9px] font-normal text-blue-400">Name / Date</div></th>
+              <th class="px-4 py-3 text-center">Comments</th>
+              <th class="px-4 py-3 bg-yellow-50/50">Modified by <div class="text-[9px] font-normal text-green-600">Name / Date</div></th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-50">
-            <tr *ngFor="let q of myQuestions()" class="hover:bg-gray-50 transition">
-              <td class="px-8 py-5">
-                <div class="flex flex-col">
-                  <span class="font-bold text-gray-800">{{ q.name }}</span>
-                  <span class="text-sm text-gray-400 truncate max-w-xs">{{ q.question_text }}</span>
-                </div>
-              </td>
-              <td class="px-8 py-5">
-                <span class="px-3 py-1 rounded-full text-xs font-bold"
-                      [ngClass]="{
-                        'bg-yellow-100 text-yellow-700': q.status === 'pending_review',
-                        'bg-green-100 text-green-700': q.status === 'approved',
-                        'bg-red-100 text-red-700': q.status === 'rejected'
-                      }">
-                  {{ q.status.replace('_', ' ') | titlecase }}
-                </span>
-              </td>
-              <td class="px-8 py-5 text-sm text-gray-500">
-                {{ q.created_at | date:'mediumDate' }}
-              </td>
-              <td class="px-8 py-5 text-right">
-                <button class="text-blue-600 hover:text-blue-800 font-bold text-sm">View Details</button>
+          <tbody class="divide-y divide-gray-100">
+            <!-- Select All Across Pages Banner -->
+            <tr *ngIf="isAllSelected() && myQuestions().length > paginatedQuestions.length && selectedIds().size < myQuestions().length" class="bg-blue-50/80 border-b border-blue-100">
+              <td colspan="9" class="px-4 py-3 text-center text-xs font-bold text-blue-800">
+                <span class="bg-blue-100 px-2 py-1 rounded mr-2">Tip</span>
+                All {{ paginatedQuestions.length }} questions on this page are selected.
+                <button (click)="selectAllQuestions()" class="ml-1 text-blue-600 underline hover:text-blue-900 transition-colors">
+                  Select all {{ myQuestions().length }} questions in this category
+                </button>
               </td>
             </tr>
+            <tr *ngIf="selectedIds().size === myQuestions().length && myQuestions().length > paginatedQuestions.length" class="bg-blue-600 border-b border-blue-500">
+              <td colspan="9" class="px-4 py-3 text-center text-xs font-bold text-white">
+                All {{ myQuestions().length }} questions in this category are selected.
+                <button (click)="clearSelection()" class="ml-4 text-blue-100 underline hover:text-white transition-colors">
+                  Clear selection
+                </button>
+              </td>
+            </tr>
+            <ng-container *ngFor="let question of paginatedQuestions">
+              <tr class="hover:bg-blue-50/30 transition-colors group" [class.bg-blue-50]="selectedIds().has(question.id)">
+                <td class="px-4 py-4">
+                  <input type="checkbox" 
+                         [checked]="selectedIds().has(question.id)"
+                         (change)="toggleSelection(question.id)"
+                         class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                </td>
+                <td class="px-2 py-4">
+                  <span class="text-[10px] font-black text-gray-400 uppercase tracking-tighter border border-gray-200 px-1 rounded">
+                    {{ question.qtype.substring(0, 2).toUpperCase() }}
+                  </span>
+                </td>
+                <td class="px-4 py-4">
+                  <div class="flex items-center gap-1 text-blue-600 text-sm font-medium">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    <a [routerLink]="['/teacher/edit-question', question.id]" class="hover:underline">Edit</a>
+                    <div class="w-px h-3 bg-gray-200 mx-1"></div>
+                    <button (click)="deleteQuestion(question.id, question.name)" class="text-red-500 hover:text-red-700 transition-colors">
+                      Delete
+                    </button>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </td>
+                <!-- Question Name (Inline Editable) -->
+                <td class="px-4 py-4 bg-yellow-50/30">
+                  <div class="flex items-center gap-2 group/name">
+                    <ng-container *ngIf="!question.isEditingName">
+                      <span class="text-sm font-bold text-gray-800">{{ question.name }}</span>
+                      <button (click)="question.isEditingName = true" class="opacity-0 group-hover/name:opacity-100 transition-opacity">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                    </ng-container>
+                    <input *ngIf="question.isEditingName" 
+                           #nameInput
+                           [value]="question.name"
+                           (blur)="updateQuestionName(question, nameInput.value)"
+                           (keyup.enter)="updateQuestionName(question, nameInput.value)"
+                           class="text-sm font-bold text-gray-800 bg-white border border-blue-400 rounded px-2 py-1 outline-none w-full"
+                           autoFocus>
+                  </div>
+                </td>
+
+                <!-- Status (Dropdown) -->
+                <td class="px-4 py-4">
+                  <select [value]="question.status" 
+                          (change)="updateQuestionStatus(question, $any($event.target).value)"
+                          class="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold text-gray-600 shadow-sm outline-none focus:border-blue-400 transition-colors cursor-pointer">
+                    <option value="draft">Draft</option>
+                    <option value="pending_review">Review</option>
+                    <option value="approved" *ngIf="question.status === 'approved'">Ready</option>
+                    <option value="rejected" *ngIf="question.status === 'rejected'">Rejected</option>
+                  </select>
+                </td>
+
+                <!-- Version (Dropdown Selector) -->
+                <td class="px-4 py-4">
+                  <div class="flex items-center gap-2">
+                    <select [value]="question.id" 
+                            (change)="switchVersion(question, $any($event.target).value)"
+                            class="bg-blue-50 border border-blue-100 rounded-lg px-2 py-1 text-xs font-bold text-blue-700 outline-none hover:bg-blue-100 transition-colors cursor-pointer">
+                      <option *ngFor="let v of question.allVersions" [value]="v.id">
+                        v{{ v.version }} {{ v.status === 'approved' ? '(Ready)' : '' }}
+                      </option>
+                    </select>
+                  </div>
+                </td>
+                <td class="px-4 py-4">
+                  <div class="text-[11px]">
+                    <div class="text-blue-600 hover:underline cursor-pointer">{{ question.metadata?.author_name || 'Me' }}</div>
+                    <div class="text-gray-400 mt-0.5">{{ question.created_at | date:'d MMMM y, h:mm a' }}</div>
+                  </div>
+                </td>
+                <td class="px-4 py-4">
+                  <p-button [label]="((question.metadata?.comments || []).length).toString()" 
+                            icon="pi pi-comment" 
+                            [text]="true" 
+                            (onClick)="openComments(question)" 
+                            styleClass="p-button-sm p-button-rounded p-button-secondary">
+                  </p-button>
+                </td>
+                <td class="px-4 py-4 bg-yellow-50/30">
+                  <div class="text-[11px]">
+                    <div class="text-gray-700 font-medium">{{ question.metadata?.modified_by || question.metadata?.author_name || 'Me' }}</div>
+                    <div class="text-gray-400 mt-0.5">{{ question.metadata?.modified_at ? (question.metadata?.modified_at | date:'d MMM y, h:mm a') : (question.created_at | date:'d MMM y, h:mm a') }}</div>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Nested History (if expanded) -->
+              <tr *ngIf="question.showHistory" class="bg-gray-50/50">
+                <td colspan="9" class="px-12 py-3 border-l-4 border-blue-400">
+                  <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Previous Versions</div>
+                  <div *ngFor="let h of question.history" class="flex items-center gap-10 py-1.5 border-b border-gray-100 last:border-0">
+                    <span class="text-xs font-bold text-gray-600 w-8">v{{ h.version }}</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded border font-bold"
+                      [ngClass]="{
+                        'bg-green-50 text-green-700': h.status === 'approved',
+                        'bg-yellow-50 text-yellow-700': h.status === 'pending_review',
+                        'bg-gray-50 text-gray-500': h.status === 'draft'
+                      }">
+                      {{ h.status === 'approved' ? 'Ready' : h.status.split('_')[0] }}
+                    </span>
+                    <span class="text-xs text-gray-400">{{ h.created_at | date:'medium' }}</span>
+                    <a [routerLink]="['/teacher/edit-question', h.id]" class="text-[11px] font-bold text-blue-600 hover:underline ml-auto">Restore/View</a>
+                  </div>
+                </td>
+              </tr>
+            </ng-container>
+
+            <!-- Empty State -->
             <tr *ngIf="myQuestions().length === 0 && !loading()">
-              <td colspan="4" class="px-8 py-20 text-center">
+              <td colspan="9" class="px-8 py-20 text-center border-none">
                 <div class="flex flex-col items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -94,6 +500,138 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Pagination Controls -->
+      <div class="border-t border-gray-200">
+        <p-paginator 
+          (onPageChange)="onPageChange($event)" 
+          [first]="(currentPage() - 1) * pageSize()" 
+          [rows]="pageSize()" 
+          [totalRecords]="myQuestions().length" 
+          [rowsPerPageOptions]="[10, 20, 50, 100]" 
+          [showCurrentPageReport]="true"
+          currentPageReportTemplate="Showing {first} to {last} of {totalRecords} questions"
+          styleClass="bg-white">
+        </p-paginator>
+      </div>
     </div>
   </div>
+
+
 </div>
+
+<!-- Slide-over Comments Modal -->
+<p-drawer [visible]="showComments()" (visibleChange)="showComments.set($event)" position="right" [showCloseIcon]="false" styleClass="w-full md:w-[28rem]">
+  <ng-template pTemplate="header">
+    <div class="flex items-center justify-between w-full">
+      <div>
+        <h2 class="text-xl font-extrabold text-gray-900">Question Comments</h2>
+        <p class="text-xs text-gray-500 mt-1">Collaborate and leave notes on this question.</p>
+      </div>
+      <button (click)="closeComments()" class="p-2 hover:bg-gray-50 rounded-xl transition text-gray-400">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  </ng-template>
+
+  <div class="flex flex-col h-full">
+    <!-- Comments List -->
+    <div class="flex-1 overflow-y-auto py-2 space-y-6">
+      <div *ngIf="!(selectedQuestion()?.metadata?.comments?.length)" class="text-center py-20">
+        <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </div>
+        <p class="text-sm text-gray-500">No comments yet. Be the first to start the discussion!</p>
+      </div>
+
+      <div *ngFor="let comment of selectedQuestion()?.metadata?.comments" class="flex gap-4">
+        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs uppercase">
+          {{ comment.user.substring(0, 1) }}
+        </div>
+        <div class="flex-1">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-black text-gray-900">{{ comment.user }}</span>
+            <span class="text-[10px] text-gray-400">{{ comment.date | date:'short' }}</span>
+          </div>
+          <div class="bg-gray-50 rounded-2xl p-4 text-sm text-gray-700 leading-relaxed">
+            {{ comment.text }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="pt-4 mt-auto border-t border-gray-100">
+      <div class="relative">
+        <textarea 
+          [(ngModel)]="newCommentText"
+          placeholder="Write a comment..." 
+          class="w-full bg-white border border-gray-200 rounded-2xl p-4 pr-16 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all min-h-[100px] resize-none"
+        ></textarea>
+        <p-button 
+          icon="pi pi-send" 
+          [disabled]="!newCommentText.trim()"
+          (onClick)="addComment()"
+          styleClass="absolute bottom-4 right-4">
+        </p-button>
+      </div>
+    </div>
+  </div>
+</p-drawer>
+
+<!-- Category Deletion Modal -->
+<p-dialog [visible]="!!categoryToDelete()" (visibleChange)="!$event && cancelDeleteCategory()" [modal]="true" [style]="{ width: '35rem' }" [draggable]="false" [resizable]="false">
+  <ng-template pTemplate="header">
+    <div class="flex items-center gap-4 text-red-600">
+      <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      </div>
+      <div>
+        <h2 class="text-lg font-bold text-gray-900">Delete Category</h2>
+        <p class="text-sm text-gray-500 font-medium mt-1">This category is not empty.</p>
+      </div>
+    </div>
+  </ng-template>
+
+  <div class="space-y-4 py-4">
+    <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+      <p class="text-sm text-gray-700 font-medium mb-2">
+        The category <strong>"{{ categoryToDelete()?.name }}"</strong> contains:
+      </p>
+      <ul class="list-disc list-inside text-sm text-gray-600 space-y-1">
+        <li *ngIf="categoryToDelete()?.question_count"><span class="font-bold text-gray-900">{{ categoryToDelete()?.question_count }}</span> questions</li>
+        <li *ngIf="categoryToDelete()?.children?.length"><span class="font-bold text-gray-900">{{ categoryToDelete()?.children?.length }}</span> sub-categories</li>
+      </ul>
+    </div>
+
+    <div class="space-y-2">
+      <label class="block text-sm font-bold text-gray-700">Where do you want to move them?</label>
+      <p-select [ngModel]="deleteMoveToCategoryId()" 
+                (ngModelChange)="deleteMoveToCategoryId.set($event)"
+                [options]="categoryOptions"
+                placeholder="Select a destination category..."
+                styleClass="w-full text-sm">
+      </p-select>
+      <p class="text-[11px] text-gray-400 mt-1 flex items-center gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        You must select a destination to continue deletion.
+      </p>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" severity="secondary" (click)="cancelDeleteCategory()" text="true" />
+    <p-button label="Move & Delete" severity="danger" 
+              [loading]="loading()" 
+              [disabled]="!deleteMoveToCategoryId() || loading()" 
+              (click)="confirmDeleteCategory()" />
+  </ng-template>
+</p-dialog>

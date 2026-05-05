@@ -14,6 +14,36 @@
       </button>
     </div>
 
+    <!-- Question Types Overview -->
+    <div class="mb-10 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-extrabold text-gray-900 tracking-tight">Question Types</h2>
+          <p class="text-xs text-gray-400 mt-0.5">Distribution across the entire question bank</p>
+        </div>
+        <div class="bg-blue-50 px-4 py-2 rounded-xl">
+          <span class="text-2xl font-black text-blue-600">{{ totalQuestions() }}</span>
+          <span class="text-xs font-bold text-blue-400 ml-1">Total</span>
+        </div>
+      </div>
+      <div class="p-6">
+        <div *ngIf="questionTypeCounts().length === 0 && !loading()" class="text-center py-8 text-gray-400 text-sm">
+          No questions in the bank yet.
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div *ngFor="let tc of questionTypeCounts()" 
+               class="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-all group">
+            <span class="text-xl">{{ tc.icon }}</span>
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold text-gray-700 truncate group-hover:text-blue-700 transition-colors">{{ tc.label }}</div>
+              <div class="text-[10px] text-gray-400">{{ tc.type }}</div>
+            </div>
+            <div class="text-lg font-black text-gray-300 group-hover:text-blue-600 transition-colors">{{ tc.count }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Review List -->
     <div class="space-y-6">
       <div *ngIf="pendingQuestions().length === 0 && !loading()" class="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm">
@@ -31,16 +61,21 @@
           <div class="flex-1">
             <div class="flex items-center gap-3 mb-2">
               <span class="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded">MULTICHOICE</span>
-              <span class="text-xs text-gray-400 font-medium">{{ q.created_at | date:'medium' }}</span>
+              <span class="px-2 py-0.5 bg-gray-100 text-gray-400 rounded text-[10px] font-bold border border-gray-200">v{{ q.version || 1 }}</span>
+              <span class="text-xs text-gray-400 font-medium">By {{ q.metadata?.author_name || 'Teacher' }} • {{ q.created_at | date:'medium' }}</span>
             </div>
             <h2 class="text-xl font-black text-gray-900 group-hover:text-blue-600 transition">{{ q.name }}</h2>
             <p class="text-gray-600 mt-3 leading-relaxed">{{ q.question_text }}</p>
           </div>
           
           <div class="flex flex-row md:flex-col justify-end gap-3">
+            <button [routerLink]="['/teacher/edit-question', q.id]"
+                    class="bg-blue-50 text-blue-600 px-6 py-2 rounded-xl font-bold hover:bg-blue-600 hover:text-white transition">
+              Review Details
+            </button>
             <button (click)="updateStatus(q.id, 'approved')" 
                     class="bg-green-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-green-700 transition shadow-lg shadow-green-100">
-              Approve
+              Set as Ready
             </button>
             <button (click)="updateStatus(q.id, 'rejected')" 
                     class="bg-white text-red-600 border-2 border-red-50 px-6 py-2 rounded-xl font-bold hover:bg-red-50 transition">

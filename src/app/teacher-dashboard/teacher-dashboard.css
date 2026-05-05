@@ -13,9 +13,7 @@ table tr {
 }
 
 table tr:hover {
-  transform: scale(1.002);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 /* Status Badge Glows */
