@@ -1,60 +1,51 @@
-<div class="auth-container">
-  <div class="auth-card">
-    <div class="auth-header">
-      <h2>{{ isSignUp() ? 'Create an Account' : 'Welcome Back' }}</h2>
-      <p>{{ isSignUp() ? 'Sign up to get started' : 'Sign in to your account' }}</p>
+<div class="min-h-screen flex items-center justify-center bg-gray-50 p-6 md:p-12 relative overflow-hidden">
+  <!-- Dynamic Background Element -->
+  <div class="absolute -top-24 -right-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"></div>
+  <div class="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"></div>
+
+  <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 md:p-12 relative z-10 border border-gray-100">
+    <div class="text-center mb-10">
+      <h2 class="text-3xl font-black text-brand-dark tracking-tight mb-2">
+        Welcome Back
+      </h2>
+      <p class="text-gray-500 font-medium">
+        Sign in to continue your work
+      </p>
     </div>
 
-    <form class="auth-form" (ngSubmit)="onSubmit()">
-      <div class="form-group">
-        <label for="email">Email</label>
-        <input 
-          type="email" 
-          id="email" 
-          name="email" 
-          [(ngModel)]="email" 
-          placeholder="you@example.com" 
-          required 
-          autocomplete="email"
-        />
+    <form (ngSubmit)="onSubmit()" class="flex flex-col gap-6">
+      <div class="flex flex-col gap-2">
+        <label for="email" class="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
+        <p-iconfield iconPosition="left" class="w-full">
+          <p-inputicon styleClass="pi pi-envelope text-gray-400"></p-inputicon>
+          <input pInputText type="email" id="email" name="email" [(ngModel)]="email" placeholder="you@example.com"
+            class="w-full rounded-2xl py-4" required />
+        </p-iconfield>
       </div>
 
-      <div class="form-group">
-        <label for="password">Password</label>
-        <input 
-          type="password" 
-          id="password" 
-          name="password" 
-          [(ngModel)]="password" 
-          placeholder="••••••••" 
-          required 
-          autocomplete="current-password"
-        />
+      <div class="flex flex-col gap-2">
+        <label for="password" class="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Password</label>
+        <p-password [(ngModel)]="password" [toggleMask]="true" [feedback]="false" name="password" id="password"
+          styleClass="w-full" inputStyleClass="w-full rounded-2xl py-4" placeholder="••••••••"
+          [required]="true"></p-password>
       </div>
 
-      <div *ngIf="errorMessage()" class="alert error-alert">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+      <div *ngIf="errorMessage()"
+        class="bg-red-50 text-red-500 p-4 rounded-2xl text-xs font-bold flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+        <i class="pi pi-exclamation-circle text-lg"></i>
         <span>{{ errorMessage() }}</span>
       </div>
 
-      <div *ngIf="successMessage()" class="alert success-alert">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+      <div *ngIf="successMessage()"
+        class="bg-green-50 text-green-600 p-4 rounded-2xl text-xs font-bold flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+        <i class="pi pi-check-circle text-lg"></i>
         <span>{{ successMessage() }}</span>
       </div>
 
-      <button type="submit" class="submit-btn" [disabled]="loading()">
-        <span *ngIf="!loading()">{{ isSignUp() ? 'Sign Up' : 'Sign In' }}</span>
-        <span *ngIf="loading()" class="loader"></span>
-      </button>
+      <p-button type="submit" label="Sign In" [loading]="loading()"
+        [disabled]="loading() || !email || !password"
+        styleClass="w-full py-4 rounded-2xl shadow-lg shadow-blue-500/20 font-bold text-lg mt-2">
+      </p-button>
     </form>
-
-    <div class="auth-footer">
-      <p>
-        {{ isSignUp() ? 'Already have an account?' : "Don't have an account?" }}
-        <button type="button" class="toggle-btn" (click)="toggleMode()">
-          {{ isSignUp() ? 'Sign In' : 'Sign Up' }}
-        </button>
-      </p>
-    </div>
   </div>
 </div>

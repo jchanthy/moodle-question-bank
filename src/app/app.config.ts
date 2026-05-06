@@ -22,6 +22,22 @@ const MyPreset = definePreset(Aura, {
             800: '#1b6388',
             900: '#195372',
             950: '#11354c'
+        },
+        colorScheme: {
+            light: {
+                success: {
+                    color: '#76bd22'
+                },
+                info: {
+                    color: '#3db5e6'
+                },
+                warn: {
+                    color: '#ffc600'
+                },
+                error: {
+                    color: '#ff4539'
+                }
+            }
         }
     }
 });

@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, effect } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SupabaseService } from '../services/supabase.service';
@@ -9,6 +9,7 @@ export interface Question {
   id: string;
   name: string;
   question_text: string;
+  general_feedback?: string;
   qtype: string;
   version: number;
   status: string;
@@ -83,6 +84,51 @@ export class TeacherDashboardComponent implements OnInit {
   selectedQuestion = signal<Question | null>(null);
   newCommentText = '';
   
+  // Filters
+  filterHidden = signal(false);
+  filterType = signal<string>('');
+  filterDateFrom = signal<string>('');
+  filterDateTo = signal<string>('');
+  filterStatus = signal<string>('');
+  filterKeyword = signal<string>('');
+
+  filteredQuestions = computed(() => {
+    let q = this.myQuestions();
+    
+    // Keyword search
+    const kw = this.filterKeyword().toLowerCase();
+    if (kw) {
+      q = q.filter(x => 
+        x.name.toLowerCase().includes(kw) || 
+        x.question_text.toLowerCase().includes(kw) || 
+        (x.general_feedback && x.general_feedback.toLowerCase().includes(kw)) ||
+        (x.id && x.id.toLowerCase().includes(kw))
+      );
+    }
+    
+    // Type filter
+    if (this.filterType()) {
+      q = q.filter(x => x.qtype === this.filterType());
+    }
+    
+    // Status filter
+    if (this.filterStatus()) {
+      q = q.filter(x => x.status === this.filterStatus());
+    }
+    
+    // Date filter
+    if (this.filterDateFrom()) {
+      const from = new Date(this.filterDateFrom()).getTime();
+      q = q.filter(x => new Date(x.updated_at || x.created_at).getTime() >= from);
+    }
+    if (this.filterDateTo()) {
+      const to = new Date(this.filterDateTo()).getTime() + 86400000; // include the whole day
+      q = q.filter(x => new Date(x.updated_at || x.created_at).getTime() <= to);
+    }
+    
+    return q;
+  });
+
   // Selection & Pagination
   selectedIds = signal<Set<string>>(new Set());
   currentPage = signal(1);
@@ -146,11 +192,14 @@ export class TeacherDashboardComponent implements OnInit {
 
     this.loading.set(true);
     try {
-      const query = this.supabaseService.db
+      let query = this.supabaseService.db
         .from('questions')
         .select('*')
-        .eq('created_by', user.id)
-        .is('deleted_at', null);
+        .eq('created_by', user.id);
+
+      if (!this.filterHidden()) {
+        query = query.is('deleted_at', null);
+      }
 
       // Filter by category if one is selected
       if (this.selectedCategoryId()) {
@@ -202,9 +251,26 @@ export class TeacherDashboardComponent implements OnInit {
     }
   }
 
+  toggleHiddenFilter() {
+    this.filterHidden.set(!this.filterHidden());
+    this.loadMyQuestions();
+  }
+
+  clearFilters() {
+    this.filterHidden.set(false);
+    this.filterType.set('');
+    this.filterDateFrom.set('');
+    this.filterDateTo.set('');
+    this.filterStatus.set('');
+    this.filterKeyword.set('');
+    this.selectedCategoryId.set(null);
+    this.currentPage.set(1);
+    this.loadMyQuestions();
+  }
+
   // Pagination Logic
   get totalPages() {
-    return Math.ceil(this.myQuestions().length / this.pageSize());
+    return Math.ceil(this.filteredQuestions().length / this.pageSize());
   }
 
   getVisiblePages(): number[] {
@@ -236,7 +302,7 @@ export class TeacherDashboardComponent implements OnInit {
   get paginatedQuestions() {
     const start = (this.currentPage() - 1) * this.pageSize();
     const end = start + this.pageSize();
-    return this.myQuestions().slice(start, end);
+    return this.filteredQuestions().slice(start, end);
   }
 
   setPage(page: number) {

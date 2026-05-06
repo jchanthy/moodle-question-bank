@@ -246,16 +246,6 @@
           </h2>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label class="block text-sm font-bold text-gray-700">Default Grade</label>
-              <input type="number" formControlName="default_grade" step="0.1" (wheel)="$event.preventDefault()"
-                class="mt-1 block w-full rounded-xl border-gray-200 shadow-sm focus:ring-blue-500 focus:border-blue-500 p-3 border bg-gray-50/50 font-medium">
-            </div>
-            <div>
-              <label class="block text-sm font-bold text-gray-700">Penalty</label>
-              <input type="number" formControlName="penalty" step="0.01" (wheel)="$event.preventDefault()"
-                class="mt-1 block w-full rounded-xl border-gray-200 shadow-sm focus:ring-blue-500 focus:border-blue-500 p-3 border bg-gray-50/50 font-medium">
-            </div>
             <div class="md:col-span-2">
               <label class="block text-sm font-bold text-gray-700">General Feedback</label>
               <textarea formControlName="general_feedback" rows="2"

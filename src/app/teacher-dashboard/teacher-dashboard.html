@@ -288,15 +288,19 @@
 
         <!-- Bulk Move -->
         <div class="flex items-center gap-2">
+          <!-- We don't have categoryOptions populated in this snippet, using simple select for now or if we just leave it -->
+          <!-- The existing template has options="categoryOptions", so it should be fine. -->
           <p-select [ngModel]="bulkTargetCategoryId()" 
                     (ngModelChange)="bulkTargetCategoryId.set($event)"
-                    [options]="categoryOptions"
+                    [options]="categories()"
+                    optionLabel="name"
+                    optionValue="id"
                     placeholder="Move to category..."
                     styleClass="w-44 text-xs bg-white/5 border-white/10 text-gray-200"
                     panelStyleClass="bg-brand-dark text-gray-200 border-gray-700">
           </p-select>
-          <p-button [label]="!loading() ? 'Move' : ''" 
-                    [icon]="loading() ? 'pi pi-spin pi-spinner' : ''" 
+          <p-button label="Move" 
+                    [loading]="loading()" 
                     (onClick)="moveSelectedQuestions(bulkTargetCategoryId())"
                     [disabled]="!bulkTargetCategoryId() || loading()"
                     styleClass="p-button-sm">
@@ -321,6 +325,77 @@
                 class="text-xs font-bold text-gray-500 hover:text-white transition-colors">
           Cancel
         </button>
+      </div>
+    </div>
+
+    <!-- Advanced Filters -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider">Search & Filters</h3>
+        </div>
+        <button (click)="clearFilters()" 
+                class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-blue-50">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          Clear Filters
+        </button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Keyword Search -->
+        <div class="flex flex-col gap-1 lg:col-span-2">
+          <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Keyword Search</label>
+          <input type="text" [ngModel]="filterKeyword()" (ngModelChange)="filterKeyword.set($event); currentPage.set(1)" placeholder="Search by name, ID, text, feedback..." class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+
+        <!-- Status -->
+        <div class="flex flex-col gap-1">
+          <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Status</label>
+          <select [ngModel]="filterStatus()" (ngModelChange)="filterStatus.set($event); currentPage.set(1)" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="">All Statuses</option>
+            <option value="draft">Draft</option>
+            <option value="pending_review">Review</option>
+            <option value="approved">Ready</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+
+        <!-- Type -->
+        <div class="flex flex-col gap-1">
+          <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Question Type</label>
+          <select [ngModel]="filterType()" (ngModelChange)="filterType.set($event); currentPage.set(1)" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="">All Types</option>
+            <option value="multichoice">Multiple Choice</option>
+            <option value="truefalse">True/False</option>
+            <option value="shortanswer">Short Answer</option>
+            <option value="essay">Essay</option>
+            <option value="matching">Matching</option>
+          </select>
+        </div>
+
+        <!-- Date From -->
+        <div class="flex flex-col gap-1">
+          <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Modified After</label>
+          <input type="date" [ngModel]="filterDateFrom()" (ngModelChange)="filterDateFrom.set($event); currentPage.set(1)" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+
+        <!-- Date To -->
+        <div class="flex flex-col gap-1">
+          <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Modified Before</label>
+          <input type="date" [ngModel]="filterDateTo()" (ngModelChange)="filterDateTo.set($event); currentPage.set(1)" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+
+        <!-- Show Hidden -->
+        <div class="flex flex-col justify-end pb-1.5 lg:col-span-2">
+          <label class="flex items-center gap-2 cursor-pointer group w-fit">
+            <input type="checkbox" [checked]="filterHidden()" (change)="toggleHiddenFilter()" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+            <span class="text-sm font-bold text-gray-600 group-hover:text-blue-600 transition-colors">Also show old questions (deleted/hidden)</span>
+          </label>
+        </div>
       </div>
     </div>
 

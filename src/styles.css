@@ -20,3 +20,32 @@ input::-webkit-inner-spin-button {
 input[type=number] {
   -moz-appearance: textfield;
 }
+
+/* Global PrimeNG Component Styling Overrides */
+:root {
+  --p-border-radius: 0; /* Set a consistent roundedness for all PrimeNG components */
+}
+
+/* Ensure PrimeNG inputs and buttons feel premium and consistent */
+.p-inputtext, .p-dropdown, .p-multiselect, .p-calendar, .p-password input, .p-inputnumber-input {
+  border-radius: 0 !important;
+  transition: all 0.2s ease !important;
+}
+
+.p-button {
+  border-radius: 0 !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  transition: all 0.3s ease !important;
+}
+
+.p-dialog {
+  border-radius: 0 !important;
+  overflow: hidden;
+}
+
+.p-drawer {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+

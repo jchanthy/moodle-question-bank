@@ -78,7 +78,7 @@ export class QuestionFormComponent implements OnInit {
     question_text: ['', Validators.required],
     qtype: ['multichoice', Validators.required],
     default_grade: [1.0, [Validators.required, Validators.min(0)]],
-    penalty: [0, [Validators.required, Validators.min(0), Validators.max(1)]],
+    penalty: [0.3333333, [Validators.required, Validators.min(0), Validators.max(1)]],
     general_feedback: [''],
     // Metadata
     shuffleanswers: [true],
