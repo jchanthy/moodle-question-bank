@@ -91,6 +91,8 @@ export class TeacherDashboardComponent implements OnInit {
   filterDateTo = signal<string>('');
   filterStatus = signal<string>('');
   filterKeyword = signal<string>('');
+  sortField = signal<'created_at' | 'updated_at' | 'name'>('updated_at');
+  sortOrder = signal<'asc' | 'desc'>('desc');
 
   filteredQuestions = computed(() => {
     let q = this.myQuestions();
@@ -126,6 +128,25 @@ export class TeacherDashboardComponent implements OnInit {
       q = q.filter(x => new Date(x.updated_at || x.created_at).getTime() <= to);
     }
     
+    // Sorting
+    const field = this.sortField();
+    const order = this.sortOrder();
+    
+    q.sort((a, b) => {
+      let valA: any = a[field as keyof Question] || a.created_at;
+      let valB: any = b[field as keyof Question] || b.created_at;
+      
+      // Special case for updated_at which might be null
+      if (field === 'updated_at') {
+        valA = a.metadata?.modified_at || a.updated_at || a.created_at;
+        valB = b.metadata?.modified_at || b.updated_at || b.created_at;
+      }
+
+      if (valA < valB) return order === 'asc' ? -1 : 1;
+      if (valA > valB) return order === 'asc' ? 1 : -1;
+      return 0;
+    });
+
     return q;
   });
 
@@ -263,6 +284,8 @@ export class TeacherDashboardComponent implements OnInit {
     this.filterDateTo.set('');
     this.filterStatus.set('');
     this.filterKeyword.set('');
+    this.sortField.set('updated_at');
+    this.sortOrder.set('desc');
     this.selectedCategoryId.set(null);
     this.currentPage.set(1);
     this.loadMyQuestions();
