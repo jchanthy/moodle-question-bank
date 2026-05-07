@@ -53,6 +53,11 @@ export class QuestionFormComponent implements OnInit {
   versions = signal<any[]>([]);
   notification = signal<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
   formCategories = signal<{ id: string; name: string; depth: number }[]>([]);
+  
+  // Preview Testing State
+  studentSelectedAnswer = signal<number | null>(null);
+  studentTextAnswer = signal<string>('');
+  previewResult = signal<{ isCorrect: boolean; feedback: string; grade: number } | null>(null);
 
   questionTypes = [
     { value: 'multichoice', label: 'Multiple Choice' },
@@ -390,6 +395,45 @@ export class QuestionFormComponent implements OnInit {
 
   togglePreview() {
     this.isPreviewMode.set(!this.isPreviewMode());
+    this.previewResult.set(null);
+    this.studentSelectedAnswer.set(null);
+    this.studentTextAnswer.set('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  checkPreviewAnswer() {
+    const qtype = this.questionForm.get('qtype')?.value;
+    const answers = this.answers.value;
+    let isCorrect = false;
+    let feedback = '';
+    let grade = 0;
+
+    if (['multichoice', 'truefalse', 'multichoiceanswernone'].includes(qtype!)) {
+      const selectedIndex = this.studentSelectedAnswer();
+      if (selectedIndex !== null) {
+        const selected = answers[selectedIndex];
+        grade = selected.fraction;
+        isCorrect = grade === 100;
+        feedback = selected.feedback || (isCorrect ? 'Well done!' : 'That is not correct.');
+      }
+    } else if (['shortanswer', 'numerical'].includes(qtype!)) {
+      const response = this.studentTextAnswer().trim().toLowerCase();
+      const match = answers.find((a: any) => a.answer_text.trim().toLowerCase() === response);
+      if (match) {
+        grade = match.fraction;
+        isCorrect = grade === 100;
+        feedback = match.feedback || (isCorrect ? 'Correct!' : 'Partial credit.');
+      } else {
+        isCorrect = false;
+        feedback = 'Incorrect answer.';
+      }
+    }
+
+    this.previewResult.set({ 
+      isCorrect, 
+      feedback: feedback + (this.questionForm.get('general_feedback')?.value ? '\n\n' + this.questionForm.get('general_feedback')?.value : ''),
+      grade 
+    });
   }
 
   removeImage() {
