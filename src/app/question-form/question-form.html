@@ -529,7 +529,7 @@
             </button>
 
             <!-- Secondary Action (Only for non-ready questions) -->
-            <button *ngIf="!isReady" type="button" (click)="saveDraft()" [disabled]="loading()"
+            <button type="button" (click)="saveDraft()" [disabled]="loading()"
               class="px-6 py-3 text-blue-600 hover:bg-blue-50 font-bold rounded-2xl transition">
               Save as Draft
             </button>

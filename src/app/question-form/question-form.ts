@@ -524,7 +524,7 @@ export class QuestionFormComponent implements OnInit {
       };
 
       // BRANCHING LOGIC:
-      if (this.editMode() && currentStatus === 'approved') {
+      if (this.editMode() && (currentStatus === 'approved' || currentStatus === 'rejected')) {
         const parentId = formValue.parent_id || questionId;
         
         // Find the maximum version in this family to ensure we always increment
