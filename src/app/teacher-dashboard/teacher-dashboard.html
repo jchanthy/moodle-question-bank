@@ -59,7 +59,90 @@
         </button>
       </div>
     </div>
-
+    <!-- Tasks Assigned to You -->
+    <div *ngIf="assignedQuestions().length > 0" class="mb-10 animate-in fade-in slide-in-from-top-4 duration-500">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-200">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-xl font-extrabold text-gray-900 tracking-tight">Assigned for Review</h2>
+          <p class="text-xs text-gray-400 mt-0.5">Questions assigned to you by administrators.</p>
+        </div>
+      </div>
+      
+      <div class="bg-white border-2 border-indigo-50 rounded-2xl overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-indigo-50/50">
+              <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b-2 border-indigo-50">
+                <th class="px-6 py-4">Date</th>
+                <th class="px-6 py-4">Question</th>
+                <th class="px-6 py-4">Author</th>
+                <th class="px-6 py-4 text-center">Status</th>
+                <th class="px-6 py-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y-2 divide-indigo-50">
+              <tr *ngFor="let q of assignedQuestions()" class="hover:bg-indigo-50/30 transition-colors group">
+                <td class="px-6 py-4">
+                  <div class="text-[10px] font-bold text-gray-400 mb-0.5">#{{ q.id.substring(0,8) }}</div>
+                  <div class="text-xs font-bold text-gray-700">{{ (q.updated_at || q.created_at) | date:'mediumDate' }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm font-black text-gray-900 mb-1 group-hover:text-indigo-600 transition-colors truncate max-w-xs">{{ q.name }}</div>
+                  <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[9px] font-black uppercase tracking-widest rounded border border-indigo-100">
+                      {{ q.qtype }}
+                    </span>
+                  </div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-[10px] font-black text-blue-600 border border-blue-100">
+                      {{ q.metadata?.author_name?.substring(0,1) || 'T' }}
+                    </div>
+                    <span class="text-xs font-bold text-gray-700">{{ q.metadata?.author_name || 'Teacher' }}</span>
+                  </div>
+                </td>
+                <td class="px-6 py-4 text-center">
+                  <span *ngIf="q.status === 'pending_review'" class="px-3 py-1 bg-yellow-50 text-yellow-600 text-[10px] font-black uppercase tracking-widest rounded border border-yellow-100">
+                    Pending
+                  </span>
+                  <span *ngIf="q.status === 'approved'" class="px-3 py-1 bg-green-50 text-green-600 text-[10px] font-black uppercase tracking-widest rounded border border-green-100">
+                    Approved
+                  </span>
+                  <span *ngIf="q.status === 'rejected'" class="px-3 py-1 bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest rounded border border-red-100">
+                    Rejected
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <a [routerLink]="['/teacher/edit-question', q.id]" 
+                     *ngIf="q.status === 'pending_review'"
+                     class="inline-flex items-center gap-1 bg-indigo-600 text-white px-4 py-2 rounded-lg text-[11px] font-black hover:bg-indigo-700 transition shadow-lg shadow-indigo-100">
+                    Start Review
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </a>
+                  <a [routerLink]="['/teacher/edit-question', q.id]" 
+                     *ngIf="q.status !== 'pending_review'"
+                     class="inline-flex items-center gap-1 bg-gray-50 text-gray-600 border border-gray-200 px-4 py-2 rounded-lg text-[11px] font-black hover:bg-gray-100 transition">
+                    View
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
     <!-- IMPORT MODAL -->
     <p-dialog [visible]="showImportModal()" (visibleChange)="showImportModal.set($event)" [modal]="true" [style]="{ width: '50rem' }" [breakpoints]="{ '1199px': '75vw', '575px': '90vw' }" [draggable]="false" [resizable]="false">
       <ng-template pTemplate="header">
@@ -273,58 +356,60 @@
     <!-- Floating Bulk Actions Bar (Modern Fixed Bottom) -->
     <div *ngIf="selectedIds().size > 0" 
          class="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-8 duration-300 w-full max-w-fit px-4">
-      <div class="bg-brand-dark text-white rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-4 border border-white/10 backdrop-blur-xl bg-opacity-95 overflow-x-auto whitespace-nowrap">
+      <div class="bg-brand-dark text-white rounded-2xl shadow-2xl px-6 py-4 flex items-center gap-6 border border-white/20 backdrop-blur-xl bg-opacity-98">
         
         <!-- Selection Info -->
-        <div class="flex items-center gap-3 border-r border-white/10 pr-4">
-          <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-black text-xs">
+        <div class="flex items-center gap-3 border-r border-white/10 pr-6">
+          <div class="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center font-black text-sm shadow-lg shadow-blue-500/20">
             {{ selectedIds().size }}
           </div>
           <div class="hidden sm:flex flex-col">
             <span class="text-[10px] font-black uppercase tracking-widest text-blue-400">Selected</span>
-            <span class="text-[9px] text-gray-500">Items</span>
+            <span class="text-[9px] text-gray-400">Questions</span>
           </div>
         </div>
 
         <!-- Bulk Move -->
-        <div class="flex items-center gap-2">
-          <!-- We don't have categoryOptions populated in this snippet, using simple select for now or if we just leave it -->
-          <!-- The existing template has options="categoryOptions", so it should be fine. -->
+        <div class="flex items-center gap-3">
           <p-select [ngModel]="bulkTargetCategoryId()" 
                     (ngModelChange)="bulkTargetCategoryId.set($event)"
                     [options]="categories()"
                     optionLabel="name"
                     optionValue="id"
                     placeholder="Move to category..."
-                    styleClass="w-44 text-xs bg-white/5 border-white/10 text-gray-200"
-                    panelStyleClass="bg-brand-dark text-gray-200 border-gray-700">
+                    [filter]="true"
+                    filterBy="name"
+                    appendTo="body"
+                    styleClass="w-56 text-xs bg-white/10 border-white/20 text-white rounded-xl"
+                    panelStyleClass="bg-brand-dark text-gray-100 border-gray-700 shadow-2xl">
           </p-select>
           <p-button label="Move" 
+                    icon="pi pi-directions"
+                    severity="info"
                     [loading]="loading()" 
                     (onClick)="moveSelectedQuestions(bulkTargetCategoryId())"
                     [disabled]="!bulkTargetCategoryId() || loading()"
-                    styleClass="p-button-sm">
+                    styleClass="p-button-sm rounded-xl shadow-lg shadow-blue-500/10">
           </p-button>
         </div>
 
-        <div class="w-px h-8 bg-white/10"></div>
+        <div class="w-px h-10 bg-white/10"></div>
 
-        <!-- Bulk Delete (Prominent Button) -->
-        <p-button label="Delete Selected" 
-                  icon="pi pi-trash" 
-                  severity="danger" 
-                  [text]="true" 
-                  (onClick)="bulkDeleteQuestions()"
-                  styleClass="p-button-sm">
-        </p-button>
+        <!-- Bulk Actions -->
+        <div class="flex items-center gap-2">
+          <p-button label="Delete" 
+                    icon="pi pi-trash" 
+                    severity="danger" 
+                    [text]="true" 
+                    (onClick)="bulkDeleteQuestions()"
+                    styleClass="p-button-sm hover:bg-red-500/10 rounded-xl">
+          </p-button>
 
-        <div class="w-px h-8 bg-white/10"></div>
-
-        <!-- Cancel -->
-        <button (click)="clearSelection()" 
-                class="text-xs font-bold text-gray-500 hover:text-white transition-colors">
-          Cancel
-        </button>
+          <button (click)="clearSelection()" 
+                  class="px-4 py-2 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
 

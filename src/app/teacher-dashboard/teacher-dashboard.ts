@@ -79,6 +79,7 @@ export class TeacherDashboardComponent implements OnInit {
   Math = Math;
 
   myQuestions = signal<Question[]>([]);
+  assignedQuestions = signal<Question[]>([]);
   loading = signal(true);
   showComments = signal(false);
   selectedQuestion = signal<Question | null>(null);
@@ -213,58 +214,58 @@ export class TeacherDashboardComponent implements OnInit {
 
     this.loading.set(true);
     try {
-      let query = this.supabaseService.db
+      // 1. Load my questions (created by me)
+      let myQuery = this.supabaseService.db
         .from('questions')
         .select('*')
         .eq('created_by', user.id);
 
       if (!this.filterHidden()) {
-        query = query.is('deleted_at', null);
+        myQuery = myQuery.is('deleted_at', null);
       }
-
-      // Filter by category if one is selected
       if (this.selectedCategoryId()) {
-        query.eq('category_id', this.selectedCategoryId()!);
+        myQuery.eq('category_id', this.selectedCategoryId()!);
       }
 
-      const { data, error } = await query.order('version', { ascending: false });
+      // 2. Load all questions assigned to me (pending and completed)
+      const { data: assignedData } = await this.supabaseService.db
+        .from('questions')
+        .select('*')
+        .contains('metadata', { assigned_to_id: user.id })
+        .is('deleted_at', null);
 
-      if (error) throw error;
+      const { data: myData, error: myError } = await myQuery.order('version', { ascending: false });
 
-      // Grouping Logic: Group by "Family" (Parent ID or own ID if it's the root)
-      const groups = new Map<string, Question[]>();
-      
-      data.forEach((q: Question) => {
-        const familyId = q.parent_id || q.id;
-        if (!groups.has(familyId)) {
-          groups.set(familyId, []);
-        }
-        groups.get(familyId)?.push(q);
-      });
+      if (myError) throw myError;
 
-      // Transform groups into a flat list of "Latest" questions with nested history
-      const processed: Question[] = [];
-      groups.forEach((versions) => {
-        // Deduplicate versions by number (keep latest record for each version)
-        const versionMap = new Map<number, Question>();
-        versions.forEach(v => {
-          if (!versionMap.has(v.version) || new Date(v.created_at) > new Date(versionMap.get(v.version)!.created_at)) {
-            versionMap.set(v.version, v);
-          }
+      const processQuestions = (data: Question[]) => {
+        const groups = new Map<string, Question[]>();
+        data.forEach((q: Question) => {
+          const familyId = q.parent_id || q.id;
+          if (!groups.has(familyId)) groups.set(familyId, []);
+          groups.get(familyId)?.push(q);
         });
-        
-        const uniqueVersions = Array.from(versionMap.values());
-        uniqueVersions.sort((a, b) => (b.version || 0) - (a.version || 0));
-        
-        const latest = { ...uniqueVersions[0] };
-        latest.history = uniqueVersions.slice(1);
-        latest.allVersions = uniqueVersions;
-        latest.showHistory = false;
-        latest.isEditingName = false;
-        processed.push(latest);
-      });
 
-      this.myQuestions.set(processed);
+        const processed: Question[] = [];
+        groups.forEach((versions) => {
+          const versionMap = new Map<number, Question>();
+          versions.forEach(v => {
+            if (!versionMap.has(v.version) || new Date(v.created_at) > new Date(versionMap.get(v.version)!.created_at)) {
+              versionMap.set(v.version, v);
+            }
+          });
+          const uniqueVersions = Array.from(versionMap.values()).sort((a, b) => b.version - a.version);
+          const latest = { ...uniqueVersions[0] };
+          latest.history = uniqueVersions.slice(1);
+          latest.allVersions = uniqueVersions;
+          processed.push(latest);
+        });
+        return processed;
+      };
+
+      this.myQuestions.set(processQuestions(myData || []));
+      this.assignedQuestions.set(processQuestions(assignedData || []));
+
     } catch (error: any) {
       console.error('Error loading questions:', error);
     } finally {

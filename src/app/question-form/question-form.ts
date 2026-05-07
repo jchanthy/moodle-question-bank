@@ -26,6 +26,12 @@ export class QuestionFormComponent implements OnInit {
   get isAdmin(): boolean {
     return this.supabase.currentUserRole() === 'admin';
   }
+  
+  get isAssignedReviewer(): boolean {
+    const user = this.supabase.currentUser();
+    const meta = this.questionMetadata();
+    return meta?.assigned_to_id === user?.id;
+  }
 
   get displayStatus(): string {
     const status = this.questionForm.get('status')?.value;
@@ -53,6 +59,11 @@ export class QuestionFormComponent implements OnInit {
   versions = signal<any[]>([]);
   notification = signal<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
   formCategories = signal<{ id: string; name: string; depth: number }[]>([]);
+  showNewCategory = signal(false);
+  newCategoryName = signal('');
+  newCategoryParent = signal<string | null>(null);
+  creatingCategory = signal(false);
+  questionMetadata = signal<any>({});
   
   // Preview Testing State
   studentSelectedAnswer = signal<number | null>(null);
@@ -171,6 +182,7 @@ export class QuestionFormComponent implements OnInit {
       // History is already handled and synced above
 
       // Handle metadata/image
+      this.questionMetadata.set(question.metadata || {});
       if (question.metadata?.image_url) {
         this.imagePreview.set(question.metadata.image_url);
         this.questionForm.patchValue({ image_url: question.metadata.image_url });
@@ -226,6 +238,52 @@ export class QuestionFormComponent implements OnInit {
     };
 
     this.formCategories.set(flatten(roots));
+  }
+
+  async createCategory() {
+    const name = this.newCategoryName().trim();
+    if (!name) return;
+
+    this.creatingCategory.set(true);
+    try {
+      // Get the max sort_order to place the new category at the end
+      const { data: existing } = await this.supabase.db
+        .from('question_categories')
+        .select('sort_order')
+        .order('sort_order', { ascending: false })
+        .limit(1);
+
+      const nextOrder = (existing?.[0]?.sort_order || 0) + 1;
+
+      const { data: newCat, error } = await this.supabase.db
+        .from('question_categories')
+        .insert({
+          name: name,
+          parent_id: this.newCategoryParent() || null,
+          sort_order: nextOrder
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Refresh category list
+      await this.loadFormCategories();
+
+      // Auto-select the newly created category
+      this.questionForm.patchValue({ category_id: newCat.id });
+
+      // Reset the inline form
+      this.newCategoryName.set('');
+      this.newCategoryParent.set(null);
+      this.showNewCategory.set(false);
+
+      this.showToast('Category "' + name + '" created!', 'success');
+    } catch (err: any) {
+      this.showToast('Error creating category: ' + err.message, 'error');
+    } finally {
+      this.creatingCategory.set(false);
+    }
   }
 
   onDragOver(event: DragEvent) {
@@ -457,7 +515,7 @@ export class QuestionFormComponent implements OnInit {
   async onFormSubmit() {
     if (this.isReady) {
       // If ready, we branch into a new version (which defaults to pending_review)
-      await this.saveQuestion('pending_review');
+      await this.saveQuestion('pending_review', false);
     } else {
       // If already a draft or pending, just update it to pending_review
       await this.submitForReview();
@@ -465,15 +523,22 @@ export class QuestionFormComponent implements OnInit {
   }
 
   async saveDraft() {
-    await this.saveQuestion('draft');
+    await this.saveQuestion('draft', false);
+  }
+
+  async saveAndContinueEditing() {
+    const currentStatus = this.questionForm.get('status')?.value;
+    // Keep same status when continuing editing; default to 'draft' for new questions
+    const status = (currentStatus === 'approved' || currentStatus === 'rejected') ? 'draft' : (currentStatus || 'draft');
+    await this.saveQuestion(status as 'draft' | 'pending_review' | 'approved', true);
   }
 
   async submitForReview() {
-    await this.saveQuestion('pending_review');
+    await this.saveQuestion('pending_review', false);
   }
 
   async markAsReady() {
-    await this.saveQuestion('approved');
+    await this.saveQuestion('approved', false);
   }
 
   onVersionChange(event: Event) {
@@ -486,8 +551,8 @@ export class QuestionFormComponent implements OnInit {
     }
   }
 
-  private async saveQuestion(status: 'draft' | 'pending_review' | 'approved') {
-    if (this.questionForm.invalid) return;
+  private async saveQuestion(status: 'draft' | 'pending_review' | 'approved' | 'rejected', continueEditing: boolean = false, extraMetadata: any = {}): Promise<boolean> {
+    if (this.questionForm.invalid) return false;
     this.loading.set(true);
     try {
       const user = this.supabase.currentUser();
@@ -498,9 +563,18 @@ export class QuestionFormComponent implements OnInit {
       const questionId = this.questionId();
       let targetId: string;
 
-      const currentMetadata = this.editMode()
-        ? (await this.supabase.db.from('questions').select('metadata').eq('id', questionId!).single()).data?.metadata || {}
-        : {};
+      let currentMetadata: any = {};
+      let originalCreator = user.id;
+
+      if (this.editMode()) {
+        const { data: qRecord } = await this.supabase.db
+          .from('questions')
+          .select('metadata, created_by')
+          .eq('id', questionId!)
+          .single();
+        currentMetadata = qRecord?.metadata || {};
+        originalCreator = qRecord?.created_by || user.id;
+      }
 
       const questionData = {
         name: formValue.name,
@@ -513,6 +587,7 @@ export class QuestionFormComponent implements OnInit {
         created_by: user.id,
         metadata: {
           ...currentMetadata,
+          ...extraMetadata,
           shuffleanswers: formValue.shuffleanswers,
           answernumbering: formValue.answernumbering,
           image_url: formValue.image_url,
@@ -524,7 +599,13 @@ export class QuestionFormComponent implements OnInit {
       };
 
       // BRANCHING LOGIC:
-      if (this.editMode() && (currentStatus === 'approved' || currentStatus === 'rejected')) {
+      const forceNewVersion = this.editMode() && (
+        currentStatus === 'approved' || 
+        currentStatus === 'rejected' ||
+        (!this.isAdmin && originalCreator !== user.id)
+      );
+
+      if (forceNewVersion) {
         const parentId = formValue.parent_id || questionId;
         
         // Find the maximum version in this family to ensure we always increment
@@ -556,12 +637,16 @@ export class QuestionFormComponent implements OnInit {
       } else if (this.editMode()) {
         console.log('Regular Update: Updating existing record ID:', questionId);
         // Regular update for existing drafts, rejected, or pending questions
-        const { error: uError } = await this.supabase.db
+        const { data: uData, error: uError } = await this.supabase.db
           .from('questions')
           .update({ ...questionData, status: status })
-          .eq('id', questionId);
+          .eq('id', questionId)
+          .select();
 
         if (uError) throw uError;
+        if (!uData || uData.length === 0) {
+          throw new Error('Update failed. You may not have permission to modify this question.');
+        }
         targetId = questionId!;
 
         // Refresh answers
@@ -597,22 +682,33 @@ export class QuestionFormComponent implements OnInit {
         if (ansError) throw ansError;
       }
 
-      this.showToast(status === 'pending_review' ? 'Question submitted for review!' : 'Draft saved!');
+      // 3. Show success toast
+      if (continueEditing) {
+        this.showToast('Changes saved. You can continue editing.', 'success');
+      } else if (status !== 'approved' && status !== 'rejected') {
+        this.showToast(status === 'pending_review' ? 'Question submitted for review!' : 'Changes saved!');
+      }
       
-      if (status === 'pending_review') {
-        this.router.navigate(['/teacher']);
-      } else {
-        // Reload the page with the new ID if we branched
+      // 4. Navigation logic
+      if (continueEditing) {
+        // Stay on the form — navigate to new ID if branched, otherwise just reload
         if (targetId !== questionId) {
+          this.editMode.set(true);
           this.router.navigate(['/teacher/edit-question', targetId]).then(() => {
             this.loadQuestionData(targetId);
           });
         } else {
           this.loadQuestionData(targetId);
         }
+      } else {
+        // Navigate back to the dashboard
+        this.router.navigate([this.isAdmin ? '/admin' : '/teacher']);
       }
+      return true;
     } catch (err: any) {
-      this.showToast('Error: ' + err.message, 'error');
+      console.error(err);
+      this.showToast('Error saving: ' + err.message, 'error');
+      return false;
     } finally {
       this.loading.set(false);
     }
@@ -623,7 +719,7 @@ export class QuestionFormComponent implements OnInit {
   }
 
   cancel() {
-    this.router.navigate(['/teacher']);
+    this.router.navigate([this.isAdmin ? '/admin' : '/teacher']);
   }
 
   switchVersion(id: string) {
@@ -633,41 +729,34 @@ export class QuestionFormComponent implements OnInit {
   }
 
   async approveQuestion() {
-    if (!this.isAdmin || !this.questionId()) return;
-    this.loading.set(true);
-    try {
-      const { error } = await this.supabase.db
-        .from('questions')
-        .update({ status: 'approved' })
-        .eq('id', this.questionId());
-      if (error) throw error;
+    if ((!this.isAdmin && !this.isAssignedReviewer) || !this.questionId()) return;
+    
+    const extraMetadata = {
+      reviewed_by: this.supabase.currentUserName,
+      reviewed_at: new Date().toISOString(),
+      review_status: 'approved'
+    };
+
+    const success = await this.saveQuestion('approved', false, extraMetadata);
+    if (success) {
       this.showToast('Question approved successfully!');
-      this.router.navigate(['/admin']);
-    } catch (err: any) {
-      this.showToast('Error: ' + err.message, 'error');
-    } finally {
-      this.loading.set(false);
     }
   }
 
   async rejectQuestion() {
-    if (!this.isAdmin || !this.questionId()) return;
+    if ((!this.isAdmin && !this.isAssignedReviewer) || !this.questionId()) return;
     const reason = prompt('Reason for rejection:');
     if (reason === null) return;
 
-    this.loading.set(true);
-    try {
-      const { error } = await this.supabase.db
-        .from('questions')
-        .update({ status: 'rejected' })
-        .eq('id', this.questionId());
-      if (error) throw error;
-      this.showToast('Question rejected.');
-      this.router.navigate(['/admin']);
-    } catch (err: any) {
-      this.showToast('Error: ' + err.message, 'error');
-    } finally {
-      this.loading.set(false);
+    const extraMetadata = {
+      rejection_reason: reason,
+      rejected_by: this.supabase.currentUserName,
+      rejected_at: new Date().toISOString()
+    };
+
+    const success = await this.saveQuestion('rejected', false, extraMetadata);
+    if (success) {
+      this.showToast('Question rejected with feedback.');
     }
   }
 }
