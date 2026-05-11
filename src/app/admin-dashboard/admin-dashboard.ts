@@ -3,10 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SupabaseService } from '../services/supabase.service';
 import { Router, RouterModule } from '@angular/router';
-import { AutoCompleteModule } from 'primeng/autocomplete';
-import { DrawerModule } from 'primeng/drawer';
-import { ToastModule } from 'primeng/toast';
+import { AutoComplete } from 'primeng/autocomplete';
 import { MessageService } from 'primeng/api';
+import { Toast } from 'primeng/toast';
 
 interface Question {
   id: string;
@@ -15,7 +14,19 @@ interface Question {
   qtype: string;
   status: 'draft' | 'pending_review' | 'approved' | 'rejected';
   version: number;
-  metadata: any;
+  metadata?: {
+    author_name?: string;
+    author_email?: string;
+    modified_by?: string;
+    modified_by_email?: string;
+    modified_at?: string;
+    image_url?: string;
+    assigned_to_id?: string;
+    assigned_to_name?: string;
+    paid_at?: string;
+    comments?: { user: string; text: string; date: string }[];
+    tags?: string[];
+  };
   created_at: string;
   updated_at?: string;
   created_by: string;
@@ -25,6 +36,7 @@ interface Question {
 interface Teacher {
   id: string;
   name: string;
+  email?: string;
 }
 
 interface TypeCount {
@@ -42,7 +54,7 @@ interface Category {
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, AutoCompleteModule, DrawerModule, ToastModule],
+  imports: [CommonModule, RouterModule, FormsModule, AutoComplete, Toast],
   providers: [MessageService],
   templateUrl: './admin-dashboard.html',
   styleUrl: './admin-dashboard.css'
@@ -266,16 +278,19 @@ export class AdminDashboardComponent implements OnInit {
     // to get their real names. If not, we'll use a placeholder.
     const { data: profiles } = await this.supabaseService.db
       .from('profiles')
-      .select('id, full_name');
+      .select('id, full_name, email');
 
-    const profileMap = new Map<string, string>();
-    profiles?.forEach(p => profileMap.set(p.id, p.full_name));
+    const profileMap = new Map<string, {name: string, email?: string}>();
+    profiles?.forEach(p => profileMap.set(p.id, { name: p.full_name, email: p.email }));
 
-    const teachers: Teacher[] = (roles || []).map(r => ({
-      id: r.user_id,
-      // If we have a profile name, use it. Otherwise, use a friendly placeholder.
-      name: profileMap.get(r.user_id) || `Teacher (${r.user_id.substring(0, 5)})`
-    }));
+    const teachers: Teacher[] = (roles || []).map(r => {
+      const prof = profileMap.get(r.user_id);
+      return {
+        id: r.user_id,
+        name: prof?.name || `Teacher (${r.user_id.substring(0, 5)})`,
+        email: prof?.email
+      };
+    });
 
     this.allRegisteredTeachers.set(teachers);
   }
@@ -380,10 +395,22 @@ export class AdminDashboardComponent implements OnInit {
     );
   }
 
-  async assignToTeacher(question: Question, teacher: any) {
-    // If teacher is just a string (manual type without selection), we might want to ignore or handle
-    const teacherId = teacher?.id || null;
-    const teacherName = teacher?.name || null;
+  async assignToTeacher(question: Question, teacherEvent: any) {
+    // PrimeNG AutoComplete onSelect emits an event with a 'value' property or the object itself
+    const teacher = teacherEvent?.value || teacherEvent;
+    
+    console.log('Assigning to teacher:', teacher);
+
+    const teacherId = teacher?.id;
+    const teacherName = teacher?.name;
+    
+    if (!teacherId) {
+      console.warn('No teacher ID found in event:', teacherEvent);
+      this.messageService.add({ severity: 'warn', summary: 'Selection Required', detail: 'Please select a teacher from the suggestions list.' });
+      return;
+    }
+
+    const admin = this.supabaseService.currentUser();
 
     const metadata = {
       ...(question.metadata || {}),
@@ -393,15 +420,34 @@ export class AdminDashboardComponent implements OnInit {
       assigned_by: this.supabaseService.currentUserName
     };
 
-    const { error } = await this.supabaseService.db
-      .from('questions')
-      .update({ metadata })
-      .eq('id', question.id);
+    try {
+      const { error: qError } = await this.supabaseService.db
+        .from('questions')
+        .update({ metadata })
+        .eq('id', question.id);
 
-    if (!error) {
+      if (qError) throw qError;
+
+      if (teacherId) {
+        await this.supabaseService.db
+          .from('assignments')
+          .insert({
+            question_id: question.id,
+            assigned_to_id: teacherId,
+            assigned_to_name: teacherName,
+            assigned_by_id: admin?.id,
+            assigned_by_name: this.supabaseService.currentUserName,
+            status: 'assigned',
+            version: question.version
+          });
+      }
+
       question.metadata = metadata;
-      this.assigningQuestionId.set(null); // Close input after assign
+      this.assigningQuestionId.set(null);
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Task assigned' });
       this.loadAllQuestions();
+    } catch (err: any) {
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: err.message });
     }
   }
 

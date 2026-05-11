@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import * as mammoth from 'mammoth';
 
 export interface ParsedQuestion {
   name: string;
@@ -83,6 +84,9 @@ export class ImportExportService {
     <single>${isSingle}</single>
     <shuffleanswers>${q.metadata?.shuffleanswers ? 1 : 0}</shuffleanswers>
     <answernumbering>${q.metadata?.answernumbering || 'abc'}</answernumbering>
+    <tags>
+      ${(q.metadata?.tags || []).map((t: string) => `      <tag><text>${this.escapeXML(t)}</text></tag>`).join('\n')}
+    </tags>
 ${answersXml}
   </question>\n\n`;
   }
@@ -167,6 +171,7 @@ ${answersXml}
         metadata: {
           shuffleanswers: qEl.querySelector('shuffleanswers')?.textContent === '1',
           answernumbering: qEl.querySelector('answernumbering')?.textContent || 'abc',
+          tags: Array.from(qEl.querySelectorAll('tags > tag > text')).map(t => t.textContent?.trim() || '').filter(Boolean)
         },
         answers,
         category_path: currentCategoryPath,
@@ -291,12 +296,85 @@ ${answersXml}
   }
 
   // ============================================================
+  // IMPORT: Structured Export format (Custom)
+  // ============================================================
+
+  parseStructuredExport(text: string): ParsedQuestion[] {
+    const questions: ParsedQuestion[] = [];
+    // Split by the horizontal line separator often used in exports
+    const blocks = text.split(/_{5,}/).map(b => b.trim()).filter(Boolean);
+
+    for (const block of blocks) {
+      const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length < 5) continue;
+
+      let name = '';
+      let qtype = 'multichoice';
+      let tags: string[] = [];
+      let questionTextLines: string[] = [];
+      let optionsStarted = false;
+      let choices: { key: string, text: string }[] = [];
+      let correctKey = '';
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        if (line.startsWith('Question:')) {
+          name = line.replace('Question:', '').trim();
+        } else if (line.startsWith('Type:')) {
+          qtype = line.replace('Type:', '').trim().toLowerCase();
+        } else if (line.startsWith('Tags:')) {
+          tags = line.replace('Tags:', '').split(',').map(t => t.trim());
+        } else if (line.toLowerCase().startsWith('options:')) {
+          optionsStarted = true;
+        } else if (line.match(/^(Answer|ANSWER):/i)) {
+          const match = line.match(/^(Answer|ANSWER):\s*([A-Za-z])$/i);
+          if (match) correctKey = match[2].toUpperCase();
+        } else if (optionsStarted) {
+          const choiceMatch = line.match(/^([A-Za-z])[.)]\s+(.+)$/);
+          if (choiceMatch) {
+            choices.push({ key: choiceMatch[1].toUpperCase(), text: choiceMatch[2] });
+          }
+        } else {
+          // If it doesn't match any headers and options haven't started, it's question text
+          if (name && !optionsStarted) {
+            questionTextLines.push(line);
+          }
+        }
+      }
+
+      if (choices.length > 0 && correctKey) {
+        const answers: ParsedAnswer[] = choices.map(c => ({
+          answer_text: c.text,
+          fraction: c.key === correctKey ? 100 : 0,
+          feedback: ''
+        }));
+
+        questions.push({
+          name: name || questionTextLines[0]?.substring(0, 60) || 'Imported Question',
+          question_text: questionTextLines.join('\n'),
+          qtype: qtype || 'multichoice',
+          default_grade: 1,
+          penalty: 0.3333333,
+          general_feedback: '',
+          metadata: { tags },
+          answers
+        });
+      }
+    }
+
+    return questions;
+  }
+
+  // ============================================================
   // IMPORT: Aiken format
   // ============================================================
 
   parseAiken(aikenText: string): ParsedQuestion[] {
     const questions: ParsedQuestion[] = [];
-    const blocks = aikenText.trim().split(/\n\s*\n/);
+    // Normalize line endings and split into blocks by blank lines
+    const normalized = aikenText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const blocks = normalized.trim().split(/\n\s*\n/);
 
     for (const block of blocks) {
       const lines = block.trim().split('\n').map(l => l.trim()).filter(Boolean);
@@ -307,19 +385,23 @@ ${answersXml}
       let answerKey = '';
 
       for (let i = 1; i < lines.length; i++) {
-        const choiceMatch = lines[i].match(/^([A-Z])[.)]\s+(.+)$/);
-        const answerMatch = lines[i].match(/^ANSWER:\s*([A-Z])$/i);
+        // More flexible choice match: A. A) a. a)
+        const choiceMatch = lines[i].match(/^([A-Za-z])[.)]\s+(.+)$/);
+        // More flexible answer match: ANSWER: A, Answer: A, ans: A
+        const answerMatch = lines[i].match(/^(ANSWER|Answer|ans)[:\s]\s*([A-Za-z])$/i);
 
         if (choiceMatch) {
           choices.push(choiceMatch[2]);
         } else if (answerMatch) {
-          answerKey = answerMatch[1].toUpperCase();
+          answerKey = answerMatch[2].toUpperCase();
         }
       }
 
       if (!answerKey || choices.length === 0) continue;
 
       const answerIndex = answerKey.charCodeAt(0) - 65;
+      if (answerIndex < 0 || answerIndex >= choices.length) continue;
+
       const answers: ParsedAnswer[] = choices.map((c, i) => ({
         answer_text: c,
         fraction: i === answerIndex ? 100 : 0,
@@ -339,6 +421,47 @@ ${answersXml}
     }
 
     return questions;
+  }
+
+  // ============================================================
+  // IMPORT: Word (.docx)
+  // ============================================================
+  
+  async parseDocx(arrayBuffer: ArrayBuffer): Promise<ParsedQuestion[]> {
+    try {
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      const text = this.normalizeWordText(result.value);
+      
+      // 1. Try Structured Export first (your custom format)
+      let questions = this.parseStructuredExport(text);
+      
+      // 2. If no structured questions found, try Aiken
+      if (questions.length === 0) {
+        questions = this.parseAiken(text);
+      }
+      
+      // 3. If still nothing, try GIFT
+      if (questions.length === 0) {
+        questions = this.parseGIFT(text);
+      }
+      
+      return questions;
+    } catch (error) {
+      console.error('Error parsing DOCX:', error);
+      throw new Error('Failed to extract text from Word document. Ensure it is a valid .docx file.');
+    }
+  }
+
+  private normalizeWordText(text: string): string {
+    return text
+      .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"') // Smart double quotes
+      .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'") // Smart single quotes
+      .replace(/\u2013/g, "-") // En dash
+      .replace(/\u2014/g, "--") // Em dash
+      .replace(/\u2026/g, "...") // Ellipsis
+      .replace(/\u00A0/g, " ") // Non-breaking space
+      .replace(/\r\n/g, "\n") // Windows line endings
+      .replace(/\r/g, "\n");  // Mac line endings
   }
 
   // ============================================================

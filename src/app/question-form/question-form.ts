@@ -5,10 +5,12 @@ import { SupabaseService } from '../services/supabase.service';
 import { ImportExportService } from '../services/import-export.service';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 
+import { AutoComplete } from 'primeng/autocomplete';
+
 @Component({
   selector: 'app-question-form',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterModule, AutoComplete],
   templateUrl: './question-form.html',
   styleUrl: './question-form.css'
 })
@@ -66,27 +68,85 @@ export class QuestionFormComponent implements OnInit {
   questionMetadata = signal<any>({});
   
   // Preview Testing State
-  studentSelectedAnswer = signal<number | null>(null);
+  studentSelectedAnswers = signal<number[]>([]);
   studentTextAnswer = signal<string>('');
   previewResult = signal<{ isCorrect: boolean; feedback: string; grade: number } | null>(null);
 
   questionTypes = [
-    { value: 'multichoice', label: 'Multiple Choice' },
-    { value: 'truefalse', label: 'True/False' },
-    { value: 'shortanswer', label: 'Short Answer' },
-    { value: 'numerical', label: 'Numerical' },
-    { value: 'essay', label: 'Essay' },
-    { value: 'match', label: 'Matching' },
-    { value: 'calculated', label: 'Calculated' },
-    { value: 'calculatedmulti', label: 'Calculated Multichoice' },
-    { value: 'calculatedsimple', label: 'Calculated Simple' },
-    { value: 'ddwtos', label: 'Drag and Drop into Text' },
-    { value: 'ddimageortext', label: 'Drag and Drop onto Image' },
-    { value: 'ddmarker', label: 'Drag and Drop Matching' },
-    { value: 'ordering', label: 'Ordering' },
-    { value: 'coderunner', label: 'CodeRunner' },
-    { value: 'multichoiceanswernone', label: 'All-or-Nothing Multiple Choice' }
+    { value: 'multichoice', label: 'Multiple Choice', icon: 'pi pi-list', info: 'Best for standard MCQ. Support single or multiple correct answers.' },
+    { value: 'truefalse', label: 'True/False', icon: 'pi pi-check-circle', info: 'Simple binary choice. Always has two options: True and False.' },
+    { value: 'shortanswer', label: 'Short Answer', icon: 'pi pi-pencil', info: 'Student types a phrase. You can specify multiple correct variations.' },
+    { value: 'numerical', label: 'Numerical', icon: 'pi pi-percentage', info: 'For math answers. Allows for a small margin of error (tolerance).' },
+    { value: 'essay', label: 'Essay', icon: 'pi pi-align-left', info: 'Long-form text response. Requires manual grading by the teacher.' },
+    { value: 'match', label: 'Matching', icon: 'pi pi-sort-alt', info: 'Match sub-questions with corresponding correct answers.' },
+    { value: 'ddwtos', label: 'Drag and Drop into Text', icon: 'pi pi-file-edit', info: 'Missing words in text are filled by dragging options into boxes.' },
+    { value: 'ddimageortext', label: 'Drag and Drop onto Image', icon: 'pi pi-image', info: 'Interactive! Drag text labels onto specific zones on a background image.' },
+    { value: 'ordering', label: 'Ordering', icon: 'pi pi-sort-numeric-down', info: 'Student must arrange a list of items in the correct sequence.' },
+    { value: 'coderunner', label: 'CodeRunner', icon: 'pi pi-code', info: 'For programming questions. Supports multiple languages and test cases.' },
+    { value: 'multichoiceanswernone', label: 'All-or-Nothing MCQ', icon: 'pi pi-exclamation-circle', info: 'Multiple Choice where full credit is given ONLY if all correct options are chosen.' }
   ];
+
+  moodleAdvice = {
+    multichoice: 'Check "Single Answer" if only one is correct. Ensure the correct one is 100% and others are 0% (or negative if you want to penalize wrong choices).',
+    truefalse: 'Assign 100% to the correct option. Moodle will handle the simple binary layout automatically.',
+    shortanswer: 'Provide common variations (e.g. "USA", "United States"). Set the most correct ones to 100%. Use "*" as a wildcard if needed.',
+    numerical: 'Specify the "Tolerance" (error margin). For example, if answer is 10 and tolerance is 0.1, then 9.9 to 10.1 is accepted.',
+    essay: 'General feedback is very important here to help students understand what you expect in their response.',
+    match: 'Create pairs. For each answer box, provide a "Question" (on the left) and its "Match" (on the right). Moodle will shuffle them.',
+    ddwtos: 'Use [[1]], [[2]], etc. in your question text to define where the draggable boxes should be dropped.',
+    ddimageortext: 'Upload a background image first. Then define your labels and drag them on the image to set their "home" coordinates.',
+    ordering: 'List the items in the correct sequence. Moodle will randomize them for the student.',
+    coderunner: 'Define the test cases (Input/Expected Output) carefully. Choose the right "Type" for the programming language being used.'
+  };
+
+  // Tag Suggestions Logic
+  allSuggestedTags = ['exam', 'quiz', 'final', 'homework', 'midterm', 'math', 'science', 'khmer', 'english', 'ict', 'urgent', 'revision'];
+  filteredTags = signal<string[]>([]);
+
+  filterTags(event: any) {
+    const query = event.query.toLowerCase().trim();
+    let filtered = this.allSuggestedTags.filter(tag => tag.toLowerCase().includes(query));
+    
+    // Always include the current query as the first option if it's not empty
+    // and not already in the filtered list. This allows pressing Enter to add a new tag.
+    if (query && !filtered.includes(query)) {
+      filtered = [query, ...filtered];
+    }
+    
+    this.filteredTags.set(filtered);
+  }
+
+  async loadExistingTags() {
+    try {
+      // Dynamically fetch tags already in use across the system
+      const { data } = await this.supabase.db
+        .from('questions')
+        .select('metadata')
+        .not('metadata', 'is', null)
+        .limit(200);
+
+      if (data) {
+        const tagSet = new Set(this.allSuggestedTags);
+        data.forEach((q: any) => {
+          if (q.metadata?.tags && Array.isArray(q.metadata.tags)) {
+            q.metadata.tags.forEach((t: string) => {
+              if (t && typeof t === 'string') tagSet.add(t.toLowerCase());
+            });
+          }
+        });
+        this.allSuggestedTags = Array.from(tagSet).sort();
+      }
+    } catch (err) {
+      console.error('Tag loading error:', err);
+    }
+  }
+
+  getSelectedTypeInfo() {
+    const value = this.questionForm.get('qtype')?.value;
+    const info = this.questionTypes.find(t => t.value === value);
+    const advice = (this.moodleAdvice as any)[value || ''] || '';
+    return info ? { ...info, advice } : null;
+  }
 
   // Define the form
   questionForm = this.fb.group({
@@ -97,6 +157,7 @@ export class QuestionFormComponent implements OnInit {
     penalty: [0.3333333, [Validators.required, Validators.min(0), Validators.max(1)]],
     general_feedback: [''],
     // Metadata
+    single: [true],
     shuffleanswers: [true],
     answernumbering: ['abc'],
     image_url: [''],
@@ -104,12 +165,22 @@ export class QuestionFormComponent implements OnInit {
     status: ['draft'],
     parent_id: [null],
     category_id: [null],
+    tags: [[] as string[]],
     // Answers array
     answers: this.fb.array([
-      this.createAnswer(100),
+      this.createAnswer(0),
       this.createAnswer(0)
     ])
   });
+
+  // Simplified grade options for the UI
+  readonly simplifiedGradeOptions = [
+    { label: 'Correct', value: 100 },
+    { label: 'None', value: 0 },
+    { label: 'Penalty (-25%)', value: -25 },
+    { label: 'Penalty (-33%)', value: -33.33333 },
+    { label: 'Penalty (-50%)', value: -50 }
+  ];
 
   constructor() { }
 
@@ -121,6 +192,7 @@ export class QuestionFormComponent implements OnInit {
       this.loadQuestionData(id);
     }
     this.loadFormCategories();
+    this.loadExistingTags();
 
     this.questionForm.get('qtype')?.valueChanges.subscribe(type => {
       this.handleTypeChange(type);
@@ -176,7 +248,11 @@ export class QuestionFormComponent implements OnInit {
         status: question.status,
         version: question.version || 1,
         parent_id: question.parent_id,
-        category_id: question.category_id || null
+        category_id: question.category_id || null,
+        single: question.metadata?.single !== undefined ? question.metadata.single : true,
+        shuffleanswers: question.metadata?.shuffleanswers !== undefined ? question.metadata.shuffleanswers : true,
+        answernumbering: question.metadata?.answernumbering || 'abc',
+        tags: question.metadata?.tags || []
       }, { emitEvent: false });
 
       // History is already handled and synced above
@@ -192,13 +268,23 @@ export class QuestionFormComponent implements OnInit {
       const answersArray = this.answers;
       answersArray.clear();
       answers.forEach((ans: any) => {
-        answersArray.push(this.fb.group({
+        const group = this.fb.group({
           answer_text: [this.importExport.cleanHtml(ans.answer_text), Validators.required],
           fraction: [ans.fraction, Validators.required],
+          isCorrect: [ans.fraction > 0],
           feedback: [this.importExport.cleanHtml(ans.feedback || '')],
           x: [ans.x || 50],
           y: [ans.y || 50]
-        }));
+        });
+
+        // Add listener for existing answers too
+        group.get('isCorrect')?.valueChanges.subscribe(() => {
+          if (this.questionForm.get('qtype')?.value === 'multichoice') {
+            this.autoBalanceGrades(true);
+          }
+        });
+
+        answersArray.push(group);
       });
 
     } catch (err: any) {
@@ -384,13 +470,13 @@ export class QuestionFormComponent implements OnInit {
       this.answers.push(this.fb.group({ answer_text: ['True', Validators.required], fraction: [100, Validators.required], feedback: [''] }));
       this.answers.push(this.fb.group({ answer_text: ['False', Validators.required], fraction: [0, Validators.required], feedback: [''] }));
     } else if (type === 'ddimageortext' || type === 'ordering' || type === 'match') {
-      this.answers.push(this.createAnswer(100));
-      this.answers.push(this.createAnswer(100));
-      this.answers.push(this.createAnswer(100));
+      this.answers.push(this.createAnswer(0));
+      this.answers.push(this.createAnswer(0));
+      this.answers.push(this.createAnswer(0));
     } else if (type === 'essay' || type === 'coderunner') {
       // Empty
     } else {
-      this.answers.push(this.createAnswer(100));
+      this.answers.push(this.createAnswer(0));
       this.answers.push(this.createAnswer(0));
     }
   }
@@ -409,13 +495,52 @@ export class QuestionFormComponent implements OnInit {
   }
 
   createAnswer(fraction = 0) {
-    return this.fb.group({
+    const group = this.fb.group({
       answer_text: ['', Validators.required],
       fraction: [fraction, Validators.required],
+      isCorrect: [fraction > 0],
       feedback: [''],
-      x: [50], // Start in the center for easy finding
-      y: [50]  // Start in the center for easy finding
+      x: [50],
+      y: [50]
     });
+
+    // Reactive: when fraction changes in the dropdown
+    group.get('fraction')?.valueChanges.subscribe(val => {
+      if (this.questionForm.get('qtype')?.value === 'multichoice') {
+        this.autoBalanceGrades(true);
+      }
+    });
+
+    return group;
+  }
+
+  compareFractions(o1: any, o2: any): boolean {
+    if (Number(o1) > 0 && Number(o2) > 0) return true;
+    return Number(o1) === Number(o2);
+  }
+
+  autoBalanceGrades(silent = false) {
+    const answers = this.answers.controls;
+    // For this simplified logic, we consider any positive fraction as "Correct"
+    const correctAnswers = answers.filter(a => Number(a.get('fraction')?.value) > 0);
+    
+    if (correctAnswers.length === 0) {
+      if (!silent) this.showToast('Please mark at least one answer as correct.', 'info');
+      return;
+    }
+
+    const share = 100 / correctAnswers.length;
+    const formattedShare = Number(share.toFixed(5));
+
+    answers.forEach(a => {
+      if (Number(a.get('fraction')?.value) > 0) {
+        a.get('fraction')?.setValue(formattedShare, { emitEvent: false });
+      }
+    });
+
+    if (!silent) {
+      this.showToast(`Grades balanced! Each correct answer is now ${formattedShare}%.`);
+    }
   }
 
   // Start dragging a marker
@@ -429,7 +554,7 @@ export class QuestionFormComponent implements OnInit {
     const index = this.activeDraggingIndex();
     if (index === null) return;
 
-    const img = document.querySelector('img') as HTMLImageElement;
+    const img = document.querySelector('#previewImg') as HTMLImageElement;
     if (!img) return;
 
     const rect = img.getBoundingClientRect();
@@ -439,11 +564,23 @@ export class QuestionFormComponent implements OnInit {
     const boundedX = Math.max(0, Math.min(100, x));
     const boundedY = Math.max(0, Math.min(100, y));
 
-    const answer = this.answers.at(index);
-    answer.patchValue({
-      x: Math.round(boundedX * 100) / 100,
-      y: Math.round(boundedY * 100) / 100
-    });
+    const finalX = Math.round(boundedX * 100) / 100;
+    const finalY = Math.round(boundedY * 100) / 100;
+
+    if (this.isPreviewMode()) {
+      // Update student preview state
+      this.studentPlacement.update(prev => ({
+        ...prev,
+        [index]: { x: finalX, y: finalY }
+      }));
+    } else {
+      // Update form state (Designer mode)
+      const answer = this.answers.at(index);
+      answer.patchValue({
+        x: finalX,
+        y: finalY
+      });
+    }
   }
 
   @HostListener('window:mouseup')
@@ -452,10 +589,20 @@ export class QuestionFormComponent implements OnInit {
   }
 
   togglePreview() {
+    if (!this.isPreviewMode()) {
+      const questionText = this.questionForm.get('question_text')?.value;
+      const hasAnswers = this.answers.controls.some(a => a.get('answer_text')?.value?.trim());
+      
+      if (!questionText?.trim() || !hasAnswers) {
+        this.showToast('Please enter the question text and at least one answer before previewing.', 'error');
+        return;
+      }
+    }
     this.isPreviewMode.set(!this.isPreviewMode());
     this.previewResult.set(null);
-    this.studentSelectedAnswer.set(null);
+    this.studentSelectedAnswers.set([]);
     this.studentTextAnswer.set('');
+    this.studentPlacement.set({});
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -467,12 +614,29 @@ export class QuestionFormComponent implements OnInit {
     let grade = 0;
 
     if (['multichoice', 'truefalse', 'multichoiceanswernone'].includes(qtype!)) {
-      const selectedIndex = this.studentSelectedAnswer();
-      if (selectedIndex !== null) {
-        const selected = answers[selectedIndex];
-        grade = selected.fraction;
-        isCorrect = grade === 100;
-        feedback = selected.feedback || (isCorrect ? 'Well done!' : 'That is not correct.');
+      const selectedIndices = this.studentSelectedAnswers();
+      const isSingle = this.questionForm.get('single')?.value !== false;
+      
+      if (selectedIndices.length > 0) {
+        if (isSingle) {
+          const selected = answers[selectedIndices[0]];
+          grade = selected.fraction;
+          isCorrect = grade === 100;
+          feedback = selected.feedback || (isCorrect ? 'Well done!' : 'That is not correct.');
+        } else {
+          // Sum up fractions for multiple answers
+          grade = selectedIndices.reduce((acc, idx) => acc + (answers[idx].fraction || 0), 0);
+          isCorrect = grade >= 99;
+          feedback = isCorrect ? 'Correct! All selected answers are right.' : `Partial credit: ${grade}%.`;
+          
+          // Add specific feedback for each selected answer
+          const feedbacks = selectedIndices
+            .map(idx => answers[idx].feedback)
+            .filter(f => !!f);
+          if (feedbacks.length > 0) {
+            feedback += '\n\n' + feedbacks.join('\n');
+          }
+        }
       }
     } else if (['shortanswer', 'numerical'].includes(qtype!)) {
       const response = this.studentTextAnswer().trim().toLowerCase();
@@ -485,6 +649,25 @@ export class QuestionFormComponent implements OnInit {
         isCorrect = false;
         feedback = 'Incorrect answer.';
       }
+    } else if (qtype === 'ddimageortext') {
+      const placements = this.studentPlacement();
+      const numTotal = answers.length;
+      let numCorrect = 0;
+      
+      answers.forEach((ans: any, i: number) => {
+        const studentPos = placements[i];
+        if (studentPos) {
+          // Check if student position is close to target position (within 8% range)
+          const dist = Math.sqrt(Math.pow(studentPos.x - ans.x, 2) + Math.pow(studentPos.y - ans.y, 2));
+          if (dist < 8) {
+            numCorrect++;
+          }
+        }
+      });
+      
+      grade = Math.round((numCorrect / numTotal) * 100);
+      isCorrect = grade >= 99;
+      feedback = isCorrect ? 'Perfect! All labels are in the correct spots.' : `You got ${numCorrect} out of ${numTotal} labels correct (${grade}%).`;
     }
 
     this.previewResult.set({ 
@@ -499,6 +682,23 @@ export class QuestionFormComponent implements OnInit {
       this.imagePreview.set(null);
       this.questionForm.patchValue({ image_url: '' });
       this.showImageUpload.set(false);
+    }
+  }
+
+  toggleStudentAnswer(index: number) {
+    if (this.previewResult()) return;
+    
+    const isSingle = this.questionForm.get('single')?.value !== false;
+    const current = this.studentSelectedAnswers();
+    
+    if (isSingle) {
+      this.studentSelectedAnswers.set([index]);
+    } else {
+      if (current.includes(index)) {
+        this.studentSelectedAnswers.set(current.filter(i => i !== index));
+      } else {
+        this.studentSelectedAnswers.set([...current, index]);
+      }
     }
   }
 
@@ -580,20 +780,24 @@ export class QuestionFormComponent implements OnInit {
         name: formValue.name,
         question_text: formValue.question_text,
         general_feedback: formValue.general_feedback,
-        default_grade: formValue.default_grade,
-        penalty: formValue.penalty,
+        default_grade: Math.round(Number(formValue.default_grade) || 1),
+        penalty: Number(formValue.penalty) || 0,
         qtype: formValue.qtype,
         category_id: formValue.category_id || null,
         created_by: user.id,
         metadata: {
           ...currentMetadata,
           ...extraMetadata,
+          single: formValue.single,
           shuffleanswers: formValue.shuffleanswers,
           answernumbering: formValue.answernumbering,
           image_url: formValue.image_url,
+          tags: formValue.tags || [],
           // Preserve original author; only update who last modified
           author_name: currentMetadata.author_name || this.currentTeacher,
+          author_email: currentMetadata.author_email || user.email,
           modified_by: this.currentTeacher,
+          modified_by_email: user.email,
           modified_at: new Date().toISOString()
         }
       };
@@ -671,10 +875,10 @@ export class QuestionFormComponent implements OnInit {
       const answersToInsert = (formValue.answers as any[])?.map(ans => ({
         question_id: targetId,
         answer_text: ans.answer_text,
-        fraction: ans.fraction,
+        fraction: Math.round(Number(ans.fraction) || 0),
         feedback: ans.feedback,
-        x: ans.x || 0,
-        y: ans.y || 0
+        x: Math.round(Number(ans.x) || 0),
+        y: Math.round(Number(ans.y) || 0)
       }));
 
       if (answersToInsert?.length) {

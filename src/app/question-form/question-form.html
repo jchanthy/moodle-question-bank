@@ -5,7 +5,7 @@
     'bg-green-600 shadow-green-100': notification()?.type === 'success',
     'bg-red-600 shadow-red-100': notification()?.type === 'error',
     'bg-blue-600 shadow-blue-100': notification()?.type === 'info'
-  }" class="flex items-center gap-3 px-6 py-3 rounded-2xl text-white shadow-2xl font-bold">
+  }" class="flex items-center gap-3 px-6 py-3 rounded-none text-white shadow-2xl font-bold">
     <svg *ngIf="notification()?.type === 'success'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
       <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
     </svg>
@@ -26,7 +26,7 @@
           <div>
             <h1 class="text-2xl font-black text-white flex items-center gap-3">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
               {{ editMode() ? 'Edit Question' : 'Build Question' }}
               <span *ngIf="questionForm.get('version')?.value" class="bg-blue-500/50 text-[10px] px-2 py-1 rounded-md border border-white/20 uppercase tracking-widest">
@@ -38,15 +38,15 @@
           <div class="flex items-center gap-3">
             <!-- Version Switcher -->
             <div class="relative group/version" *ngIf="versions().length > 1">
-              <button type="button" class="bg-white/10 px-4 py-2 rounded-2xl backdrop-blur-md border border-white/20 flex items-center gap-2 hover:bg-white/20 transition-all">
+              <button type="button" class="bg-white/10 px-4 py-2 rounded-none backdrop-blur-md border border-white/20 flex items-center gap-2 hover:bg-white/20 transition-all">
                 <span class="text-white text-xs font-bold">v{{ questionForm.get('version')?.value }}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                  <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
               
               <!-- Dropdown Menu -->
-              <div class="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-blue-100/50 py-2 opacity-0 invisible group-hover/version:opacity-100 group-hover/version:visible transition-all z-50">
+              <div class="absolute right-0 top-full mt-2 w-56 bg-white rounded-none shadow-2xl border border-blue-100/50 py-2 opacity-0 invisible group-hover/version:opacity-100 group-hover/version:visible transition-all z-50">
                 <div class="px-4 py-2 border-b border-blue-50 mb-1">
                   <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Version History</span>
                 </div>
@@ -70,16 +70,19 @@
               </div>
             </div>
 
-            <div class="bg-white/10 h-10 px-4 rounded-2xl backdrop-blur-md border border-white/20 flex items-center gap-2">
-              <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+            <div class="bg-white/10 h-10 px-4 rounded-none backdrop-blur-md border border-white/20 flex items-center gap-2">
+              <div class="w-2 h-2 bg-green-400 rounded-none animate-pulse"></div>
               <span class="text-white text-sm font-black uppercase tracking-widest">{{ currentTeacher }}</span>
             </div>
 
             <button type="button" (click)="togglePreview()"
-              class="h-10 px-5 bg-white text-blue-700 rounded-2xl font-black text-sm hover:bg-blue-50 transition-all shadow-xl shadow-blue-900/20 flex items-center gap-2 border-none">
+              [disabled]="!questionForm.get('question_text')?.value?.trim()"
+              [class.opacity-50]="!questionForm.get('question_text')?.value?.trim()"
+              [class.cursor-not-allowed]="!questionForm.get('question_text')?.value?.trim()"
+              class="h-10 px-5 bg-white text-blue-700 rounded-none font-black text-sm hover:bg-blue-50 transition-all shadow-xl shadow-blue-900/20 flex items-center gap-2 border-none">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
               {{ isPreviewMode() ? 'Back to Editor' : 'Preview' }}
             </button>
@@ -96,7 +99,7 @@
           'bg-red-50 text-red-700': questionForm.get('status')?.value === 'rejected'
         }">
         <div class="flex items-center gap-2 text-xs font-black uppercase tracking-tighter">
-          <div class="w-2 h-2 rounded-full" [ngClass]="{
+          <div class="w-2 h-2 rounded-none" [ngClass]="{
             'bg-green-500 animate-pulse': questionForm.get('status')?.value === 'approved',
             'bg-yellow-500 animate-pulse': questionForm.get('status')?.value === 'pending_review',
             'bg-red-500': questionForm.get('status')?.value === 'rejected'
@@ -110,30 +113,30 @@
         <!-- Student View Header -->
         <div class="flex items-center justify-between mb-8">
           <h2 class="text-xl font-black text-gray-900 flex items-center gap-2">
-            <span class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-xs">?</span>
+            <span class="bg-blue-600 text-white w-8 h-8 rounded-none flex items-center justify-center text-xs">?</span>
             Student Preview
           </h2>
-          <button type="button" (click)="togglePreview()" class="text-sm font-bold text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-xl transition">
+          <button type="button" (click)="togglePreview()" class="text-sm font-bold text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-none transition">
             Back to Editor
           </button>
         </div>
 
         <div class="bg-gray-50 rounded-3xl p-8 border border-blue-100/50 shadow-inner">
-          <div class="bg-white rounded-2xl p-8 shadow-xl border border-white">
+          <div class="bg-white rounded-none p-8 shadow-xl border border-white">
             <!-- Question Text -->
             <div class="prose prose-blue max-w-none mb-10">
               <div [innerHTML]="questionForm.get('question_text')?.value" class="text-xl font-medium text-gray-800 leading-relaxed"></div>
             </div>
 
             <!-- Image Support in Preview -->
-            <div *ngIf="imagePreview()" class="mb-10 rounded-2xl overflow-hidden border-4 border-blue-50 shadow-sm relative group">
+            <div *ngIf="imagePreview()" class="mb-10 rounded-none overflow-hidden border-4 border-blue-50 shadow-sm relative group">
               <img [src]="imagePreview()" class="w-full max-h-[500px] object-contain block mx-auto">
               
               <!-- Drag and Drop Overlay in Preview -->
               <ng-container *ngIf="questionForm.get('qtype')?.value === 'ddimageortext'">
                 <div *ngFor="let answer of answers.controls; let i=index" 
                   [style.left.%]="answer.get('x')?.value" [style.top.%]="answer.get('y')?.value"
-                  class="absolute -translate-x-1/2 -translate-y-1/2 w-[140px] h-[44px] border-2 border-dashed border-blue-400/50 bg-blue-50/20 rounded-xl flex items-center justify-center backdrop-blur-[2px]">
+                  class="absolute -translate-x-1/2 -translate-y-1/2 w-[140px] h-[44px] border-2 border-dashed border-blue-400/50 bg-blue-50/20 rounded-none flex items-center justify-center backdrop-blur-[2px]">
                   <span class="text-[10px] font-black text-blue-400 uppercase tracking-widest">Drop Here</span>
                 </div>
               </ng-container>
@@ -141,22 +144,38 @@
 
             <!-- Interaction Area -->
             <div class="space-y-4">
-              <!-- Multiple Choice / True False -->
-              <ng-container *ngIf="['multichoice', 'truefalse', 'multichoiceanswernone'].includes(questionForm.get('qtype')?.value!)">
-                <div *ngFor="let ans of answers.controls; let i=index" 
-                  (click)="!previewResult() && studentSelectedAnswer.set(i)"
-                  [class.border-blue-500]="studentSelectedAnswer() === i"
-                  [class.bg-blue-50]="studentSelectedAnswer() === i"
-                  class="flex items-center gap-4 p-5 border-2 border-blue-50 hover:border-blue-200 hover:bg-blue-50/50 transition-all cursor-pointer group">
-                  <div class="w-6 h-6 rounded-full border-2 border-blue-100 group-hover:border-blue-500 transition-colors flex items-center justify-center bg-white"
-                    [class.border-blue-500]="studentSelectedAnswer() === i">
-                    <div class="w-3 h-3 rounded-full bg-blue-600 transition-transform"
-                      [class.scale-100]="studentSelectedAnswer() === i"
-                      [class.scale-0]="studentSelectedAnswer() !== i"></div>
-                  </div>
-                  <span class="text-gray-700 font-bold text-lg">{{ ans.get('answer_text')?.value }}</span>
-                </div>
-              </ng-container>
+               <!-- Multiple Choice / True False -->
+               <ng-container *ngIf="['multichoice', 'truefalse', 'multichoiceanswernone'].includes(questionForm.get('qtype')?.value!)">
+                 <div *ngFor="let ans of answers.controls; let i=index" 
+                   (click)="toggleStudentAnswer(i)"
+                   [class.border-blue-500]="studentSelectedAnswers().includes(i)"
+                   [class.bg-blue-50]="studentSelectedAnswers().includes(i)"
+                   class="flex items-center gap-4 p-5 border-2 border-blue-50 hover:border-blue-200 hover:bg-blue-50/50 transition-all cursor-pointer group">
+                   
+                   <!-- Selection Indicator -->
+                   <div class="w-6 h-6 flex items-center justify-center bg-white border-2 transition-all"
+                     [ngClass]="{
+                       'rounded-none': questionForm.get('single')?.value !== false,
+                       'rounded-md': questionForm.get('single')?.value === false,
+                       'border-blue-500': studentSelectedAnswers().includes(i),
+                       'border-blue-100 group-hover:border-blue-500': !studentSelectedAnswers().includes(i)
+                     }">
+                     <div class="bg-blue-600 transition-transform"
+                       [ngClass]="{
+                         'w-3 h-3 rounded-none': questionForm.get('single')?.value !== false,
+                         'w-4 h-4 rounded-sm flex items-center justify-center': questionForm.get('single')?.value === false,
+                         'scale-100': studentSelectedAnswers().includes(i),
+                         'scale-0': !studentSelectedAnswers().includes(i)
+                       }">
+                       <svg *ngIf="questionForm.get('single')?.value === false" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
+                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                       </svg>
+                     </div>
+                   </div>
+                   
+                   <span class="text-gray-700 font-bold text-lg flex-1">{{ ans.get('answer_text')?.value }}</span>
+                 </div>
+               </ng-container>
 
               <!-- Short Answer / Numerical -->
               <ng-container *ngIf="['shortanswer', 'numerical'].includes(questionForm.get('qtype')?.value!)">
@@ -173,23 +192,17 @@
               <ng-container *ngIf="questionForm.get('qtype')?.value === 'essay'">
                 <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Write your response</label>
                 <textarea rows="8" placeholder="Begin typing your essay..." 
-                  class="w-full p-6 rounded-2xl border-2 border-blue-100/50 bg-gray-50 focus:bg-white focus:border-blue-500 transition-all outline-none resize-none text-lg leading-relaxed shadow-inner"></textarea>
+                  class="w-full p-6 rounded-none border-2 border-blue-100/50 bg-gray-50 focus:bg-white focus:border-blue-500 transition-all outline-none resize-none text-lg leading-relaxed shadow-inner"></textarea>
               </ng-container>
 
-              <!-- Drag and Drop Labels (at bottom) -->
-              <div *ngIf="questionForm.get('qtype')?.value === 'ddimageortext'" class="pt-8 border-t border-blue-100/50 mt-8">
-                <div class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 text-center">Available Labels</div>
-                <div class="flex flex-wrap justify-center gap-3">
-                  <div *ngFor="let ans of answers.controls" 
-                    class="px-5 py-2.5 bg-blue-600 text-white rounded-xl shadow-lg text-sm font-black border-2 border-white cursor-move hover:scale-105 transition-transform">
-                    {{ ans.get('answer_text')?.value }}
-                  </div>
-                </div>
+              <!-- Drag and Drop Labels (Instructional) -->
+              <div *ngIf="questionForm.get('qtype')?.value === 'ddimageortext' && !previewResult()" class="pt-8 border-t border-blue-100/50 mt-8 text-center">
+                <p class="text-sm font-bold text-blue-600 animate-pulse">Drag the labels from the dock below onto the correct spots on the image above.</p>
               </div>
             </div>
 
             <!-- Submit Button (Preview) -->
-            <div class="mt-10 flex justify-center" *ngIf="!previewResult() && (['multichoice', 'truefalse', 'shortanswer', 'numerical'].includes(questionForm.get('qtype')?.value!))">
+            <div class="mt-10 flex justify-center" *ngIf="!previewResult() && (['multichoice', 'truefalse', 'shortanswer', 'numerical', 'ddimageortext'].includes(questionForm.get('qtype')?.value!))">
               <button type="button" (click)="checkPreviewAnswer()"
                 class="bg-blue-600 text-white px-10 py-4 font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-900/20 active:scale-95">
                 Check My Answer
@@ -215,7 +228,7 @@
                   [innerHTML]="previewResult()?.feedback">
                 </div>
                 
-                <button type="button" (click)="previewResult.set(null); studentSelectedAnswer.set(null); studentTextAnswer.set('')"
+                <button type="button" (click)="previewResult.set(null); studentSelectedAnswers.set([]); studentTextAnswer.set(''); studentPlacement.set({})"
                   class="mt-6 text-sm font-black text-blue-600 hover:underline">
                   Try Again
                 </button>
@@ -224,7 +237,7 @@
           </div>
           
           <!-- Student Feedback Preview (Optional) -->
-          <div class="mt-8 bg-blue-100/50 rounded-2xl p-6 border border-blue-100">
+          <div class="mt-8 bg-blue-100/50 rounded-none p-6 border border-blue-100">
             <h4 class="text-xs font-black text-blue-600 uppercase tracking-widest mb-2">General Feedback (Shown after submission)</h4>
             <div class="text-sm text-blue-800 font-medium leading-relaxed italic" [innerHTML]="questionForm.get('general_feedback')?.value || 'No feedback provided for this question.'"></div>
           </div>
@@ -236,25 +249,63 @@
         <!-- General Information Section -->
         <section class="space-y-6">
           <h2 class="text-lg font-bold text-gray-900 border-b border-blue-50 flex items-center gap-2">
-            <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black uppercase">01</span>
+            <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-none flex items-center justify-center text-[10px] font-black uppercase">01</span>
             General Information
           </h2>
           
           <div class="grid grid-cols-1 gap-6">
-            <div>
-              <div class="flex items-center justify-between mb-1">
-                <label class="block text-sm font-bold text-gray-700">Question Type</label>
-                <a href="/teacher/guide" target="_blank" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div class="md:col-span-3">
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-sm font-bold text-gray-700">Question Type</label>
+                  <a href="/teacher/guide" target="_blank" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                    </svg>
+                    View Type Guide
+                  </a>
+                </div>
+                <div class="relative">
+                  <select formControlName="qtype"
+                    class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-4 pl-12 border bg-white font-bold transition-all appearance-none cursor-pointer">
+                    <option *ngFor="let type of questionTypes" [value]="type.value">{{ type.label }}</option>
+                  </select>
+                  <div class="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500 pointer-events-none">
+                    <i [class]="getSelectedTypeInfo()?.icon || 'pi pi-question-circle'" class="text-xl"></i>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Modern Info Box -->
+              <div class="md:col-span-1">
+                <div class="h-full bg-blue-900 text-white p-4 relative overflow-hidden group min-h-[80px] flex flex-col justify-center">
+                  <div class="relative z-10">
+                    <h5 class="text-[9px] font-black uppercase tracking-[0.2em] mb-1 opacity-70">Moodle Concept</h5>
+                    <p class="text-[11px] leading-tight font-medium italic opacity-90 group-hover:opacity-100 transition-opacity">
+                      {{ getSelectedTypeInfo()?.info }}
+                    </p>
+                  </div>
+                  <div class="absolute -right-2 -bottom-2 opacity-5 scale-150 group-hover:scale-[2] transition-transform duration-1000">
+                    <i [class]="getSelectedTypeInfo()?.icon" class="text-7xl"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Smart Advice Bar -->
+            <div *ngIf="getSelectedTypeInfo()?.advice" 
+              class="p-4 bg-blue-50 border-l-4 border-blue-600 animate-in slide-in-from-left-4 duration-300">
+              <div class="flex gap-3">
+                <div class="text-blue-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
                   </svg>
-                  View Type Guide
-                </a>
+                </div>
+                <div>
+                  <h6 class="text-[10px] font-black text-blue-900 uppercase tracking-widest mb-1">Creation Tip</h6>
+                  <p class="text-xs text-blue-800 font-medium leading-relaxed">{{ getSelectedTypeInfo()?.advice }}</p>
+                </div>
               </div>
-              <select formControlName="qtype"
-                class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
-                <option *ngFor="let type of questionTypes" [value]="type.value">{{ type.label }}</option>
-              </select>
             </div>
 
             <div>
@@ -264,10 +315,10 @@
                   class="text-xs font-bold flex items-center gap-1 transition-colors"
                   [ngClass]="showNewCategory() ? 'text-gray-400 hover:text-gray-600' : 'text-blue-600 hover:text-blue-800'">
                   <svg *ngIf="!showNewCategory()" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 4v16m8-8H4" />
                   </svg>
                   <svg *ngIf="showNewCategory()" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                   {{ showNewCategory() ? 'Cancel' : '+ New Category' }}
                 </button>
@@ -281,7 +332,7 @@
               </select>
 
               <!-- Inline Create Category Form -->
-              <div *ngIf="showNewCategory()" class="mt-3 p-4 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div *ngIf="showNewCategory()" class="mt-3 p-4 bg-blue-50/50 border border-blue-100 rounded-none space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                 <div>
                   <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Category Name</label>
                   <input type="text" [ngModel]="newCategoryName()" (ngModelChange)="newCategoryName.set($event)" [ngModelOptions]="{standalone: true}"
@@ -300,8 +351,8 @@
                 </div>
                 <div class="flex items-center gap-2 pt-1">
                   <button type="button" (click)="createCategory()" [disabled]="!newCategoryName().trim() || creatingCategory()"
-                    class="px-5 py-2 bg-blue-600 text-white rounded-xl font-bold text-xs hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-                    <span *ngIf="creatingCategory()" class="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full"></span>
+                    class="px-5 py-2 bg-blue-600 text-white rounded-none font-bold text-xs hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                    <span *ngIf="creatingCategory()" class="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-none"></span>
                     {{ creatingCategory() ? 'Creating...' : 'Create Category' }}
                   </button>
                   <button type="button" (click)="showNewCategory.set(false); newCategoryName.set(''); newCategoryParent.set(null)"
@@ -316,6 +367,27 @@
               <label class="block text-sm font-bold text-gray-700">Question Name (Internal)</label>
               <input type="text" formControlName="name" placeholder="e.g. History_Q1_FrenchRevolution"
                 class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
+            </div>
+
+            <!-- Tags -->
+            <div>
+              <label class="block text-sm font-bold text-gray-700 flex items-center gap-2 mb-1">
+                Question Tags
+                <span class="text-[10px] font-normal text-gray-400 normal-case">(Press Enter after each tag)</span>
+              </label>
+              <p-autocomplete formControlName="tags" 
+                               [multiple]="true"
+                               [unique]="true"
+                               [suggestions]="filteredTags()"
+                               (completeMethod)="filterTags($event)"
+                               [delay]="0"
+                               [autoHighlight]="true"
+                               [completeOnFocus]="true"
+                               separator=","
+                               placeholder="exam, final, quiz..."
+                               styleClass="w-full"
+                               inputStyleClass="w-full mt-1 block border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2 border bg-gray-50/50 font-medium transition-all rounded-none min-h-[44px]">
+              </p-autocomplete>
             </div>
 
             <div>
@@ -334,9 +406,9 @@
                 
                 <button *ngIf="!imagePreview() && !showImageUpload()" 
                   type="button" (click)="showImageUpload.set(true)"
-                  class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1">
+                  class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-none font-bold transition flex items-center gap-1">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 4v16m8-8H4" />
                   </svg>
                   Add Illustration
                 </button>
@@ -348,15 +420,15 @@
                 (dragover)="$event.preventDefault()" (drop)="onDrop($event)" (click)="fileInput.click()">
                 <input type="file" #fileInput (change)="onFileSelected($event)" accept="image/*" class="hidden">
                 <div *ngIf="!uploading()" class="space-y-4">
-                  <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm group-hover:scale-110 transition">
+                  <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-none flex items-center justify-center mx-auto shadow-sm group-hover:scale-110 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
                   <p class="text-gray-600 font-bold">Drag image here or <span class="text-blue-600">click to browse</span></p>
                 </div>
                 <div *ngIf="uploading()" class="animate-pulse flex flex-col items-center">
-                  <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-2"></div>
+                  <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-none animate-spin mb-2"></div>
                   <p class="text-blue-600 font-bold">Processing Image...</p>
                 </div>
               </div>
@@ -365,11 +437,11 @@
               <div *ngIf="imagePreview() && !uploading()" class="space-y-4">
                 <div class="flex items-center justify-between mb-2">
                    <div class="flex items-center gap-2">
-                      <span class="bg-blue-600 w-2 h-2 rounded-full animate-ping"></span>
+                      <span class="bg-blue-600 w-2 h-2 rounded-none animate-ping"></span>
                       <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Interactive Designer</span>
                    </div>
                    <button type="button" (click)="togglePreview()" 
-                      class="text-xs font-bold px-3 py-1.5 rounded-lg transition-all border"
+                      class="text-xs font-bold px-3 py-1.5 rounded-none transition-all border"
                       [ngClass]="isPreviewMode() ? 'bg-blue-600 text-white border-blue-600 shadow-lg' : 'bg-white text-gray-600 border-blue-100 hover:bg-gray-50'">
                       {{ isPreviewMode() ? 'Exit Student View' : 'Preview as Student' }}
                    </button>
@@ -378,7 +450,7 @@
                 <div class="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white select-none bg-gray-200"
                   (mouseup)="stopDragging()" (mouseleave)="stopDragging()">
                   
-                  <img #previewImg [src]="imagePreview()" class="w-full max-h-[600px] object-contain block mx-auto pointer-events-none">
+                  <img id="previewImg" [src]="imagePreview()" class="w-full max-h-[600px] object-contain block mx-auto pointer-events-none select-none">
                   
                   <!-- Markers (Always Draggable) -->
                   <ng-container *ngIf="questionForm.get('qtype')?.value === 'ddimageortext' && !isPreviewMode()">
@@ -390,22 +462,45 @@
                         'bg-purple-600': answer.get('fraction')?.value == 50,
                         'bg-emerald-600': answer.get('fraction')?.value == 0
                       }"
-                      class="absolute -translate-x-1/2 -translate-y-1/2 text-white px-3 py-1.5 rounded-lg shadow-xl text-xs font-black whitespace-nowrap border-2 border-white transition-all cursor-grab active:cursor-grabbing hover:scale-110 z-10">
+                      class="absolute -translate-x-1/2 -translate-y-1/2 text-white px-3 py-1.5 rounded-none shadow-xl text-xs font-black whitespace-nowrap border-2 border-white transition-all cursor-grab active:cursor-grabbing hover:scale-110 z-10">
                       {{ answer.get('answer_text')?.value || 'Label ' + (i+1) }}
                     </div>
                   </ng-container>
 
-                  <!-- Student Mode Zones -->
+                  <!-- Student Mode Zones (Targets) -->
                   <ng-container *ngIf="questionForm.get('qtype')?.value === 'ddimageortext' && isPreviewMode()">
                     <div *ngFor="let answer of answers.controls; let i=index" 
                       [style.left.%]="answer.get('x')?.value" [style.top.%]="answer.get('y')?.value"
-                      class="absolute -translate-x-1/2 -translate-y-1/2 w-[120px] h-[40px] border-2 border-dashed border-white/50 bg-black/20 rounded-lg flex items-center justify-center">
+                      class="absolute -translate-x-1/2 -translate-y-1/2 w-[120px] h-[40px] border-2 border-dashed border-white/50 bg-black/20 rounded-none flex items-center justify-center z-0">
+                      <span class="text-[10px] text-white/20 font-bold uppercase">{{ i + 1 }}</span>
+                    </div>
+
+                  <!-- Draggable labels that have been placed on image -->
+                  <ng-container *ngFor="let answer of answers.controls; let i=index">
+                    <div *ngIf="studentPlacement()[i]"
+                      [style.left.%]="studentPlacement()[i]?.x" [style.top.%]="studentPlacement()[i]?.y"
+                      (mousedown)="startDragging(i, $event)"
+                      class="absolute -translate-x-1/2 -translate-y-1/2 bg-blue-600 text-white px-3 py-1.5 rounded-none shadow-xl text-xs font-black whitespace-nowrap border-2 border-white transition-all cursor-grab active:cursor-grabbing hover:scale-110 z-40">
+                      {{ answer.get('answer_text')?.value }}
                     </div>
                   </ng-container>
 
+                  <!-- Label Bank (Dock) -->
+                  <div *ngIf="questionForm.get('qtype')?.value === 'ddimageortext' && isPreviewMode()" 
+                    class="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-md p-4 flex flex-wrap gap-3 justify-center border-t border-white/10 z-30">
+                    <div *ngFor="let answer of answers.controls; let i=index">
+                      <div (mousedown)="startDragging(i, $event)"
+                        [class.invisible]="studentPlacement()[i]"
+                        class="bg-blue-600/80 hover:bg-blue-600 text-white px-3 py-1.5 rounded-none shadow-lg text-xs font-black whitespace-nowrap border border-white/20 transition-all cursor-grab active:cursor-grabbing">
+                        {{ answer.get('answer_text')?.value || 'Label ' + (i+1) }}
+                      </div>
+                    </div>
+                  </div>
+                </ng-container>
+
                   <!-- Delete Image Button -->
                   <button *ngIf="!isPreviewMode()" type="button" (click)="removeImage()" 
-                    class="absolute top-4 right-4 bg-red-600 text-white p-2 rounded-xl shadow-lg hover:bg-red-700 transition transform hover:scale-110">
+                    class="absolute top-4 right-4 bg-red-600 text-white p-2 rounded-none shadow-lg hover:bg-red-700 transition transform hover:scale-110">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                       <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
                     </svg>
@@ -416,10 +511,49 @@
           </div>
         </section>
 
+        <!-- Question Options Section (Specific to MCQ) -->
+        <section class="space-y-6" *ngIf="questionForm.get('qtype')?.value === 'multichoice'">
+          <h2 class="text-lg font-bold text-gray-900 border-b border-blue-50 flex items-center gap-2">
+            <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-none flex items-center justify-center text-[10px] font-black uppercase">02</span>
+            Question Options
+          </h2>
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label class="block text-sm font-bold text-gray-700">One or multiple answers?</label>
+              <select formControlName="single"
+                class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
+                <option [ngValue]="true">One answer only</option>
+                <option [ngValue]="false">Multiple answers allowed</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-bold text-gray-700">Shuffle the choices?</label>
+              <select formControlName="shuffleanswers"
+                class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
+                <option [ngValue]="true">Yes</option>
+                <option [ngValue]="false">No</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-bold text-gray-700">Number the choices?</label>
+              <select formControlName="answernumbering"
+                class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
+                <option value="abc">a., b., c., ...</option>
+                <option value="ABCD">A., B., C., ...</option>
+                <option value="123">1., 2., 3., ...</option>
+                <option value="none">No numbering</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
         <!-- Scoring Section -->
         <section class="space-y-6">
           <h2 class="text-lg font-bold text-gray-900 border-b border-blue-50 flex items-center gap-2">
-            <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black uppercase">02</span>
+            <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-none flex items-center justify-center text-[10px] font-black uppercase">03</span>
             Scoring & Feedback
           </h2>
           
@@ -436,25 +570,27 @@
         <section class="space-y-6" *ngIf="questionForm.get('qtype')?.value !== 'essay' && questionForm.get('qtype')?.value !== 'coderunner'">
           <div class="flex justify-between items-center border-b border-blue-50">
             <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black uppercase">03</span>
+              <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-none flex items-center justify-center text-[10px] font-black uppercase">04</span>
               {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Draggable Labels' : 'Multiple Choice Options' }}
             </h2>
-            <button type="button" (click)="addAnswer()" class="text-blue-600 hover:text-blue-800 text-sm font-bold flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
-              Add {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Label' : 'Choice' }}
-            </button>
+            <div class="flex items-center gap-4">
+              <button type="button" (click)="addAnswer()" class="text-blue-600 hover:text-blue-800 text-sm font-bold flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Add {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Label' : 'Choice' }}
+              </button>
+            </div>
           </div>
 
           <div formArrayName="answers" class="space-y-6">
             <div *ngFor="let answer of answers.controls; let i=index" [formGroupName]="i" 
-              class="p-6 bg-gray-50 rounded-2xl border border-blue-100 relative group animate-fade-in shadow-sm">
+              class="p-6 bg-gray-50 rounded-none border border-blue-100 relative group animate-fade-in shadow-sm">
               
               <button *ngIf="answers.length > 2" type="button" (click)="removeAnswer(i)"
-                class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600 transition">
+                class="absolute -top-2 -right-2 bg-red-500 text-white rounded-none p-1 shadow-lg hover:bg-red-600 transition">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
 
@@ -471,7 +607,8 @@
                   <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
                     {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Group / Color' : 'Grade / Scoring' }}
                   </label>
-                  <select formControlName="fraction"
+                  
+                  <select formControlName="fraction" [compareWith]="compareFractions"
                     class="block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2.5 border bg-white transition-all">
                     <ng-container *ngIf="questionForm.get('qtype')?.value === 'ddimageortext'">
                       <option [value]="100">Group 1 (Blue)</option>
@@ -479,9 +616,9 @@
                       <option [value]="0">Group 3 (Green)</option>
                     </ng-container>
                     <ng-container *ngIf="questionForm.get('qtype')?.value !== 'ddimageortext'">
-                      <option [value]="100">Correct (100%)</option>
-                      <option [value]="50">Partial (50%)</option>
-                      <option [value]="0">Incorrect (None)</option>
+                      <option *ngFor="let opt of simplifiedGradeOptions" [value]="opt.value">
+                        {{ opt.label }}
+                      </option>
                     </ng-container>
                   </select>
                 </div>
@@ -506,7 +643,7 @@
         <!-- Version Info Bar (Inside Form) -->
         <div class="pt-10 flex items-center justify-between border-t border-blue-100/50">
           <div class="flex items-center gap-3">
-            <div class="px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-black border border-blue-100 flex items-center gap-2">
+            <div class="px-4 py-1.5 bg-blue-50 text-blue-700 rounded-none text-sm font-black border border-blue-100 flex items-center gap-2">
               <span class="opacity-50">Version</span>
               <select (change)="onVersionChange($event)" class="bg-transparent border-none font-black focus:ring-0 cursor-pointer">
                 <option *ngFor="let v of availableVersions()" [value]="v.id" [selected]="v.id === questionId()">
@@ -514,7 +651,7 @@
                 </option>
               </select>
             </div>
-            <span class="px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest border"
+            <span class="px-4 py-1.5 rounded-none text-sm font-black uppercase tracking-widest border"
               [ngClass]="{
                 'bg-green-50 text-green-700 border-green-100': questionForm.get('status')?.value === 'approved',
                 'bg-yellow-50 text-yellow-700 border-yellow-100': questionForm.get('status')?.value === 'pending_review',
@@ -531,8 +668,8 @@
         </div>
 
         <!-- Terminology Warning -->
-        <div *ngIf="isReady" class="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center gap-4 animate-fade-in">
-          <div class="bg-blue-100 p-2 rounded-xl text-blue-600">
+        <div *ngIf="isReady" class="bg-blue-50 border border-blue-100 rounded-none p-4 flex items-center gap-4 animate-fade-in">
+          <div class="bg-blue-100 p-2 rounded-none text-blue-600">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
             </svg>
@@ -547,20 +684,20 @@
         <div class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-blue-100/50 px-8 py-4 flex justify-between items-center z-50 shadow-[0_-10px_25px_-5px_rgba(0,0,0,0.05)]">
           <div class="flex items-center gap-4">
             <button type="button" (click)="cancel()"
-              class="text-gray-400 hover:text-gray-600 font-bold px-4 py-2 transition text-sm flex items-center gap-2">
+              class="text-red-500 hover:text-red-700 hover:bg-red-50 font-bold px-4 py-2 rounded-none transition text-sm flex items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
-              Cancel
+              Close
             </button>
             
             <div class="h-6 w-px bg-gray-200"></div>
 
             <button type="button" (click)="togglePreview()"
-              class="px-5 py-2 text-gray-600 hover:bg-gray-100 font-bold rounded-xl transition flex items-center gap-2 text-sm">
+              class="px-5 py-2 text-gray-600 hover:bg-gray-100 font-bold rounded-none transition flex items-center gap-2 text-sm">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
               {{ isPreviewMode() ? 'Exit Preview' : 'Student Preview' }}
             </button>
@@ -569,9 +706,9 @@
           <div class="flex items-center gap-3">
             <!-- Save Progress (Stay on page) -->
             <button *ngIf="!isReady" type="button" (click)="saveAndContinueEditing()" [disabled]="questionForm.invalid || loading()"
-              class="px-5 py-2.5 border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold rounded-xl transition-all flex items-center gap-2 text-sm">
+              class="px-5 py-2.5 border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold rounded-none transition-all flex items-center gap-2 text-sm">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
               </svg>
               Save Progress
             </button>
@@ -581,14 +718,14 @@
               <!-- Reviewer Actions -->
               <ng-container *ngIf="(isAdmin || isAssignedReviewer) && questionForm.get('status')?.value === 'pending_review'">
                 <button type="button" (click)="rejectQuestion()" 
-                  class="px-6 py-2.5 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 transition border border-red-100 text-sm">
+                  class="px-6 py-2.5 bg-red-50 text-red-600 rounded-none font-bold hover:bg-red-100 transition border border-red-100 text-sm">
                   Reject
                 </button>
                 
                 <button type="button" (click)="approveQuestion()" 
-                  class="px-8 py-2.5 bg-green-600 text-white rounded-xl font-black hover:bg-green-700 transition shadow-lg shadow-green-200 flex items-center gap-2">
+                  class="px-8 py-2.5 bg-green-600 text-white rounded-none font-black hover:bg-green-700 transition shadow-lg shadow-green-200 flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M5 13l4 4L19 7" />
                   </svg>
                   Approve & Set Ready
                 </button>
@@ -597,10 +734,10 @@
               <!-- Author Primary Action (Only if not in review by someone else) -->
               <button *ngIf="questionForm.get('status')?.value === 'draft' || questionForm.get('status')?.value === 'rejected'"
                 type="submit" [disabled]="questionForm.invalid || loading()"
-                class="px-10 py-3 bg-blue-600 text-white rounded-xl font-black shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all transform active:scale-95 flex items-center gap-2">
-                <span *ngIf="loading()" class="animate-spin h-5 w-5 border-3 border-white border-t-transparent rounded-full"></span>
+                class="px-10 py-3 bg-blue-600 text-white rounded-none font-black shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all transform active:scale-95 flex items-center gap-2">
+                <span *ngIf="loading()" class="animate-spin h-5 w-5 border-3 border-white border-t-transparent rounded-none"></span>
                 <svg *ngIf="!loading()" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                 </svg>
                 {{ loading() ? 'Submitting...' : 'Submit for Review' }}
               </button>
@@ -608,9 +745,9 @@
 
             <!-- If Already Ready, show New Version option -->
             <button *ngIf="isReady" type="submit" [disabled]="questionForm.invalid || loading()"
-              class="px-8 py-3 bg-indigo-600 text-white rounded-xl font-black hover:bg-indigo-700 transition shadow-xl shadow-indigo-100 flex items-center gap-2">
+              class="px-8 py-3 bg-indigo-600 text-white rounded-none font-black hover:bg-indigo-700 transition shadow-xl shadow-indigo-100 flex items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 4v16m8-8H4" />
               </svg>
               Create New Version
             </button>

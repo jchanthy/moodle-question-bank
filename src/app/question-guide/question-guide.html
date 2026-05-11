@@ -7,7 +7,7 @@
         class="text-blue-600 hover:text-blue-800 font-bold flex items-center gap-2 mb-6 group w-fit">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transform group-hover:-translate-x-1 transition"
           fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
         </svg>
         Back to Dashboard
       </a>
@@ -20,18 +20,18 @@
       <section *ngFor="let category of categories" class="animate-fade-in">
         <div class="flex items-center gap-4 mb-8">
           <h2 class="text-2xl font-black text-gray-800">{{ category }} Question Types</h2>
-          <div class="h-1 flex-1 bg-gray-200 rounded-full"></div>
+          <div class="h-1 flex-1 bg-gray-200 rounded-none"></div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <div *ngFor="let item of getGuidesByCategory(category)"
-            class="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+            class="bg-white rounded-none p-8 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
 
             <div
-              [class]="item.iconColor + ' w-12 h-12 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg transform group-hover:rotate-12 transition'">
+              [class]="item.iconColor + ' w-12 h-12 rounded-none flex items-center justify-center text-white mb-6 shadow-lg transform group-hover:rotate-12 transition'">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
                 stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
                   d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
@@ -45,13 +45,13 @@
 
     <!-- Help Footer -->
     <div
-      class="mt-20 bg-blue-600 rounded-3xl p-10 text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl shadow-blue-200">
+      class="mt-20 bg-blue-600 rounded-none p-10 text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl shadow-blue-200">
       <div class="max-w-md">
         <h2 class="text-2xl font-bold mb-2">Ready to start?</h2>
         <p class="text-blue-100">Choose the type that best fits your learning goals and start building.</p>
       </div>
       <a routerLink="/teacher/new-question"
-        class="bg-white text-blue-600 px-8 py-4 rounded-2xl font-black shadow-lg hover:bg-gray-100 transition whitespace-nowrap">
+        class="bg-white text-blue-600 px-8 py-4 rounded-none font-black shadow-lg hover:bg-gray-100 transition whitespace-nowrap">
         Create a Question
       </a>
     </div>

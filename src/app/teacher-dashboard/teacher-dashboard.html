@@ -14,23 +14,23 @@
         <a routerLink="/teacher/guide" 
            class="text-gray-500 hover:text-blue-600 font-bold text-sm transition flex items-center gap-1 border-r pr-4 mr-1">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           Help & Guides
         </a>
 
         <!-- Import / Export Dropdown -->
         <div class="relative group">
-          <button class="flex items-center gap-2 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-gray-50 transition">
+          <button class="flex items-center gap-2 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-none font-bold text-sm hover:bg-gray-50 transition">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
             </svg>
             Import / Export
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
           </button>
-          <div class="absolute right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-2 w-56 z-50 hidden group-hover:block">
+          <div class="absolute right-0 top-full mt-1 bg-white border border-gray-100 rounded-none shadow-xl py-2 w-56 z-50 hidden group-hover:block">
             <div class="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Import</div>
             <button (click)="showImportModal.set(true); resetImport()" 
                     class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium flex items-center gap-2 transition-colors">
@@ -52,9 +52,9 @@
         </div>
 
         <p-button label="Add New Question" icon="pi pi-plus" [routerLink]="['/teacher/new-question']" />
-        <button (click)="signOut()" class="text-gray-400 hover:text-red-600 transition p-2">
+        <button (click)="signOut()" class="text-gray-400 hover:text-red-600 transition p-2" title="Sign Out">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M10 3H3v18h7M16 17l5-5-5-5M21 12H9" />
           </svg>
         </button>
       </div>
@@ -62,9 +62,9 @@
     <!-- Tasks Assigned to You -->
     <div *ngIf="assignedQuestions().length > 0" class="mb-10 animate-in fade-in slide-in-from-top-4 duration-500">
       <div class="flex items-center gap-3 mb-4">
-        <div class="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-200">
+        <div class="bg-indigo-600 p-2 rounded-none shadow-lg shadow-indigo-200">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
           </svg>
         </div>
         <div>
@@ -73,8 +73,8 @@
         </div>
       </div>
       
-      <div class="bg-white border-2 border-indigo-50 rounded-2xl overflow-hidden shadow-sm">
-        <div class="overflow-x-auto">
+      <div class="bg-white border-2 border-indigo-50 rounded-none shadow-sm">
+        <div class="overflow-visible">
           <table class="w-full text-left border-collapse">
             <thead class="bg-indigo-50/50">
               <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b-2 border-indigo-50">
@@ -100,12 +100,10 @@
                   </div>
                 </td>
                 <td class="px-6 py-4">
-                  <div class="flex items-center gap-2">
-                    <div class="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-[10px] font-black text-blue-600 border border-blue-100">
-                      {{ q.metadata?.author_name?.substring(0,1) || 'T' }}
+                    <div class="flex flex-col">
+                      <span class="text-xs font-bold text-gray-700 leading-tight">{{ q.metadata?.author_name || 'Teacher' }}</span>
+                      <span class="text-[10px] text-gray-400 font-medium leading-tight">{{ q.metadata?.author_email || '' }}</span>
                     </div>
-                    <span class="text-xs font-bold text-gray-700">{{ q.metadata?.author_name || 'Teacher' }}</span>
-                  </div>
                 </td>
                 <td class="px-6 py-4 text-center">
                   <span *ngIf="q.status === 'pending_review'" class="px-3 py-1 bg-yellow-50 text-yellow-600 text-[10px] font-black uppercase tracking-widest rounded border border-yellow-100">
@@ -120,21 +118,11 @@
                 </td>
                 <td class="px-6 py-4 text-right">
                   <a [routerLink]="['/teacher/edit-question', q.id]" 
-                     *ngIf="q.status === 'pending_review'"
-                     class="inline-flex items-center gap-1 bg-indigo-600 text-white px-4 py-2 rounded-lg text-[11px] font-black hover:bg-indigo-700 transition shadow-lg shadow-indigo-100">
-                    Start Review
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                     class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-none hover:bg-indigo-600 hover:text-white transition-all duration-300 border border-indigo-100 group shadow-sm hover:shadow-indigo-200/50">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform group-hover:rotate-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
-                  </a>
-                  <a [routerLink]="['/teacher/edit-question', q.id]" 
-                     *ngIf="q.status !== 'pending_review'"
-                     class="inline-flex items-center gap-1 bg-gray-50 text-gray-600 border border-gray-200 px-4 py-2 rounded-lg text-[11px] font-black hover:bg-gray-100 transition">
-                    View
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
+                    <span class="text-xs font-black uppercase tracking-widest">Edit</span>
                   </a>
                 </td>
               </tr>
@@ -154,13 +142,13 @@
 
       <div class="space-y-5 py-2">
         <!-- Format tabs -->
-        <div class="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+        <div class="flex gap-1 bg-gray-100 p-1 rounded-none w-fit">
           <button (click)="importFormat.set('moodle_xml'); resetImport()"
                   [class.bg-white]="importFormat() === 'moodle_xml'"
                   [class.shadow]="importFormat() === 'moodle_xml'"
                   [class.text-blue-600]="importFormat() === 'moodle_xml'"
                   [class.font-bold]="importFormat() === 'moodle_xml'"
-                  class="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 transition-all">
+                  class="px-4 py-2 rounded-none text-sm font-medium text-gray-500 transition-all">
             Moodle XML
           </button>
           <button (click)="importFormat.set('gift'); resetImport()"
@@ -168,7 +156,7 @@
                   [class.shadow]="importFormat() === 'gift'"
                   [class.text-blue-600]="importFormat() === 'gift'"
                   [class.font-bold]="importFormat() === 'gift'"
-                  class="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 transition-all">
+                  class="px-4 py-2 rounded-none text-sm font-medium text-gray-500 transition-all">
             GIFT
           </button>
           <button (click)="importFormat.set('aiken'); resetImport()"
@@ -176,41 +164,83 @@
                   [class.shadow]="importFormat() === 'aiken'"
                   [class.text-blue-600]="importFormat() === 'aiken'"
                   [class.font-bold]="importFormat() === 'aiken'"
-                  class="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 transition-all">
+                  class="px-4 py-2 rounded-none text-sm font-medium text-gray-500 transition-all">
             Aiken
+          </button>
+          <button (click)="importFormat.set('word_docx'); resetImport()"
+                  [class.bg-white]="importFormat() === 'word_docx'"
+                  [class.shadow]="importFormat() === 'word_docx'"
+                  [class.text-blue-600]="importFormat() === 'word_docx'"
+                  [class.font-bold]="importFormat() === 'word_docx'"
+                  class="px-4 py-2 rounded-none text-sm font-medium text-gray-500 transition-all">
+            Word (.docx)
           </button>
         </div>
         <!-- Format hint -->
-        <div class="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700 leading-relaxed">
+        <div class="bg-blue-50 border border-blue-100 rounded-none p-3 text-xs text-blue-700 leading-relaxed">
           <span *ngIf="importFormat() === 'moodle_xml'">📄 <strong>Moodle XML</strong> — Upload a .xml file exported from Moodle or this system. Supports all question types with full metadata.</span>
           <span *ngIf="importFormat() === 'gift'">🎁 <strong>GIFT</strong> — Plain text format. Example: <code class="bg-blue-100 px-1 rounded">::Name::What is 2+2? {{ '{' }}=4 ~3 ~5{{ '}' }}</code></span>
           <span *ngIf="importFormat() === 'aiken'">📋 <strong>Aiken</strong> — MC only. Choices as <code class="bg-blue-100 px-1 rounded">A. text</code>, answer line as <code class="bg-blue-100 px-1 rounded">ANSWER: A</code></span>
+          <span *ngIf="importFormat() === 'word_docx'">📝 <strong>Word (.docx)</strong> — Import questions directly from a Word document. The system will extract text and look for Aiken or GIFT patterns.</span>
         </div>
         <!-- File upload -->
-        <div>
+        <div *ngIf="importFormat() !== 'word_docx' || !importText">
           <label class="block text-sm font-bold text-gray-700 mb-2">Upload File</label>
-          <input type="file" [accept]="importFormat() === 'moodle_xml' ? '.xml' : '.txt,.gift'"
+          <input type="file" [accept]="importFormat() === 'moodle_xml' ? '.xml' : (importFormat() === 'word_docx' ? '.docx' : '.txt,.gift')"
                  (change)="onImportFileSelected($event)"
-                 class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                 class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-none file:border-0 file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
         </div>
         <!-- Paste -->
-        <div>
+        <div *ngIf="importFormat() !== 'word_docx'">
           <label class="block text-sm font-bold text-gray-700 mb-2">Or Paste Text</label>
           <textarea [(ngModel)]="importText" (input)="parseImportPreview()" rows="5"
-                    class="w-full px-4 py-3 border border-gray-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                    class="w-full px-4 py-3 border border-gray-200 rounded-none text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                     placeholder="Paste content here..."></textarea>
         </div>
         <!-- Error -->
-        <div *ngIf="importError()" class="bg-red-50 border border-red-100 rounded-xl p-3 text-sm text-red-700 font-medium">
+        <div *ngIf="importError()" class="bg-red-50 border border-red-100 rounded-none p-3 text-sm text-red-700 font-medium">
           ⚠️ {{ importError() }}
         </div>
+
+        <!-- Destination Category -->
+        <div class="bg-gray-50 border border-gray-100 p-4 space-y-4">
+          <div class="flex items-center gap-2 mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+            <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Destination Category</h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Select Existing</label>
+              <select [ngModel]="importTargetCategoryId()" (ngModelChange)="importTargetCategoryId.set($event)"
+                      class="w-full px-3 py-2 border border-gray-200 rounded-none text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                <option [ngValue]="null">Default (Current View)</option>
+                <option *ngFor="let cat of getFlatCategories()" [value]="cat.id">
+                  {{ '—'.repeat(cat.depth) }} {{ cat.name }}
+                </option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Or Create New</label>
+              <input type="text" [ngModel]="importNewCategoryName()" (ngModelChange)="importNewCategoryName.set($event)"
+                     placeholder="New category name..."
+                     class="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+          </div>
+          <p *ngIf="importNewCategoryName()" class="text-[10px] text-blue-600 font-medium">
+            ✨ Questions will be imported into a new category named "<strong>{{ importNewCategoryName() }}</strong>".
+          </p>
+        </div>
+
         <!-- Preview -->
         <div *ngIf="importPreview().length > 0">
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-sm font-extrabold text-gray-800">{{ importPreview().length }} question(s) found</h3>
             <span class="text-xs text-gray-400">Will be saved as <strong>Draft</strong></span>
           </div>
-          <div class="border border-gray-100 rounded-xl overflow-hidden max-h-44 overflow-y-auto">
+          <div class="border border-gray-100 rounded-none overflow-hidden max-h-44 overflow-y-auto">
             <table class="w-full text-xs">
               <thead class="bg-gray-50 sticky top-0">
                 <tr>
@@ -233,7 +263,7 @@
         </div>
 
         <!-- Detailed Log -->
-        <div *ngIf="importLoading()" class="bg-gray-900 rounded-xl p-4 font-mono text-[10px] text-green-400 space-y-1 max-h-40 overflow-y-auto">
+        <div *ngIf="importLoading()" class="bg-gray-900 rounded-none p-4 font-mono text-[10px] text-green-400 space-y-1 max-h-40 overflow-y-auto">
           <div *ngFor="let log of importLogs()">> {{ log }}</div>
           <div class="animate-pulse">_</div>
         </div>
@@ -256,12 +286,12 @@
         <button (click)="showCategoryPanel.set(!showCategoryPanel())" 
                 class="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
           </svg>
           Categories
           <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 transition-transform" 
                [class.rotate-180]="showCategoryPanel()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
         <div class="flex items-center gap-2">
@@ -279,7 +309,7 @@
                 [class.text-white]="!selectedCategoryId()"
                 [class.bg-gray-100]="selectedCategoryId()"
                 [class.text-gray-600]="selectedCategoryId()"
-                class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:shadow-sm">
+                class="px-3 py-1.5 rounded-none text-xs font-bold transition-all hover:shadow-sm">
           All
         </button>
         <ng-container *ngFor="let cat of getFlatCategories()">
@@ -288,7 +318,7 @@
                   [class.text-white]="selectedCategoryId() === cat.id"
                   [class.bg-gray-100]="selectedCategoryId() !== cat.id"
                   [class.text-gray-600]="selectedCategoryId() !== cat.id"
-                  class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:shadow-sm"
+                  class="px-3 py-1.5 rounded-none text-xs font-bold transition-all hover:shadow-sm"
                   [style.margin-left.px]="cat.depth * 12">
             {{ cat.depth > 0 ? '↳ ' : '' }}{{ cat.name }}
           </button>
@@ -296,7 +326,7 @@
       </div>
 
       <!-- Expanded Category Panel -->
-      <div *ngIf="showCategoryPanel()" class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-6">
+      <div *ngIf="showCategoryPanel()" class="bg-white rounded-none border border-gray-200 shadow-sm p-6 mb-6">
         <h3 class="text-sm font-extrabold text-gray-800 uppercase tracking-wider mb-4">Manage Categories</h3>
 
         <!-- Category List -->
@@ -305,7 +335,7 @@
             No categories yet. Create one below.
           </div>
           <ng-container *ngFor="let cat of getFlatCategories()">
-            <div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 group"
+            <div class="flex items-center justify-between px-3 py-2 rounded-none hover:bg-gray-50 group"
                  [style.padding-left.px]="16 + cat.depth * 20">
               <div class="flex items-center gap-2 flex-1 min-w-0">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-yellow-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
@@ -318,7 +348,7 @@
                         class="text-red-400 hover:text-red-600 transition-colors p-1"
                         title="Delete Category">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
               </div>
@@ -332,9 +362,9 @@
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <input [(ngModel)]="newCategoryName" 
                    placeholder="Category name"
-                   class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+                   class="px-3 py-2 border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
             <select [(ngModel)]="newCategoryParent"
-                    class="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+                    class="px-3 py-2 border border-gray-200 rounded-none text-sm text-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
               <option [ngValue]="null">Top Level (No Parent)</option>
               <option *ngFor="let cat of getFlatCategories()" [ngValue]="cat.id">
                 {{ '—'.repeat(cat.depth) }} {{ cat.name }}
@@ -348,7 +378,7 @@
           </div>
           <input [(ngModel)]="newCategoryDescription" 
                  placeholder="Optional description"
-                 class="mt-2 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+                 class="mt-2 w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
         </div>
       </div>
     </div>
@@ -356,11 +386,11 @@
     <!-- Floating Bulk Actions Bar (Modern Fixed Bottom) -->
     <div *ngIf="selectedIds().size > 0" 
          class="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-8 duration-300 w-full max-w-fit px-4">
-      <div class="bg-brand-dark text-white rounded-2xl shadow-2xl px-6 py-4 flex items-center gap-6 border border-white/20 backdrop-blur-xl bg-opacity-98">
+      <div class="bg-brand-dark text-white rounded-none shadow-2xl px-6 py-4 flex items-center gap-6 border border-white/20 backdrop-blur-xl bg-opacity-98">
         
         <!-- Selection Info -->
         <div class="flex items-center gap-3 border-r border-white/10 pr-6">
-          <div class="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center font-black text-sm shadow-lg shadow-blue-500/20">
+          <div class="w-9 h-9 rounded-none bg-blue-500 flex items-center justify-center font-black text-sm shadow-lg shadow-blue-500/20">
             {{ selectedIds().size }}
           </div>
           <div class="hidden sm:flex flex-col">
@@ -380,7 +410,7 @@
                     [filter]="true"
                     filterBy="name"
                     appendTo="body"
-                    styleClass="w-56 text-xs bg-white/10 border-white/20 text-white rounded-xl"
+                    styleClass="w-56 text-xs bg-white/10 border-white/20 text-white rounded-none"
                     panelStyleClass="bg-brand-dark text-gray-100 border-gray-700 shadow-2xl">
           </p-select>
           <p-button label="Move" 
@@ -389,7 +419,7 @@
                     [loading]="loading()" 
                     (onClick)="moveSelectedQuestions(bulkTargetCategoryId())"
                     [disabled]="!bulkTargetCategoryId() || loading()"
-                    styleClass="p-button-sm rounded-xl shadow-lg shadow-blue-500/10">
+                    styleClass="p-button-sm rounded-none shadow-lg shadow-blue-500/10">
           </p-button>
         </div>
 
@@ -402,11 +432,11 @@
                     severity="danger" 
                     [text]="true" 
                     (onClick)="bulkDeleteQuestions()"
-                    styleClass="p-button-sm hover:bg-red-500/10 rounded-xl">
+                    styleClass="p-button-sm hover:bg-red-500/10 rounded-none">
           </p-button>
 
           <button (click)="clearSelection()" 
-                  class="px-4 py-2 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+                  class="px-4 py-2 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 rounded-none transition-all">
             Cancel
           </button>
         </div>
@@ -414,18 +444,18 @@
     </div>
 
     <!-- Advanced Filters -->
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6">
+    <div class="bg-white p-6 rounded-none shadow-sm border border-gray-200 mb-6">
       <div class="flex items-center justify-between mb-4">
         <div class="flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
           </svg>
           <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider">Search & Filters</h3>
         </div>
         <button (click)="clearFilters()" 
                 class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-blue-50">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
           Clear Filters
         </button>
@@ -434,13 +464,13 @@
         <!-- Keyword Search -->
         <div class="flex flex-col gap-1 lg:col-span-2">
           <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Keyword Search</label>
-          <input type="text" [ngModel]="filterKeyword()" (ngModelChange)="filterKeyword.set($event); currentPage.set(1)" placeholder="Search by name, ID, text, feedback..." class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+          <input type="text" [ngModel]="filterKeyword()" (ngModelChange)="filterKeyword.set($event); currentPage.set(1)" placeholder="Search by name, ID, text, feedback..." class="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-blue-500 outline-none">
         </div>
 
         <!-- Status -->
         <div class="flex flex-col gap-1">
           <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Status</label>
-          <select [ngModel]="filterStatus()" (ngModelChange)="filterStatus.set($event); currentPage.set(1)" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
+          <select [ngModel]="filterStatus()" (ngModelChange)="filterStatus.set($event); currentPage.set(1)" class="w-full px-3 py-2 border border-gray-200 rounded-none text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
             <option value="">All Statuses</option>
             <option value="draft">Draft</option>
             <option value="pending_review">Review</option>
@@ -452,7 +482,7 @@
         <!-- Type -->
         <div class="flex flex-col gap-1">
           <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Question Type</label>
-          <select [ngModel]="filterType()" (ngModelChange)="filterType.set($event); currentPage.set(1)" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
+          <select [ngModel]="filterType()" (ngModelChange)="filterType.set($event); currentPage.set(1)" class="w-full px-3 py-2 border border-gray-200 rounded-none text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
             <option value="">All Types</option>
             <option value="multichoice">Multiple Choice</option>
             <option value="truefalse">True/False</option>
@@ -465,13 +495,13 @@
         <!-- Date From -->
         <div class="flex flex-col gap-1">
           <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Modified After</label>
-          <input type="date" [ngModel]="filterDateFrom()" (ngModelChange)="filterDateFrom.set($event); currentPage.set(1)" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
+          <input type="date" [ngModel]="filterDateFrom()" (ngModelChange)="filterDateFrom.set($event); currentPage.set(1)" class="w-full px-3 py-2 border border-gray-200 rounded-none text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
         </div>
 
         <!-- Date To -->
         <div class="flex flex-col gap-1">
           <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Modified Before</label>
-          <input type="date" [ngModel]="filterDateTo()" (ngModelChange)="filterDateTo.set($event); currentPage.set(1)" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
+          <input type="date" [ngModel]="filterDateTo()" (ngModelChange)="filterDateTo.set($event); currentPage.set(1)" class="w-full px-3 py-2 border border-gray-200 rounded-none text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
         </div>
 
         <!-- Show Hidden -->
@@ -486,19 +516,19 @@
         <div class="flex flex-col gap-1">
           <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Sort By</label>
           <div class="flex gap-1">
-            <select [ngModel]="sortField()" (ngModelChange)="sortField.set($event)" class="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
+            <select [ngModel]="sortField()" (ngModelChange)="sortField.set($event)" class="flex-1 px-3 py-2 border border-gray-200 rounded-none text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
               <option value="updated_at">Latest Modified</option>
               <option value="created_at">Date Created</option>
               <option value="name">Question Name</option>
             </select>
             <button (click)="sortOrder.set(sortOrder() === 'asc' ? 'desc' : 'asc')" 
-                    class="px-2 border border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
+                    class="px-2 border border-gray-200 rounded-none bg-gray-50 hover:bg-gray-100 transition-colors"
                     [title]="sortOrder() === 'asc' ? 'Ascending' : 'Descending'">
               <svg *ngIf="sortOrder() === 'desc'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
               </svg>
               <svg *ngIf="sortOrder() === 'asc'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h9m5-1l-4 4m0 0l-4-4m4 4V4" />
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M3 4h13M3 8h9m-9 4h9m5-1l-4 4m0 0l-4-4m4 4V4" />
               </svg>
             </button>
           </div>
@@ -507,7 +537,7 @@
     </div>
 
     <!-- Moodle Style Question Bank Table -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div class="bg-white rounded-none shadow-sm border border-gray-200 overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead class="bg-gray-50 border-b border-gray-200">
@@ -520,7 +550,7 @@
               </th>
               <th class="px-2 py-3 w-8">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                  <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12" />
                 </svg>
               </th>
               <th class="px-4 py-3">Actions</th>
@@ -567,7 +597,7 @@
                 <td class="px-4 py-4">
                   <div class="flex items-center gap-1 text-blue-600 text-sm font-medium">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                      <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                     </svg>
                     <a [routerLink]="['/teacher/edit-question', question.id]" class="hover:underline">Edit</a>
                     <div class="w-px h-3 bg-gray-200 mx-1"></div>
@@ -575,7 +605,7 @@
                       Delete
                     </button>
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
                 </td>
@@ -583,10 +613,19 @@
                 <td class="px-4 py-4 bg-yellow-50/30">
                   <div class="flex items-center gap-2 group/name">
                     <ng-container *ngIf="!question.isEditingName">
-                      <span class="text-sm font-bold text-gray-800">{{ question.name }}</span>
-                      <button (click)="question.isEditingName = true" class="opacity-0 group-hover/name:opacity-100 transition-opacity">
+                      <div class="flex flex-col">
+                        <span class="text-sm font-bold text-gray-800">{{ question.name }}</span>
+                        <!-- Display Tags -->
+                        <div *ngIf="question.metadata?.tags?.length" class="flex flex-wrap gap-1 mt-1">
+                          <span *ngFor="let tag of (question.metadata?.tags || [])" 
+                                class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                            {{ tag }}
+                          </span>
+                        </div>
+                      </div>
+                      <button (click)="question.isEditingName = true" class="opacity-0 group-hover/name:opacity-100 transition-opacity ml-auto">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                         </svg>
                       </button>
                     </ng-container>
@@ -604,7 +643,7 @@
                 <td class="px-4 py-4">
                   <select [value]="question.status" 
                           (change)="updateQuestionStatus(question, $any($event.target).value)"
-                          class="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold text-gray-600 shadow-sm outline-none focus:border-blue-400 transition-colors cursor-pointer">
+                          class="bg-white border border-gray-200 rounded-none px-2 py-1 text-xs font-bold text-gray-600 shadow-sm outline-none focus:border-blue-400 transition-colors cursor-pointer">
                     <option value="draft">Draft</option>
                     <option value="pending_review">Review</option>
                     <option value="approved" *ngIf="question.status === 'approved'">Ready</option>
@@ -617,7 +656,7 @@
                   <div class="flex items-center gap-2">
                     <select [value]="question.id" 
                             (change)="switchVersion(question, $any($event.target).value)"
-                            class="bg-blue-50 border border-blue-100 rounded-lg px-2 py-1 text-xs font-bold text-blue-700 outline-none hover:bg-blue-100 transition-colors cursor-pointer">
+                            class="bg-blue-50 border border-blue-100 rounded-none px-2 py-1 text-xs font-bold text-blue-700 outline-none hover:bg-blue-100 transition-colors cursor-pointer">
                       <option *ngFor="let v of question.allVersions" [value]="v.id">
                         v{{ v.version }} {{ v.status === 'approved' ? '(Ready)' : '' }}
                       </option>
@@ -625,9 +664,10 @@
                   </div>
                 </td>
                 <td class="px-4 py-4">
-                  <div class="text-[11px]">
-                    <div class="text-blue-600 hover:underline cursor-pointer">{{ question.metadata?.author_name || 'Me' }}</div>
-                    <div class="text-gray-400 mt-0.5">{{ question.created_at | date:'d MMMM y, h:mm a' }}</div>
+                  <div class="text-[11px] flex flex-col">
+                    <div class="text-blue-600 font-bold hover:underline cursor-pointer leading-tight">{{ question.metadata?.author_name || 'Me' }}</div>
+                    <div class="text-gray-400 text-[10px] leading-tight">{{ question.metadata?.author_email || '' }}</div>
+                    <div class="text-gray-300 mt-0.5 text-[9px]">{{ question.created_at | date:'d MMMM y, h:mm a' }}</div>
                   </div>
                 </td>
                 <td class="px-4 py-4">
@@ -639,9 +679,10 @@
                   </p-button>
                 </td>
                 <td class="px-4 py-4 bg-yellow-50/30">
-                  <div class="text-[11px]">
-                    <div class="text-gray-700 font-medium">{{ question.metadata?.modified_by || question.metadata?.author_name || 'Me' }}</div>
-                    <div class="text-gray-400 mt-0.5">{{ question.metadata?.modified_at ? (question.metadata?.modified_at | date:'d MMM y, h:mm a') : (question.created_at | date:'d MMM y, h:mm a') }}</div>
+                  <div class="text-[11px] flex flex-col">
+                    <div class="text-gray-700 font-bold leading-tight">{{ question.metadata?.modified_by || question.metadata?.author_name || 'Me' }}</div>
+                    <div class="text-gray-400 text-[10px] leading-tight">{{ question.metadata?.modified_by_email || (question.metadata?.modified_by ? '' : question.metadata?.author_email) || '' }}</div>
+                    <div class="text-gray-300 mt-0.5 text-[9px]">{{ question.metadata?.modified_at ? (question.metadata?.modified_at | date:'d MMM y, h:mm a') : (question.created_at | date:'d MMM y, h:mm a') }}</div>
                   </div>
                 </td>
               </tr>
@@ -672,7 +713,7 @@
               <td colspan="9" class="px-8 py-20 text-center border-none">
                 <div class="flex flex-col items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   <p class="text-gray-400 font-medium">Your question bank is empty.</p>
                   <a routerLink="/teacher/new-question" class="mt-4 text-blue-600 font-bold hover:underline">Create your first question</a>
@@ -710,9 +751,9 @@
         <h2 class="text-xl font-extrabold text-gray-900">Question Comments</h2>
         <p class="text-xs text-gray-500 mt-1">Collaborate and leave notes on this question.</p>
       </div>
-      <button (click)="closeComments()" class="p-2 hover:bg-gray-50 rounded-xl transition text-gray-400">
+      <button (click)="closeComments()" class="p-2 hover:bg-gray-50 rounded-none transition text-gray-400">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
     </div>
@@ -724,7 +765,7 @@
       <div *ngIf="!(selectedQuestion()?.metadata?.comments?.length)" class="text-center py-20">
         <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
         </div>
         <p class="text-sm text-gray-500">No comments yet. Be the first to start the discussion!</p>
@@ -739,7 +780,7 @@
             <span class="text-xs font-black text-gray-900">{{ comment.user }}</span>
             <span class="text-[10px] text-gray-400">{{ comment.date | date:'short' }}</span>
           </div>
-          <div class="bg-gray-50 rounded-2xl p-4 text-sm text-gray-700 leading-relaxed">
+          <div class="bg-gray-50 rounded-none p-4 text-sm text-gray-700 leading-relaxed">
             {{ comment.text }}
           </div>
         </div>
@@ -752,7 +793,7 @@
         <textarea 
           [(ngModel)]="newCommentText"
           placeholder="Write a comment..." 
-          class="w-full bg-white border border-gray-200 rounded-2xl p-4 pr-16 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all min-h-[100px] resize-none"
+          class="w-full bg-white border border-gray-200 rounded-none p-4 pr-16 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all min-h-[100px] resize-none"
         ></textarea>
         <p-button 
           icon="pi pi-send" 
@@ -771,7 +812,7 @@
     <div class="flex items-center gap-4 text-red-600">
       <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
       </div>
       <div>
@@ -782,7 +823,7 @@
   </ng-template>
 
   <div class="space-y-4 py-4">
-    <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+    <div class="bg-gray-50 rounded-none p-4 border border-gray-100">
       <p class="text-sm text-gray-700 font-medium mb-2">
         The category <strong>"{{ categoryToDelete()?.name }}"</strong> contains:
       </p>
@@ -802,7 +843,7 @@
       </p-select>
       <p class="text-[11px] text-gray-400 mt-1 flex items-center gap-1">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         You must select a destination to continue deletion.
       </p>

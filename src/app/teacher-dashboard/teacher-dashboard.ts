@@ -1,9 +1,10 @@
-import { Component, inject, signal, computed, OnInit, effect } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, effect, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { SupabaseService } from '../services/supabase.service';
 import { ImportExportService, ParsedQuestion } from '../services/import-export.service';
 import { Router, RouterModule } from '@angular/router';
+import * as mammoth from 'mammoth';
 
 export interface Question {
   id: string;
@@ -19,20 +20,28 @@ export interface Question {
   parent_id: string | null;
   metadata?: {
     author_name?: string;
+    author_email?: string;
     modified_by?: string;
+    modified_by_email?: string;
     modified_at?: string;
     image_url?: string;
+    assigned_to_id?: string;
+    assigned_to_name?: string;
+    paid_at?: string;
     comments?: {
       user: string;
       text: string;
       date: string;
     }[];
+    tags?: string[];
   };
   history?: Question[];
   allVersions?: Question[];
   showHistory?: boolean;
   isEditingName?: boolean;
   category_id?: string | null;
+  default_grade?: number;
+  penalty?: number;
 }
 
 export interface Category {
@@ -50,23 +59,21 @@ export interface Category {
 
 import { Select } from 'primeng/select';
 import { TableModule } from 'primeng/table';
-import { ButtonModule } from 'primeng/button';
-import { DialogModule } from 'primeng/dialog';
-import { ToastModule } from 'primeng/toast';
-import { TagModule } from 'primeng/tag';
-import { TooltipModule } from 'primeng/tooltip';
+import { Button } from 'primeng/button';
+import { Dialog } from 'primeng/dialog';
+import { Toast } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
-import { PaginatorModule } from 'primeng/paginator';
-import { DrawerModule } from 'primeng/drawer';
+import { Paginator } from 'primeng/paginator';
+import { Drawer } from 'primeng/drawer';
 
 @Component({
   selector: 'app-teacher-dashboard',
   standalone: true,
   imports: [
-    CommonModule, RouterModule, FormsModule, 
-    Select, TableModule, ButtonModule, DialogModule, 
-    ToastModule, TagModule, TooltipModule, PaginatorModule,
-    DrawerModule
+    CommonModule, RouterModule, FormsModule, ReactiveFormsModule,
+    Select, TableModule, Button, Dialog, 
+    Toast, Paginator,
+    Drawer
   ],
   providers: [MessageService],
   templateUrl: './teacher-dashboard.html',
@@ -94,6 +101,7 @@ export class TeacherDashboardComponent implements OnInit {
   filterKeyword = signal<string>('');
   sortField = signal<'created_at' | 'updated_at' | 'name'>('updated_at');
   sortOrder = signal<'asc' | 'desc'>('desc');
+  activeMenuId = signal<string | null>(null);
 
   filteredQuestions = computed(() => {
     let q = this.myQuestions();
@@ -175,12 +183,15 @@ export class TeacherDashboardComponent implements OnInit {
 
   // Import / Export
   showImportModal = signal(false);
-  importFormat = signal<'moodle_xml' | 'gift' | 'aiken'>('moodle_xml');
+  importFormat = signal<'moodle_xml' | 'gift' | 'aiken' | 'word_docx'>('moodle_xml');
+  importTargetCategoryId = signal<string | null>(null);
+  importNewCategoryName = signal<string>('');
   importText = '';
   importPreview = signal<ParsedQuestion[]>([]);
   importError = signal<string | null>(null);
   importLoading = signal(false);
   importLogs = signal<string[]>([]);
+  private importFileBuffer: ArrayBuffer | null = null;
 
   constructor() {
     effect(() => {
@@ -227,12 +238,46 @@ export class TeacherDashboardComponent implements OnInit {
         myQuery.eq('category_id', this.selectedCategoryId()!);
       }
 
-      // 2. Load all questions assigned to me (pending and completed)
-      const { data: assignedData } = await this.supabaseService.db
+      // 2. Load assigned questions (Try new assignments table + Fallback to metadata)
+      let assignedData: any[] = [];
+      
+      try {
+        const { data: assignments } = await this.supabaseService.db
+          .from('assignments')
+          .select('question_id')
+          .eq('assigned_to_id', user.id);
+
+        const assignedQIds = assignments?.map(a => a.question_id) || [];
+        
+        // Fetch questions from assignments table
+        if (assignedQIds.length > 0) {
+          const { data } = await this.supabaseService.db
+            .from('questions')
+            .select('*')
+            .in('id', assignedQIds)
+            .is('deleted_at', null);
+          if (data) assignedData = [...data];
+        }
+      } catch (e) {
+        console.warn('Assignments table might not exist yet:', e);
+      }
+
+      // 3. Also check metadata (for backwards compatibility or if assignments table is missing)
+      const { data: legacyData } = await this.supabaseService.db
         .from('questions')
         .select('*')
         .contains('metadata', { assigned_to_id: user.id })
         .is('deleted_at', null);
+
+      if (legacyData) {
+        // Merge and deduplicate
+        const existingIds = new Set(assignedData.map(q => q.id));
+        legacyData.forEach(q => {
+          if (!existingIds.has(q.id)) {
+            assignedData.push(q);
+          }
+        });
+      }
 
       const { data: myData, error: myError } = await myQuery.order('version', { ascending: false });
 
@@ -272,6 +317,45 @@ export class TeacherDashboardComponent implements OnInit {
       this.loading.set(false);
     }
   }
+
+  async updateStatus(id: string, status: 'approved' | 'rejected') {
+    try {
+      const user = this.supabaseService.currentUser();
+      
+      // 1. Update the question status
+      const { error: qError } = await this.supabaseService.db
+        .from('questions')
+        .update({ 
+          status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (qError) throw qError;
+
+      // 2. Update the assignment status (latest one) - try/catch for safety if table missing
+      try {
+        await this.supabaseService.db
+          .from('assignments')
+          .update({ 
+            status: status === 'approved' ? 'completed' : 'rejected',
+            completed_at: status === 'approved' ? new Date().toISOString() : null
+          })
+          .eq('question_id', id)
+          .eq('assigned_to_id', user?.id)
+          .is('completed_at', null); // Only update active assignments
+      } catch (e) {
+        console.warn('Could not update assignments table:', e);
+      }
+      
+      this.showToast(`Question ${status === 'approved' ? 'approved' : 'rejected'} successfully`, 'success');
+      await this.loadMyQuestions();
+    } catch (err: any) {
+      this.showToast('Error updating status: ' + err.message, 'error');
+    }
+  }
+
+
 
   toggleHiddenFilter() {
     this.filterHidden.set(!this.filterHidden());
@@ -313,14 +397,108 @@ export class TeacherDashboardComponent implements OnInit {
     
     if (end > total) {
       end = total;
-      start = Math.max(1, total - maxVisible + 1);
+      start = Math.max(1, end - maxVisible + 1);
     }
     
     const pages = [];
-    for (let i = start; i <= end; i++) {
-      pages.push(i);
-    }
+    for (let i = start; i <= end; i++) pages.push(i);
     return pages;
+  }
+
+  // Action Menu Methods
+  toggleMenu(event: Event, id: string) {
+    event.stopPropagation();
+    if (this.activeMenuId() === id) {
+      this.activeMenuId.set(null);
+    } else {
+      this.activeMenuId.set(id);
+    }
+  }
+
+  @HostListener('document:click')
+  closeMenus() {
+    this.activeMenuId.set(null);
+  }
+
+  async duplicateQuestion(q: Question) {
+    if (!confirm(`Duplicate "${q.name}"?`)) return;
+    this.loading.set(true);
+    try {
+      // 1. Fetch answers for this question
+      const { data: answers, error: aError } = await this.supabaseService.db
+        .from('answers')
+        .select('*')
+        .eq('question_id', q.id);
+      
+      if (aError) throw aError;
+
+      // 2. Insert new question
+      const { data: newQ, error: qError } = await this.supabaseService.db
+        .from('questions')
+        .insert({
+          name: `${q.name} (Copy)`,
+          question_text: q.question_text,
+          general_feedback: q.general_feedback,
+          default_grade: q.default_grade || 1,
+          penalty: q.penalty || 0.3333333,
+          qtype: q.qtype,
+          status: 'draft',
+          category_id: q.category_id,
+          created_by: this.supabaseService.currentUser()?.id,
+          metadata: {
+            ...(q.metadata || {}),
+            author_name: this.supabaseService.currentUserName,
+            modified_by: this.supabaseService.currentUserName,
+            modified_at: new Date().toISOString()
+          }
+        })
+        .select()
+        .single();
+
+      if (qError) throw qError;
+
+      // 3. Insert answers for new question
+      if (answers && answers.length > 0) {
+        const newAnswers = answers.map(a => ({
+          question_id: newQ.id,
+          answer_text: a.answer_text,
+          fraction: a.fraction,
+          feedback: a.feedback,
+          x: a.x,
+          y: a.y
+        }));
+        const { error: aiError } = await this.supabaseService.db
+          .from('answers')
+          .insert(newAnswers);
+        if (aiError) throw aiError;
+      }
+
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Question duplicated!' });
+      this.loadMyQuestions();
+    } catch (err: any) {
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: err.message });
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+
+  async exportQuestionXML(q: Question) {
+    try {
+      const { data: answers } = await this.supabaseService.db
+        .from('answers')
+        .select('*')
+        .eq('question_id', q.id);
+      
+      const answersMap = new Map<string, any[]>();
+      answersMap.set(q.id, answers || []);
+
+      const xml = this.importExportService.exportMoodleXML([q], answersMap);
+      this.importExportService.downloadFile(xml, `${q.name.replace(/\s+/g, '_')}.xml`, 'text/xml');
+      this.messageService.add({ severity: 'success', summary: 'Exported', detail: 'Moodle XML downloaded.' });
+    } catch (err: any) {
+      this.messageService.add({ severity: 'error', summary: 'Export Failed', detail: err.message });
+    }
   }
 
   get paginatedQuestions() {
@@ -511,20 +689,20 @@ export class TeacherDashboardComponent implements OnInit {
     };
 
     const updatedMetadata = {
-      ...(q.metadata || {}),
-      comments: [...(q.metadata?.comments || []), newComment]
+      ...(q!.metadata || {}),
+      comments: [...(q!.metadata?.comments || []), newComment]
     };
 
     try {
       const { error } = await this.supabaseService.db
         .from('questions')
         .update({ metadata: updatedMetadata })
-        .eq('id', q.id);
+        .eq('id', q!.id);
 
       if (error) throw error;
 
       // Update local state and trigger signal refresh
-      q.metadata = updatedMetadata;
+      q!.metadata = updatedMetadata;
       this.myQuestions.set([...this.myQuestions()]); 
       this.newCommentText = '';
       this.showToast('Comment added successfully!');
@@ -634,17 +812,58 @@ export class TeacherDashboardComponent implements OnInit {
     const file = input.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      this.importText = e.target?.result as string || '';
-      this.parseImportPreview();
-    };
-    reader.readAsText(file, 'UTF-8');
-  }
-
-  parseImportPreview() {
     this.importError.set(null);
     this.importPreview.set([]);
+    this.importFileBuffer = null;
+
+    const reader = new FileReader();
+    
+    if (this.importFormat() === 'word_docx') {
+      reader.onload = async (e) => {
+        this.importFileBuffer = e.target?.result as ArrayBuffer;
+        await this.parseImportPreview();
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = (e) => {
+        this.importText = e.target?.result as string || '';
+        this.parseImportPreview();
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+  }
+
+  async parseImportPreview() {
+    this.importError.set(null);
+    this.importPreview.set([]);
+
+    if (this.importFormat() === 'word_docx') {
+      if (!this.importFileBuffer) return;
+      this.importLoading.set(true);
+      this.importLogs.set(['Starting Word document extraction...']);
+      try {
+        const parsed = await this.importExportService.parseDocx(this.importFileBuffer);
+        
+        // Log preview of extracted text for debugging
+        const result = await mammoth.extractRawText({ arrayBuffer: this.importFileBuffer });
+        const previewText = result.value.substring(0, 200) + '...';
+        this.importLogs.update(logs => [...logs, 'Extracted text preview: ' + previewText]);
+        
+        if (parsed.length === 0) {
+          this.importError.set('No questions found in Word document. Ensure it follows Aiken or GIFT format.');
+          this.importLogs.update(logs => [...logs, '⚠️ No questions identified in the text.']);
+        } else {
+          this.importPreview.set(parsed);
+          this.importLogs.update(logs => [...logs, `✅ Successfully parsed ${parsed.length} questions.`]);
+        }
+      } catch (err: any) {
+        this.importError.set(err.message || 'Failed to parse Word document.');
+        this.importLogs.update(logs => [...logs, '❌ Error: ' + (err.message || 'Unknown error')]);
+      } finally {
+        this.importLoading.set(false);
+      }
+      return;
+    }
 
     if (!this.importText.trim()) return;
 
@@ -683,12 +902,32 @@ export class TeacherDashboardComponent implements OnInit {
     const categoryCache = new Map<string, string | null>();
 
     try {
+      let baseCategoryId = this.importTargetCategoryId();
+
+      // 1. Create new category if specified
+      if (this.importNewCategoryName().trim()) {
+        this.importLogs.update(logs => [...logs, `Creating new category: ${this.importNewCategoryName()}`]);
+        const { data: newCat, error: catErr } = await this.supabaseService.db
+          .from('question_categories')
+          .insert({
+            name: this.importNewCategoryName().trim(),
+            created_by: user.id,
+            parent_id: this.selectedCategoryId() // Default to current folder's child
+          })
+          .select()
+          .single();
+        
+        if (catErr) throw catErr;
+        baseCategoryId = newCat.id;
+        this.importLogs.update(logs => [...logs, `✅ Category created.`]);
+      }
+
       for (const pq of preview) {
         try {
-          let categoryId = this.selectedCategoryId();
+          let categoryId = baseCategoryId || this.selectedCategoryId();
           
-          // Handle Moodle categories if present
-          if (pq.category_path) {
+          // Handle Moodle categories if present (and if no specific target category was chosen)
+          if (pq.category_path && !baseCategoryId) {
             if (categoryCache.has(pq.category_path)) {
               categoryId = categoryCache.get(pq.category_path)!;
             } else {
@@ -730,8 +969,10 @@ export class TeacherDashboardComponent implements OnInit {
               .insert(pq.answers.map(a => ({
                 question_id: newQ.id,
                 answer_text: a.answer_text,
-                fraction: a.fraction,
+                fraction: Math.round(Number(a.fraction) || 0),
                 feedback: a.feedback,
+                x: Math.round(Number((a as any).x) || 0),
+                y: Math.round(Number((a as any).y) || 0)
               })));
           }
 
@@ -766,9 +1007,13 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   resetImport() {
+    this.importText = '';
+    this.importFileBuffer = null;
     this.importPreview.set([]);
     this.importError.set(null);
-    this.importText = '';
+    this.importLogs.set([]);
+    this.importTargetCategoryId.set(null);
+    this.importNewCategoryName.set('');
   }
 
   private async getOrCreateCategoryByPath(path: string): Promise<string | null> {
@@ -1025,8 +1270,8 @@ export class TeacherDashboardComponent implements OnInit {
     const opts = [
       { label: 'Top Level', value: 'null' }
     ];
-    for (const cat of this.getFlatCategories()) {
-      opts.push({ label: '—'.repeat(cat.depth) + ' ' + cat.name, value: cat.id });
+    for (const cat of (this.getFlatCategories() || [])) {
+      opts.push({ label: '—'.repeat(cat.depth || 0) + ' ' + cat.name, value: cat.id });
     }
     return opts;
   }
