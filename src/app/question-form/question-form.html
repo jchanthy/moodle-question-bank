@@ -90,6 +90,20 @@
         </div>
       </div>
 
+      <!-- Locked Banner -->
+      <div *ngIf="isLocked()" class="bg-indigo-600 text-white px-8 py-3 flex items-center justify-between shadow-inner animate-in slide-in-from-top duration-500">
+        <div class="flex items-center gap-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+          <div>
+            <span class="text-sm font-black uppercase tracking-widest">Question is Locked</span>
+            <p class="text-[10px] text-indigo-100 font-medium">This content is currently in review or approved. Withdraw from dashboard to make changes.</p>
+          </div>
+        </div>
+        <button type="button" routerLink="/teacher" class="text-[10px] font-bold underline hover:text-indigo-200">Go to Dashboard</button>
+      </div>
+
       <!-- Status Banner -->
       <div *ngIf="questionForm.get('status')?.value !== 'draft'" 
         class="px-8 py-3 flex items-center justify-between border-b"
@@ -608,19 +622,28 @@
                     {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Group / Color' : 'Grade / Scoring' }}
                   </label>
                   
-                  <select formControlName="fraction" [compareWith]="compareFractions"
-                    class="block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2.5 border bg-white transition-all">
-                    <ng-container *ngIf="questionForm.get('qtype')?.value === 'ddimageortext'">
-                      <option [value]="100">Group 1 (Blue)</option>
-                      <option [value]="50">Group 2 (Purple)</option>
-                      <option [value]="0">Group 3 (Green)</option>
-                    </ng-container>
-                    <ng-container *ngIf="questionForm.get('qtype')?.value !== 'ddimageortext'">
-                      <option *ngFor="let opt of simplifiedGradeOptions" [value]="opt.value">
-                        {{ opt.label }}
-                      </option>
-                    </ng-container>
-                  </select>
+                  <div class="flex flex-col gap-2">
+                    <!-- Simple Correct/Incorrect Toggle -->
+                    <button type="button" 
+                      (click)="toggleAnswerCorrect(i)"
+                      [class]="isAnswerCorrect(i) ? 'bg-green-600 text-white shadow-md' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'"
+                      class="flex items-center justify-between gap-2 py-3 px-4 font-black transition-all border border-transparent text-xs tracking-widest group rounded-none">
+                      <div class="flex items-center gap-2">
+                        <div [class]="isAnswerCorrect(i) ? 'bg-white text-green-600' : 'bg-gray-300 text-gray-500'" class="w-5 h-5 rounded-none flex items-center justify-center transition-colors">
+                          <svg *ngIf="isAnswerCorrect(i)" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                          </svg>
+                          <svg *ngIf="!isAnswerCorrect(i)" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                          </svg>
+                        </div>
+                        {{ isAnswerCorrect(i) ? 'CORRECT ANSWER' : 'INCORRECT' }}
+                      </div>
+                      <span class="bg-black/10 px-2 py-0.5 font-bold tabular-nums">
+                        {{ answers.at(i).get('fraction')?.value }}%
+                      </span>
+                    </button>
+                  </div>
                 </div>
                 <!-- Coordinates only for Drag and Drop -->
                 <div class="md:col-span-4" *ngIf="questionForm.get('qtype')?.value === 'ddimageortext'">

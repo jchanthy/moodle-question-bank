@@ -1,0 +1,44 @@
+/* Override PrimeNG AutoComplete for Tag-style input */
+:host ::ng-deep .reviewer-autocomplete .p-autocomplete-multiple-container {
+    background: #f8fafc; /* bg-gray-50 */
+    border: 2px solid #dbeafe; /* border-blue-100 */
+    border-radius: 0;
+    padding: 0.5rem;
+    gap: 0.5rem;
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+}
+
+:host ::ng-deep .reviewer-autocomplete .p-autocomplete-multiple-container:focus-within {
+    border-color: #3b82f6; /* border-blue-500 */
+    background: white;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+:host ::ng-deep .reviewer-autocomplete .p-autocomplete-token {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+}
+
+:host ::ng-deep .reviewer-autocomplete .p-autocomplete-token-label {
+    padding: 0 !important;
+}
+
+:host ::ng-deep .reviewer-autocomplete .p-autocomplete-token-icon {
+    display: none !important; /* Hide default X, our template can handle removal or we can use the default but it looks cleaner without the default circle */
+}
+
+/* Custom removal button for chips if needed, but PrimeNG handles click on token icon */
+:host ::ng-deep .reviewer-autocomplete .p-autocomplete-token-icon {
+    color: white !important;
+    margin-left: 0.25rem !important;
+    display: block !important;
+    font-size: 0.7rem !important;
+}
+
+:host ::ng-deep .reviewer-autocomplete .p-autocomplete-input-token input {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #374151;
+}

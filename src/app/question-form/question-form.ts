@@ -31,8 +31,19 @@ export class QuestionFormComponent implements OnInit {
   
   get isAssignedReviewer(): boolean {
     const user = this.supabase.currentUser();
+    if (!user) return false;
+    
     const meta = this.questionMetadata();
-    return meta?.assigned_to_id === user?.id;
+    
+    // Check primary assignment
+    if (meta?.assigned_to_id === user.id) return true;
+    
+    // Check multi-reviewer list
+    if (Array.isArray(meta?.assigned_reviewers)) {
+      return meta.assigned_reviewers.some((r: any) => r.id === user.id);
+    }
+    
+    return false;
   }
 
   get displayStatus(): string {
@@ -164,7 +175,7 @@ export class QuestionFormComponent implements OnInit {
     version: [1],
     status: ['draft'],
     parent_id: [null],
-    category_id: [null],
+    category_id: [null as string | null],
     tags: [[] as string[]],
     // Answers array
     answers: this.fb.array([
@@ -172,15 +183,6 @@ export class QuestionFormComponent implements OnInit {
       this.createAnswer(0)
     ])
   });
-
-  // Simplified grade options for the UI
-  readonly simplifiedGradeOptions = [
-    { label: 'Correct', value: 100 },
-    { label: 'None', value: 0 },
-    { label: 'Penalty (-25%)', value: -25 },
-    { label: 'Penalty (-33%)', value: -33.33333 },
-    { label: 'Penalty (-50%)', value: -50 }
-  ];
 
   constructor() { }
 
@@ -194,8 +196,18 @@ export class QuestionFormComponent implements OnInit {
     this.loadFormCategories();
     this.loadExistingTags();
 
+    const categoryId = this.route.snapshot.queryParamMap.get('category_id');
+    if (categoryId) {
+      this.questionForm.patchValue({ category_id: categoryId });
+    }
+
     this.questionForm.get('qtype')?.valueChanges.subscribe(type => {
       this.handleTypeChange(type);
+    });
+
+    // Listen for Single vs Multiple mode changes to re-balance grades
+    this.questionForm.get('single')?.valueChanges.subscribe(() => {
+      this.autoBalanceGrades(true);
     });
   }
 
@@ -259,6 +271,21 @@ export class QuestionFormComponent implements OnInit {
 
       // Handle metadata/image
       this.questionMetadata.set(question.metadata || {});
+      
+      // Review Lock Logic
+      const user = this.supabase.currentUser();
+      const isAuthor = question.created_by === user?.id;
+      const status = question.status;
+      
+      // Lock for author if in review or approved
+      if (isAuthor && !this.isAdmin && (status === 'pending_review' || status === 'assigned' || status === 'approved')) {
+        this.isLocked.set(true);
+        this.questionForm.disable();
+      } else {
+        this.isLocked.set(false);
+        this.questionForm.enable();
+      }
+
       if (question.metadata?.image_url) {
         this.imagePreview.set(question.metadata.image_url);
         this.questionForm.patchValue({ image_url: question.metadata.image_url });
@@ -519,9 +546,43 @@ export class QuestionFormComponent implements OnInit {
     return Number(o1) === Number(o2);
   }
 
+  isAnswerCorrect(index: number): boolean {
+    const fraction = this.answers.at(index).get('fraction')?.value;
+    return Number(fraction) > 0;
+  }
+
+  toggleAnswerCorrect(index: number) {
+    const isSingle = this.questionForm.get('single')?.value !== false;
+    const isCurrentlyCorrect = this.isAnswerCorrect(index);
+    
+    if (isSingle) {
+      // For single answer, we force only ONE to be 100%, all others to 0%
+      this.answers.controls.forEach((control, i) => {
+        // If it was already correct, clicking it unmarks it. 
+        // If it was not correct, clicking it marks it and unmarks all others.
+        control.get('fraction')?.setValue(i === index && !isCurrentlyCorrect ? 100 : 0, { emitEvent: false });
+      });
+    } else {
+      // For multiple answers, we toggle and then auto-balance the percentages
+      const control = this.answers.at(index).get('fraction');
+      control?.setValue(isCurrentlyCorrect ? 0 : 100);
+      this.autoBalanceGrades(true);
+    }
+  }
+
   autoBalanceGrades(silent = false) {
+    const qtype = this.questionForm.get('qtype')?.value;
+    const isSingle = this.questionForm.get('single')?.value !== false;
     const answers = this.answers.controls;
-    // For this simplified logic, we consider any positive fraction as "Correct"
+    
+    // For single choice, only one can be correct
+    if (isSingle) {
+      // Find the last one marked as correct (the one just clicked)
+      // and reset others to 0 if they are positive
+      // Actually, for single choice, the user just picks one.
+      return; 
+    }
+
     const correctAnswers = answers.filter(a => Number(a.get('fraction')?.value) > 0);
     
     if (correctAnswers.length === 0) {
@@ -795,7 +856,7 @@ export class QuestionFormComponent implements OnInit {
           tags: formValue.tags || [],
           // Preserve original author; only update who last modified
           author_name: currentMetadata.author_name || this.currentTeacher,
-          author_email: currentMetadata.author_email || user.email,
+          author_email: currentMetadata.author_email || (currentMetadata.author_name ? '' : user.email),
           modified_by: this.currentTeacher,
           modified_by_email: user.email,
           modified_at: new Date().toISOString()
@@ -886,7 +947,24 @@ export class QuestionFormComponent implements OnInit {
         if (ansError) throw ansError;
       }
 
-      // 3. Show success toast
+      // 3. Sync Assignments Table if this was a review action
+      if (status === 'approved' || status === 'rejected') {
+        try {
+          await this.supabase.db
+            .from('assignments')
+            .update({ 
+              status: status === 'approved' ? 'completed' : 'rejected',
+              completed_at: status === 'approved' ? new Date().toISOString() : null
+            })
+            .eq('question_id', questionId)
+            .eq('assigned_to_id', user.id)
+            .is('completed_at', null);
+        } catch (e) {
+          console.warn('Assignments sync failed:', e);
+        }
+      }
+
+      // 4. Show success toast
       if (continueEditing) {
         this.showToast('Changes saved. You can continue editing.', 'success');
       } else if (status !== 'approved' && status !== 'rejected') {

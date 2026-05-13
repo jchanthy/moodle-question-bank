@@ -23,6 +23,7 @@ interface Question {
     image_url?: string;
     assigned_to_id?: string;
     assigned_to_name?: string;
+    assigned_reviewers?: { id: string, name: string }[];
     paid_at?: string;
     comments?: { user: string; text: string; date: string }[];
     tags?: string[];
@@ -70,11 +71,13 @@ export class AdminDashboardComponent implements OnInit {
   allApprovedQuestions = signal<Question[]>([]);
   allRejectedQuestions = signal<Question[]>([]);
   allDraftQuestions = signal<Question[]>([]);
+  allAssignments = signal<{question_id: string, assigned_to_id: string}[]>([]);
 
   loading = signal(true);
   questionTypeCounts = signal<TypeCount[]>([]);
   totalQuestions = signal(0);
-  activeTab = signal<'pending' | 'approved' | 'rejected'>('pending');
+  // Tabs
+  activeTab = signal<'pending' | 'approved' | 'rejected' | 'draft'>('pending');
 
   // View state
   currentView = signal<'questions' | 'team' | 'report'>('questions');
@@ -92,6 +95,19 @@ export class AdminDashboardComponent implements OnInit {
   filterTeacher = signal('');
   filterQtype = signal('');
   filterCategory = signal('');
+  filterSearch = signal('');
+
+  protected readonly Math = Math;
+
+  // Pagination
+  currentPage = signal(1);
+  pageSize = signal(10);
+  totalCounts = signal({
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    draft: 0
+  });
 
   // All registered teachers from the database
   allRegisteredTeachers = signal<Teacher[]>([]);
@@ -115,7 +131,12 @@ export class AdminDashboardComponent implements OnInit {
       ...this.allRejectedQuestions(),
       ...this.allDraftQuestions()
     ];
-    return allQs.filter(q => q.created_by === tid || q.metadata?.assigned_to_id === tid)
+    const assignments = this.allAssignments();
+    return allQs.filter(q => {
+      const isAuthor = q.created_by === tid;
+      const isReviewer = assignments.some(a => a.question_id === q.id && a.assigned_to_id === tid);
+      return isAuthor || isReviewer;
+    })
       .map(q => ({
         id: q.id,
         name: q.name,
@@ -129,7 +150,7 @@ export class AdminDashboardComponent implements OnInit {
         created_by: q.created_by,
         category_id: q.category_id,
         isAuthor: q.created_by === tid,
-        isReviewer: q.metadata?.assigned_to_id === tid,
+        isReviewer: assignments.some(a => a.question_id === q.id && a.assigned_to_id === tid),
         isPaid: !!q.metadata?.paid_at
       }))
       .sort((a, b) => {
@@ -147,13 +168,15 @@ export class AdminDashboardComponent implements OnInit {
   });
 
   // Filtered lists (computed from raw data + filters)
-  pendingQuestions = computed(() => this.applyFilters(this.allPendingQuestions()));
-  approvedQuestions = computed(() => this.applyFilters(this.allApprovedQuestions()));
-  rejectedQuestions = computed(() => this.applyFilters(this.allRejectedQuestions()));
+  pendingQuestions = signal<Question[]>([]);
+  approvedQuestions = signal<Question[]>([]);
+  rejectedQuestions = signal<Question[]>([]);
+  draftQuestions = signal<Question[]>([]);
 
   // Calculate stats for each teacher for payment and performance tracking
   teacherPerformance = computed(() => {
     const teachers = this.allRegisteredTeachers();
+    const assignments = this.allAssignments();
     const allQs = [
       ...this.allPendingQuestions(), 
       ...this.allApprovedQuestions(), 
@@ -161,9 +184,18 @@ export class AdminDashboardComponent implements OnInit {
       ...this.allDraftQuestions()
     ];
     
+    // Create a map of question IDs for quick lookup
+    const qMap = new Map<string, Question>();
+    allQs.forEach(q => qMap.set(q.id, q));
+
     return teachers.map(t => {
+      // 1. Authored stats (always from created_by)
       const authored = allQs.filter(q => q.created_by === t.id);
-      const assigned = allQs.filter(q => q.metadata?.assigned_to_id === t.id);
+      
+      // 2. Review stats (from the assignments table - the real source of truth)
+      const myAssignments = assignments.filter(a => a.assigned_to_id === t.id);
+      const myAssignedQIds = myAssignments.map(a => a.question_id);
+      const assigned = myAssignedQIds.map(id => qMap.get(id)).filter((q): q is Question => !!q);
       
       return {
         ...t,
@@ -171,10 +203,14 @@ export class AdminDashboardComponent implements OnInit {
           authoredReady: authored.filter(q => q.status === 'approved').length,
           authoredPending: authored.filter(q => q.status !== 'approved').length,
           reviewsCompleted: assigned.filter(q => q.status === 'approved' || q.status === 'rejected').length,
-          reviewsPending: assigned.filter(q => q.status === 'pending_review').length
+          reviewsPending: assigned.filter(q => q.status !== 'approved' && q.status !== 'rejected').length
         }
       };
-    }).sort((a, b) => (b.stats.authoredReady + b.stats.reviewsCompleted) - (a.stats.authoredReady + a.stats.reviewsCompleted));
+    }).sort((a, b) => {
+      const activityA = a.stats.authoredReady + a.stats.authoredPending + a.stats.reviewsCompleted + a.stats.reviewsPending;
+      const activityB = b.stats.authoredReady + b.stats.authoredPending + b.stats.reviewsCompleted + b.stats.reviewsPending;
+      return activityB - activityA;
+    });
   });
 
   typeLabels: Record<string, { label: string; icon: string }> = {
@@ -197,26 +233,117 @@ export class AdminDashboardComponent implements OnInit {
   constructor() {
     effect(() => {
       if (this.supabaseService.currentUserRole() === 'admin') {
-        this.loadAllQuestions();
+        // Watch all filters and pagination signals to trigger re-load
+        this.activeTab();
+        this.currentPage();
+        this.pageSize();
+        this.filterTeacher();
+        this.filterQtype();
+        this.filterCategory();
+        this.filterSearch();
+        this.currentView();
+
+        if (this.currentView() === 'questions') {
+          this.loadQuestionsForActiveTab();
+          this.loadCounts();
+        }
+      }
+    });
+
+    effect(() => {
+      if (this.supabaseService.currentUserRole() === 'admin') {
         this.loadQuestionTypeCounts();
         this.loadCategories();
         this.loadTeachers();
+        this.loadAssignments();
       }
     });
   }
 
   ngOnInit() {
-    this.loadAllQuestions();
-    this.loadQuestionTypeCounts();
-    this.loadCategories();
-    this.loadTeachers();
+    // Initial load is handled by the effects above
   }
 
-  loadAllQuestions() {
-    this.loadPendingQuestions();
-    this.loadApprovedQuestions();
-    this.loadRejectedQuestions();
-    this.loadDraftQuestions();
+  async loadQuestionsForActiveTab() {
+    this.loading.set(true);
+    try {
+      const status = this.activeTab() === 'draft' ? 'draft' : 
+                     this.activeTab() === 'approved' ? 'approved' :
+                     this.activeTab() === 'rejected' ? 'rejected' : 'pending_review';
+
+      let query = this.supabaseService.db
+        .from('questions')
+        .select('*', { count: 'exact' })
+        .eq('status', status)
+        .is('deleted_at', null);
+
+      // Apply Filters
+      if (this.filterQtype()) query = query.eq('qtype', this.filterQtype());
+      if (this.filterCategory()) query = query.eq('category_id', this.filterCategory());
+      if (this.filterTeacher()) query = query.ilike('metadata->>author_name', `%${this.filterTeacher()}%`);
+      if (this.filterSearch()) {
+        const kw = `%${this.filterSearch()}%`;
+        query = query.or(`name.ilike.${kw},question_text.ilike.${kw}`);
+      }
+
+      const from = (this.currentPage() - 1) * this.pageSize();
+      const to = from + this.pageSize() - 1;
+
+      const { data, error, count } = await query
+        .order('created_at', { ascending: status === 'pending_review' })
+        .range(from, to);
+
+      if (error) throw error;
+
+      if (status === 'pending_review') this.pendingQuestions.set(data as Question[]);
+      else if (status === 'approved') this.approvedQuestions.set(data as Question[]);
+      else if (status === 'rejected') this.rejectedQuestions.set(data as Question[]);
+      else if (status === 'draft') this.draftQuestions.set(data as Question[]);
+
+      // Update count for the active tab
+      const counts = { ...this.totalCounts() };
+      if (status === 'pending_review') counts.pending = count || 0;
+      else if (status === 'approved') counts.approved = count || 0;
+      else if (status === 'rejected') counts.rejected = count || 0;
+      else if (status === 'draft') counts.draft = count || 0;
+      this.totalCounts.set(counts);
+
+    } catch (e) {
+      console.error('Error loading admin questions:', e);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  async loadCounts() {
+    // Load counts for all statuses to update tab labels
+    const statuses = ['pending_review', 'approved', 'rejected', 'draft'];
+    const counts = { ...this.totalCounts() };
+
+    for (const status of statuses) {
+      let query = this.supabaseService.db
+        .from('questions')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', status)
+        .is('deleted_at', null);
+
+      // Apply the same filters as loadQuestionsForActiveTab
+      if (this.filterQtype()) query = query.eq('qtype', this.filterQtype());
+      if (this.filterCategory()) query = query.eq('category_id', this.filterCategory());
+      if (this.filterTeacher()) query = query.ilike('metadata->>author_name', `%${this.filterTeacher()}%`);
+      if (this.filterSearch()) {
+        const kw = `%${this.filterSearch()}%`;
+        query = query.or(`name.ilike.${kw},question_text.ilike.${kw}`);
+      }
+
+      const { count } = await query;
+      
+      if (status === 'pending_review') counts.pending = count || 0;
+      else if (status === 'approved') counts.approved = count || 0;
+      else if (status === 'rejected') counts.rejected = count || 0;
+      else if (status === 'draft') counts.draft = count || 0;
+    }
+    this.totalCounts.set(counts);
   }
 
   private applyFilters(questions: Question[]): Question[] {
@@ -238,6 +365,14 @@ export class AdminDashboardComponent implements OnInit {
       result = result.filter(q => q.category_id === catId);
     }
 
+    const search = this.filterSearch()?.toLowerCase();
+    if (search) {
+      result = result.filter(q => 
+        q.name?.toLowerCase().includes(search) || 
+        q.question_text?.toLowerCase().includes(search)
+      );
+    }
+
     return result;
   }
 
@@ -245,10 +380,11 @@ export class AdminDashboardComponent implements OnInit {
     this.filterTeacher.set('');
     this.filterQtype.set('');
     this.filterCategory.set('');
+    this.filterSearch.set('');
   }
 
   get hasActiveFilters(): boolean {
-    return !!(this.filterTeacher() || this.filterQtype() || this.filterCategory());
+    return !!(this.filterTeacher() || this.filterQtype() || this.filterCategory() || this.filterSearch());
   }
 
   async loadCategories() {
@@ -283,6 +419,40 @@ export class AdminDashboardComponent implements OnInit {
     const profileMap = new Map<string, {name: string, email?: string}>();
     profiles?.forEach(p => profileMap.set(p.id, { name: p.full_name, email: p.email }));
 
+    // 3. Fallback: Lookup in questions table for missing names/emails in metadata
+    const { data: qMeta } = await this.supabaseService.db
+      .from('questions')
+      .select('created_by, metadata');
+
+    qMeta?.forEach(q => {
+      const meta = (q.metadata as any) || {};
+      const uid = q.created_by;
+      const existing = profileMap.get(uid);
+      
+      const metaName = meta.author_name || meta.modified_by;
+      const metaEmail = meta.author_email || meta.modified_by_email;
+
+      if (metaName || metaEmail) {
+        if (!existing) {
+          profileMap.set(uid, { 
+            name: metaName || `Teacher (${uid.substring(0, 5)})`, 
+            email: metaEmail 
+          });
+        } else {
+          const isGeneric = !existing.name || 
+                           existing.name.toLowerCase() === 'teacher' || 
+                           existing.name.toLowerCase().startsWith('teacher (');
+          
+          if (isGeneric || !existing.email) {
+            profileMap.set(uid, {
+              name: (isGeneric && metaName) ? metaName : existing.name,
+              email: existing.email || metaEmail
+            });
+          }
+        }
+      }
+    });
+
     const teachers: Teacher[] = (roles || []).map(r => {
       const prof = profileMap.get(r.user_id);
       return {
@@ -313,63 +483,59 @@ export class AdminDashboardComponent implements OnInit {
       .eq('id', question.id);
 
     if (!error) {
-      this.loadAllQuestions();
+      this.loadQuestionsForActiveTab();
+      this.loadCounts();
       this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Task marked as paid' });
     }
   }
 
-  async loadPendingQuestions() {
-    this.loading.set(true);
+  async loadAssignments() {
+    const { data, error } = await this.supabaseService.db
+      .from('assignments')
+      .select('question_id, assigned_to_id');
     
-    const { data, error } = await this.supabaseService.db
-      .from('questions')
-      .select('*')
-      .eq('status', 'pending_review')
-      .is('deleted_at', null)
-      .order('created_at', { ascending: true });
-
     if (!error && data) {
-      this.allPendingQuestions.set(data as Question[]);
-    }
-    this.loading.set(false);
-  }
-
-  async loadApprovedQuestions() {
-    const { data, error } = await this.supabaseService.db
-      .from('questions')
-      .select('*')
-      .eq('status', 'approved')
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      this.allApprovedQuestions.set(data as Question[]);
+      this.allAssignments.set(data);
     }
   }
 
-  async loadRejectedQuestions() {
-    const { data, error } = await this.supabaseService.db
-      .from('questions')
-      .select('*')
-      .eq('status', 'rejected')
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      this.allRejectedQuestions.set(data as Question[]);
-    }
+  // Pagination Helpers
+  get totalPages() {
+    const status = this.activeTab();
+    const count = status === 'pending' ? this.totalCounts().pending :
+                 status === 'approved' ? this.totalCounts().approved :
+                 status === 'rejected' ? this.totalCounts().rejected :
+                 this.totalCounts().draft;
+    return Math.ceil(count / this.pageSize());
   }
 
-  async loadDraftQuestions() {
-    const { data, error } = await this.supabaseService.db
-      .from('questions')
-      .select('*')
-      .eq('status', 'draft')
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false });
+  getVisiblePages(): number[] {
+    const current = this.currentPage();
+    const total = this.totalPages;
+    const maxVisible = 5;
+    const half = Math.floor(maxVisible / 2);
+    
+    let start = current - half;
+    let end = current + half;
+    
+    if (start < 1) {
+      start = 1;
+      end = Math.min(maxVisible, total);
+    }
+    
+    if (end > total) {
+      end = total;
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    
+    const pages = [];
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  }
 
-    if (!error && data) {
-      this.allDraftQuestions.set(data as Question[]);
+  setPage(page: number) {
+    if (page >= 1 && page <= this.totalPages) {
+      this.currentPage.set(page);
     }
   }
 
@@ -380,7 +546,18 @@ export class AdminDashboardComponent implements OnInit {
       .eq('id', id);
 
     if (!error) {
-      this.loadAllQuestions();
+      // Also update all assignments for this question to reflect the status
+      await this.supabaseService.db
+        .from('assignments')
+        .update({ 
+          status: status === 'approved' ? 'completed' : 'rejected',
+          completed_at: status === 'approved' ? new Date().toISOString() : null
+        })
+        .eq('question_id', id)
+        .is('completed_at', null);
+
+      this.loadQuestionsForActiveTab();
+      this.loadCounts();
       this.loadQuestionTypeCounts();
     }
   }
@@ -395,58 +572,111 @@ export class AdminDashboardComponent implements OnInit {
     );
   }
 
-  async assignToTeacher(question: Question, teacherEvent: any) {
-    // PrimeNG AutoComplete onSelect emits an event with a 'value' property or the object itself
-    const teacher = teacherEvent?.value || teacherEvent;
+  getAssignedTeachers(questionId: string): Teacher[] {
+    const assignedIds = this.allAssignments()
+      .filter(a => a.question_id === questionId)
+      .map(a => a.assigned_to_id);
     
-    console.log('Assigning to teacher:', teacher);
+    return this.allRegisteredTeachers().filter(t => assignedIds.includes(t.id));
+  }
 
-    const teacherId = teacher?.id;
-    const teacherName = teacher?.name;
-    
-    if (!teacherId) {
-      console.warn('No teacher ID found in event:', teacherEvent);
-      this.messageService.add({ severity: 'warn', summary: 'Selection Required', detail: 'Please select a teacher from the suggestions list.' });
+  async addReviewer(question: Question, event: any) {
+    const teacher: Teacher = event.value || event;
+    const admin = this.supabaseService.currentUser();
+    const adminName = this.supabaseService.currentUserName;
+
+    if (!admin) {
+      this.messageService.add({ severity: 'error', summary: 'Authentication Error', detail: 'You must be logged in as an admin to assign reviewers.' });
       return;
     }
 
-    const admin = this.supabaseService.currentUser();
-
-    const metadata = {
-      ...(question.metadata || {}),
-      assigned_to_id: teacherId,
-      assigned_to_name: teacherName,
-      assigned_at: teacherId ? new Date().toISOString() : null,
-      assigned_by: this.supabaseService.currentUserName
-    };
+    console.log('Adding reviewer:', teacher.name, 'to question:', question.id, 'Assigned by:', adminName, admin.id);
 
     try {
-      const { error: qError } = await this.supabaseService.db
+      // 1. Update Assignments Table
+      const { error: insError } = await this.supabaseService.db
+        .from('assignments')
+        .insert({
+          question_id: question.id,
+          assigned_to_id: teacher.id,
+          assigned_to_name: teacher.name,
+          assigned_by_id: admin?.id,
+          assigned_by_name: adminName,
+          status: 'assigned',
+          version: question.version
+        });
+
+      if (insError) throw insError;
+
+      // 2. Update Question Metadata
+      const currentReviewers = question.metadata?.assigned_reviewers || [];
+      if (!currentReviewers.find(r => r.id === teacher.id)) {
+        const updatedReviewers = [...currentReviewers, { id: teacher.id, name: teacher.name }];
+        const metadata = {
+          ...(question.metadata || {}),
+          assigned_reviewers: updatedReviewers,
+          assigned_to_id: updatedReviewers[0].id,
+          assigned_to_name: updatedReviewers[0].name,
+          assigned_at: new Date().toISOString(),
+          assigned_by: adminName
+        };
+
+        await this.supabaseService.db
+          .from('questions')
+          .update({ metadata })
+          .eq('id', question.id);
+        
+        question.metadata = metadata;
+      }
+
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: `Reviewer ${teacher.name} added` });
+      this.loadAssignments();
+    } catch (err: any) {
+      console.error('Error adding reviewer:', err);
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: err.message });
+    }
+  }
+
+  async removeReviewer(question: Question, event: any) {
+    const teacher: Teacher = event.value || event;
+    const admin = this.supabaseService.currentUser();
+    if (!admin) {
+      this.messageService.add({ severity: 'error', summary: 'Authentication Error', detail: 'You must be logged in as an admin to remove reviewers.' });
+      return;
+    }
+
+    console.log('Removing reviewer:', teacher.name, 'from question:', question.id, 'Requested by:', admin.id);
+
+    try {
+      // 1. Remove from Assignments Table
+      const { error: delError } = await this.supabaseService.db
+        .from('assignments')
+        .delete()
+        .eq('question_id', question.id)
+        .eq('assigned_to_id', teacher.id);
+
+      if (delError) throw delError;
+
+      // 2. Update Question Metadata
+      const currentReviewers = question.metadata?.assigned_reviewers || [];
+      const updatedReviewers = currentReviewers.filter(r => r.id !== teacher.id);
+      const metadata = {
+        ...(question.metadata || {}),
+        assigned_reviewers: updatedReviewers,
+        assigned_to_id: updatedReviewers.length > 0 ? updatedReviewers[0].id : undefined,
+        assigned_to_name: updatedReviewers.length > 0 ? updatedReviewers[0].name : undefined,
+      };
+
+      await this.supabaseService.db
         .from('questions')
         .update({ metadata })
         .eq('id', question.id);
 
-      if (qError) throw qError;
-
-      if (teacherId) {
-        await this.supabaseService.db
-          .from('assignments')
-          .insert({
-            question_id: question.id,
-            assigned_to_id: teacherId,
-            assigned_to_name: teacherName,
-            assigned_by_id: admin?.id,
-            assigned_by_name: this.supabaseService.currentUserName,
-            status: 'assigned',
-            version: question.version
-          });
-      }
-
       question.metadata = metadata;
-      this.assigningQuestionId.set(null);
-      this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Task assigned' });
-      this.loadAllQuestions();
+      this.messageService.add({ severity: 'info', summary: 'Removed', detail: `Reviewer ${teacher.name} removed` });
+      this.loadAssignments();
     } catch (err: any) {
+      console.error('Error removing reviewer:', err);
       this.messageService.add({ severity: 'error', summary: 'Error', detail: err.message });
     }
   }
@@ -488,5 +718,25 @@ export class AdminDashboardComponent implements OnInit {
       .sort((a, b) => b.count - a.count);
 
     this.questionTypeCounts.set(counts);
+  }
+
+  async deleteQuestion(id: string) {
+    if (!confirm('Are you sure you want to move this question to trash?')) return;
+
+    try {
+      const { error } = await this.supabaseService.db
+        .from('questions')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Question moved to trash' });
+      this.loadQuestionsForActiveTab();
+      this.loadCounts();
+      this.loadQuestionTypeCounts();
+    } catch (err: any) {
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: err.message });
+    }
   }
 }

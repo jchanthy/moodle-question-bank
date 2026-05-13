@@ -27,6 +27,7 @@ export interface Question {
     image_url?: string;
     assigned_to_id?: string;
     assigned_to_name?: string;
+    assigned_reviewers?: { id: string, name: string }[];
     paid_at?: string;
     comments?: {
       user: string;
@@ -102,61 +103,28 @@ export class TeacherDashboardComponent implements OnInit {
   sortField = signal<'created_at' | 'updated_at' | 'name'>('updated_at');
   sortOrder = signal<'asc' | 'desc'>('desc');
   activeMenuId = signal<string | null>(null);
+  totalCount = signal(0);
+
+  typeLabels: Record<string, { label: string; icon: string }> = {
+    'multichoice': { label: 'Multiple Choice', icon: '🔘' },
+    'truefalse': { label: 'True/False', icon: '✅' },
+    'shortanswer': { label: 'Short Answer', icon: '✏️' },
+    'numerical': { label: 'Numerical', icon: '🔢' },
+    'essay': { label: 'Essay', icon: '📝' },
+    'match': { label: 'Matching', icon: '🔗' },
+    'calculated': { label: 'Calculated', icon: '🧮' },
+    'calculatedmulti': { label: 'Calc. Multichoice', icon: '🧮' },
+    'calculatedsimple': { label: 'Calc. Simple', icon: '🧮' },
+    'ddwtos': { label: 'Drag into Text', icon: '📋' },
+    'ddimageortext': { label: 'Drag onto Image', icon: '🖼️' },
+    'ddmarker': { label: 'Drag Matching', icon: '📌' },
+    'ordering': { label: 'Ordering', icon: '↕️' },
+    'coderunner': { label: 'CodeRunner', icon: '💻' },
+  };
 
   filteredQuestions = computed(() => {
-    let q = this.myQuestions();
-    
-    // Keyword search
-    const kw = this.filterKeyword().toLowerCase();
-    if (kw) {
-      q = q.filter(x => 
-        x.name.toLowerCase().includes(kw) || 
-        x.question_text.toLowerCase().includes(kw) || 
-        (x.general_feedback && x.general_feedback.toLowerCase().includes(kw)) ||
-        (x.id && x.id.toLowerCase().includes(kw))
-      );
-    }
-    
-    // Type filter
-    if (this.filterType()) {
-      q = q.filter(x => x.qtype === this.filterType());
-    }
-    
-    // Status filter
-    if (this.filterStatus()) {
-      q = q.filter(x => x.status === this.filterStatus());
-    }
-    
-    // Date filter
-    if (this.filterDateFrom()) {
-      const from = new Date(this.filterDateFrom()).getTime();
-      q = q.filter(x => new Date(x.updated_at || x.created_at).getTime() >= from);
-    }
-    if (this.filterDateTo()) {
-      const to = new Date(this.filterDateTo()).getTime() + 86400000; // include the whole day
-      q = q.filter(x => new Date(x.updated_at || x.created_at).getTime() <= to);
-    }
-    
-    // Sorting
-    const field = this.sortField();
-    const order = this.sortOrder();
-    
-    q.sort((a, b) => {
-      let valA: any = a[field as keyof Question] || a.created_at;
-      let valB: any = b[field as keyof Question] || b.created_at;
-      
-      // Special case for updated_at which might be null
-      if (field === 'updated_at') {
-        valA = a.metadata?.modified_at || a.updated_at || a.created_at;
-        valB = b.metadata?.modified_at || b.updated_at || b.created_at;
-      }
-
-      if (valA < valB) return order === 'asc' ? -1 : 1;
-      if (valA > valB) return order === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    return q;
+    // With server-side pagination, myQuestions already contains the filtered/sorted/paginated data
+    return this.myQuestions();
   });
 
   // Selection & Pagination
@@ -196,15 +164,32 @@ export class TeacherDashboardComponent implements OnInit {
   constructor() {
     effect(() => {
       if (this.supabaseService.currentUser()) {
+        // This effect watches all these signals and re-loads data when any changes
+        this.currentPage();
+        this.pageSize();
+        this.filterType();
+        this.filterStatus();
+        this.filterKeyword();
+        this.filterHidden();
+        this.selectedCategoryId();
+        this.filterDateFrom();
+        this.filterDateTo();
+        this.sortField();
+        this.sortOrder();
+        
         this.loadMyQuestions();
+      }
+    });
+
+    effect(() => {
+      if (this.supabaseService.currentUser()) {
         this.loadCategories();
       }
     });
   }
 
   ngOnInit() {
-    this.loadMyQuestions();
-    this.loadCategories();
+    // Initial load handled by effects
   }
 
   getPendingCount() {
@@ -225,96 +210,106 @@ export class TeacherDashboardComponent implements OnInit {
 
     this.loading.set(true);
     try {
-      // 1. Load my questions (created by me)
-      let myQuery = this.supabaseService.db
+      // 1. Prepare Base Query
+      let query = this.supabaseService.db
         .from('questions')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('created_by', user.id);
 
+      // 2. Apply Filters to Query (Server-Side)
       if (!this.filterHidden()) {
-        myQuery = myQuery.is('deleted_at', null);
+        query = query.is('deleted_at', null);
       }
-      if (this.selectedCategoryId()) {
-        myQuery.eq('category_id', this.selectedCategoryId()!);
-      }
-
-      // 2. Load assigned questions (Try new assignments table + Fallback to metadata)
-      let assignedData: any[] = [];
       
-      try {
-        const { data: assignments } = await this.supabaseService.db
-          .from('assignments')
-          .select('question_id')
-          .eq('assigned_to_id', user.id);
-
-        const assignedQIds = assignments?.map(a => a.question_id) || [];
-        
-        // Fetch questions from assignments table
-        if (assignedQIds.length > 0) {
-          const { data } = await this.supabaseService.db
-            .from('questions')
-            .select('*')
-            .in('id', assignedQIds)
-            .is('deleted_at', null);
-          if (data) assignedData = [...data];
-        }
-      } catch (e) {
-        console.warn('Assignments table might not exist yet:', e);
+      if (this.selectedCategoryId()) {
+        query = query.eq('category_id', this.selectedCategoryId()!);
       }
 
-      // 3. Also check metadata (for backwards compatibility or if assignments table is missing)
-      const { data: legacyData } = await this.supabaseService.db
-        .from('questions')
-        .select('*')
-        .contains('metadata', { assigned_to_id: user.id })
-        .is('deleted_at', null);
-
-      if (legacyData) {
-        // Merge and deduplicate
-        const existingIds = new Set(assignedData.map(q => q.id));
-        legacyData.forEach(q => {
-          if (!existingIds.has(q.id)) {
-            assignedData.push(q);
-          }
-        });
+      if (this.filterType()) {
+        query = query.eq('qtype', this.filterType());
       }
 
-      const { data: myData, error: myError } = await myQuery.order('version', { ascending: false });
+      if (this.filterStatus()) {
+        query = query.eq('status', this.filterStatus());
+      }
+
+      if (this.filterKeyword()) {
+        const kw = `%${this.filterKeyword()}%`;
+        query = query.or(`name.ilike.${kw},question_text.ilike.${kw},id.ilike.${kw}`);
+      }
+
+      if (this.filterDateFrom()) {
+        query = query.gte('updated_at', this.filterDateFrom());
+      }
+      if (this.filterDateTo()) {
+        query = query.lte('updated_at', this.filterDateTo());
+      }
+
+      // 3. Sorting & Pagination Range
+      const from = (this.currentPage() - 1) * this.pageSize();
+      const to = from + this.pageSize() - 1;
+
+      const { data: myData, error: myError, count } = await query
+        .order(this.sortField(), { ascending: this.sortOrder() === 'asc' })
+        .range(from, to);
 
       if (myError) throw myError;
+      
+      this.totalCount.set(count || 0);
 
+      // 4. Processing (Versioning/Grouping)
       const processQuestions = (data: Question[]) => {
-        const groups = new Map<string, Question[]>();
-        data.forEach((q: Question) => {
-          const familyId = q.parent_id || q.id;
-          if (!groups.has(familyId)) groups.set(familyId, []);
-          groups.get(familyId)?.push(q);
-        });
-
-        const processed: Question[] = [];
-        groups.forEach((versions) => {
-          const versionMap = new Map<number, Question>();
-          versions.forEach(v => {
-            if (!versionMap.has(v.version) || new Date(v.created_at) > new Date(versionMap.get(v.version)!.created_at)) {
-              versionMap.set(v.version, v);
-            }
-          });
-          const uniqueVersions = Array.from(versionMap.values()).sort((a, b) => b.version - a.version);
-          const latest = { ...uniqueVersions[0] };
-          latest.history = uniqueVersions.slice(1);
-          latest.allVersions = uniqueVersions;
-          processed.push(latest);
-        });
-        return processed;
+        // Since we are paginating, we just display what we got. 
+        // Real version grouping would require a more complex DB View, 
+        // but for now we'll display the paginated rows directly.
+        return data.map(q => ({
+          ...q,
+          allVersions: [q],
+          history: []
+        }));
       };
 
       this.myQuestions.set(processQuestions(myData || []));
-      this.assignedQuestions.set(processQuestions(assignedData || []));
+
+      // 5. Separate query for assigned questions (if needed, usually smaller list)
+      await this.loadAssignedQuestions();
 
     } catch (error: any) {
       console.error('Error loading questions:', error);
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  private async loadAssignedQuestions() {
+    const user = this.supabaseService.currentUser();
+    if (!user) return;
+
+    try {
+      const { data: assignments } = await this.supabaseService.db
+        .from('assignments')
+        .select('question_id')
+        .eq('assigned_to_id', user.id);
+
+      const assignedQIds = assignments?.map(a => a.question_id) || [];
+      
+      if (assignedQIds.length > 0) {
+        const { data } = await this.supabaseService.db
+          .from('questions')
+          .select('*')
+          .in('id', assignedQIds)
+          .is('deleted_at', null);
+        
+        if (data) {
+          this.assignedQuestions.set(data.map(q => ({
+            ...q,
+            allVersions: [q],
+            history: []
+          })));
+        }
+      }
+    } catch (e) {
+      console.warn('Assigned questions error:', e);
     }
   }
 
@@ -378,7 +373,7 @@ export class TeacherDashboardComponent implements OnInit {
 
   // Pagination Logic
   get totalPages() {
-    return Math.ceil(this.filteredQuestions().length / this.pageSize());
+    return Math.ceil(this.totalCount() / this.pageSize());
   }
 
   getVisiblePages(): number[] {
@@ -502,9 +497,9 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   get paginatedQuestions() {
-    const start = (this.currentPage() - 1) * this.pageSize();
-    const end = start + this.pageSize();
-    return this.filteredQuestions().slice(start, end);
+    // With server-side pagination, the 'filteredQuestions' signal already contains 
+    // exactly the rows for the current page.
+    return this.filteredQuestions();
   }
 
   setPage(page: number) {
@@ -587,32 +582,105 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   async bulkDeleteQuestions() {
-    const count = this.selectedIds().size;
-    if (count === 0) return;
-    if (!confirm(`Are you sure you want to move ${count} selected question(s) to trash?`)) return;
+    const selectedIdsArray = Array.from(this.selectedIds());
+    if (selectedIdsArray.length === 0) return;
+
+    // Filter out locked questions (only allow deleting drafts and rejected)
+    const deletableQuestions = this.myQuestions().filter(q => 
+      selectedIdsArray.includes(q.id) && (q.status === 'draft' || q.status === 'rejected')
+    );
+
+    const lockedCount = selectedIdsArray.length - deletableQuestions.length;
+
+    if (deletableQuestions.length === 0) {
+      this.messageService.add({ 
+        severity: 'warn', 
+        summary: 'Action Blocked', 
+        detail: `${lockedCount} selected question(s) are currently in review or approved and cannot be deleted.` 
+      });
+      return;
+    }
+
+    let confirmMsg = `Move ${deletableQuestions.length} selected question(s) to trash?`;
+    if (lockedCount > 0) {
+      confirmMsg += ` (${lockedCount} locked questions will be skipped)`;
+    }
+
+    if (!confirm(confirmMsg)) return;
 
     this.loading.set(true);
     try {
-      const selectedIdsArray = Array.from(this.selectedIds());
+      const idsToDelete = deletableQuestions.map(q => q.id);
       const { error } = await this.supabaseService.db
         .from('questions')
         .update({ deleted_at: new Date().toISOString() })
-        .in('id', selectedIdsArray);
+        .in('id', idsToDelete);
 
       if (error) throw error;
 
-      this.showToast(`Moved ${count} questions to trash.`);
+      this.showToast(`Moved ${idsToDelete.length} questions to trash.`);
       this.clearSelection();
       await this.loadMyQuestions();
       await this.loadCategories();
     } catch (err: any) {
-      this.showToast('Error deleting questions: ' + err.message, 'error');
+      this.showToast('Error deleting: ' + err.message, 'error');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  async withdrawFromReview(q: Question) {
+    if (!confirm(`Withdraw "${q.name}" from review? This will return it to draft status and cancel active review tasks.`)) return;
+
+    this.loading.set(true);
+    try {
+      // 1. Update status to draft
+      const { error: qError } = await this.supabaseService.db
+        .from('questions')
+        .update({ status: 'draft' })
+        .eq('id', q.id);
+
+      if (qError) throw qError;
+
+      // 2. Remove assignments
+      await this.supabaseService.db
+        .from('assignments')
+        .delete()
+        .eq('question_id', q.id);
+
+      // 3. Update metadata to clear reviewers
+      const metadata = { ...(q.metadata || {}) };
+      delete metadata.assigned_reviewers;
+      delete metadata.assigned_to_id;
+      delete metadata.assigned_to_name;
+
+      await this.supabaseService.db
+        .from('questions')
+        .update({ metadata })
+        .eq('id', q.id);
+
+      this.showToast(`"${q.name}" withdrawn to draft.`);
+      await this.loadMyQuestions();
+    } catch (err: any) {
+      console.error('Withdraw error:', err);
+      this.showToast('Error withdrawing: ' + err.message, 'error');
     } finally {
       this.loading.set(false);
     }
   }
 
   async deleteQuestion(id: string, name: string) {
+    // 1. Find the question to check its status
+    const q = this.myQuestions().find(x => x.id === id);
+    if (q && q.status !== 'draft' && q.status !== 'rejected') {
+      this.messageService.add({ 
+        severity: 'warn', 
+        summary: 'Question Locked', 
+        detail: 'Questions in review or approved status cannot be deleted. Please withdraw it first.' 
+      });
+      return;
+    }
+
     if (!confirm(`Are you sure you want to move "${name}" to trash?`)) return;
 
     this.loading.set(true);
@@ -727,6 +795,8 @@ export class TeacherDashboardComponent implements OnInit {
       question.name = newName.trim();
       question.isEditingName = false;
       this.showToast('Question renamed successfully!');
+      // Refresh to ensure all version groupings are correct
+      await this.loadMyQuestions();
     } catch (err: any) {
       this.showToast('Error renaming question: ' + err.message, 'error');
     }
