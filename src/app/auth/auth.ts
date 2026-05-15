@@ -39,7 +39,7 @@ export class AuthComponent {
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     
     if (data?.role === 'admin') {
       this.router.navigate(['/admin']);
@@ -65,12 +65,16 @@ export class AuthComponent {
         .from('user_roles')
         .select('role')
         .eq('user_id', data.user.id)
-        .single();
+        .maybeSingle();
 
-      const role = roleData?.role || 'teacher'; // Fallback to teacher
+      const role = roleData?.role || 'teacher';
+      console.log('Login successful. Detected role:', role);
+
       if (role === 'admin') {
+        console.log('Redirecting to Admin Dashboard...');
         this.router.navigate(['/admin']);
       } else {
+        console.log('Redirecting to Teacher Dashboard...');
         this.router.navigate(['/teacher']);
       }
     } catch (error: any) {

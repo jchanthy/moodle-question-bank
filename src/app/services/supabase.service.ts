@@ -69,7 +69,7 @@ export class SupabaseService {
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
         
       if (data && !error) {
         this.currentUserRole.set(data.role);

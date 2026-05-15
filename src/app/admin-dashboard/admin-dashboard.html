@@ -5,16 +5,56 @@
     <!-- Header -->
     <div class="flex justify-between items-center mb-10">
       <div>
-        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">{{ currentView() === 'questions' ? 'Question Bank' : 'Team Performance' }}</h1>
+        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">
+          {{ currentView() === 'questions' ? 'Question Bank' : 
+             currentView() === 'team' ? 'Team Performance' : 
+             currentView() === 'categories' ? 'Category Management' : 'Performance Report' }}
+        </h1>
         <p class="text-gray-500 mt-1">
-          {{ currentView() === 'questions' ? 'Quality assurance and question management portal.' : 'Track teacher tasks, reviews, and payment eligibility.' }}
+          {{ currentView() === 'questions' ? 'Quality assurance and question management portal.' : 
+             currentView() === 'team' ? 'Track teacher tasks, reviews, and payment eligibility.' :
+             currentView() === 'categories' ? 'Organize questions into structures and global tags.' : 'Detailed teacher performance and settlement log.' }}
         </p>
       </div>
-      <button (click)="signOut()" class="text-gray-400 hover:text-red-600 transition p-2" title="Sign Out">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M10 3H3v18h7M16 17l5-5-5-5M21 12H9" />
-        </svg>
-      </button>
+      <div class="flex items-center gap-4">
+        <!-- User Profile -->
+        <div class="hidden md:flex items-center gap-3 pr-4 border-r border-gray-200">
+          <div class="text-right">
+            <div class="flex items-center justify-end gap-2">
+              <span class="text-sm font-black text-brand-dark">{{ supabaseService.currentUserName }}</span>
+              <span *ngIf="supabaseService.currentUserRole()" 
+                    [class]="supabaseService.currentUserRole() === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'"
+                    class="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-full">
+                {{ supabaseService.currentUserRole() === 'admin' ? 'System Admin' : 'Teacher' }}
+              </span>
+            </div>
+            <p class="text-[10px] text-gray-500 font-bold leading-none">{{ supabaseService.currentUser()?.email }}</p>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-black">
+            {{ supabaseService.currentUserName.substring(0,1).toUpperCase() }}
+          </div>
+        </div>
+
+        <a routerLink="/teacher/guide" 
+           class="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all border border-transparent hover:border-blue-100"
+           title="Help & Guides">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </a>
+
+        <p-button *ngIf="currentView() === 'questions'" 
+                  label="Add New Question" 
+                  icon="pi pi-plus" 
+                  [routerLink]="['/teacher/new-question']"
+                  styleClass="p-button-primary rounded-none shadow-lg shadow-blue-100" />
+
+        <button (click)="signOut()" class="text-gray-400 hover:text-red-600 transition p-2" title="Sign Out">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M10 3H3v18h7M16 17l5-5-5-5M21 12H9" />
+          </svg>
+        </button>
+      </div>
     </div>
 
     <!-- View Switcher -->
@@ -40,6 +80,17 @@
           <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
         Team & Performance
+      </button>
+      <button (click)="currentView.set('categories')"
+              [class.bg-white]="currentView() === 'categories'"
+              [class.shadow-md]="currentView() === 'categories'"
+              [class.text-blue-600]="currentView() === 'categories'"
+              class="px-6 py-2.5 rounded-none font-bold text-sm transition-all flex items-center gap-2"
+              [class.text-gray-500]="currentView() !== 'categories'">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+        </svg>
+        Categories
       </button>
     </div>
 
@@ -143,7 +194,7 @@
                   <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
-              <input type="text" [ngModel]="filterSearch()" (ngModelChange)="filterSearch.set($event)"
+              <input type="text" [ngModel]="filterSearch()" (ngModelChange)="onSearchChange($event)"
                      placeholder="Search question name or content..."
                      class="w-full pl-10 pr-3 py-2 border border-gray-100 rounded-none text-sm font-medium bg-gray-50 focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all">
             </div>
@@ -160,7 +211,7 @@
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <!-- Teacher Filter -->
-            <select [ngModel]="filterTeacher()" (ngModelChange)="filterTeacher.set($event)"
+            <select [ngModel]="filterTeacher()" (ngModelChange)="onTeacherFilterChange($event)"
               class="w-full px-3 py-2 border border-gray-100 rounded-none text-sm font-medium bg-gray-50 focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all">
               <option value="">All Teachers</option>
               <option *ngFor="let t of availableTeachers()" [value]="t.name">{{ t.name }}</option>
@@ -347,38 +398,18 @@
         </div>
       </div>
       <!-- Pagination -->
-      <div *ngIf="totalCounts().pending > pageSize()" class="mt-8 flex items-center justify-between border-t border-gray-100 pt-6">
-        <div class="text-xs font-bold text-gray-400">
-          Showing <span class="text-gray-900">{{ (currentPage() - 1) * pageSize() + 1 }}</span> 
-          to <span class="text-gray-900">{{ Math.min(currentPage() * pageSize(), totalCounts().pending) }}</span> 
-          of <span class="text-gray-900">{{ totalCounts().pending }}</span> questions
-        </div>
-        <div class="flex items-center gap-1">
-          <button (click)="setPage(currentPage() - 1)" 
-                  [disabled]="currentPage() === 1"
-                  class="p-2 rounded-none border border-gray-200 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div class="flex items-center gap-1">
-            <button *ngFor="let p of getVisiblePages()" 
-                    (click)="setPage(p)"
-                    [class.bg-blue-600]="currentPage() === p"
-                    [class.text-white]="currentPage() === p"
-                    [class.border-blue-600]="currentPage() === p"
-                    class="w-8 h-8 flex items-center justify-center text-xs font-black border border-gray-200 hover:bg-blue-50 transition">
-              {{ p }}
-            </button>
-          </div>
-          <button (click)="setPage(currentPage() + 1)" 
-                  [disabled]="currentPage() === totalPages"
-                  class="p-2 rounded-none border border-gray-200 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
+      <!-- Pagination Controls -->
+      <div class="border-t border-gray-100 pt-4">
+        <p-paginator 
+          (onPageChange)="onPageChange($event)" 
+          [first]="(currentPage() - 1) * pageSize()" 
+          [rows]="pageSize()" 
+          [totalRecords]="totalCounts().pending" 
+          [rowsPerPageOptions]="[10, 20, 50, 100]" 
+          [showCurrentPageReport]="true"
+          currentPageReportTemplate="Showing {first} to {last} of {totalRecords} questions"
+          styleClass="bg-white">
+        </p-paginator>
       </div>
     </div>
 
@@ -439,38 +470,18 @@
       </div>
 
       <!-- Pagination -->
-      <div *ngIf="totalCounts().approved > pageSize()" class="mt-8 flex items-center justify-between border-t border-gray-100 pt-6">
-        <div class="text-xs font-bold text-gray-400">
-          Showing <span class="text-gray-900">{{ (currentPage() - 1) * pageSize() + 1 }}</span> 
-          to <span class="text-gray-900">{{ Math.min(currentPage() * pageSize(), totalCounts().approved) }}</span> 
-          of <span class="text-gray-900">{{ totalCounts().approved }}</span> questions
-        </div>
-        <div class="flex items-center gap-1">
-          <button (click)="setPage(currentPage() - 1)" 
-                  [disabled]="currentPage() === 1"
-                  class="p-2 rounded-none border border-gray-200 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div class="flex items-center gap-1">
-            <button *ngFor="let p of getVisiblePages()" 
-                    (click)="setPage(p)"
-                    [class.bg-blue-600]="currentPage() === p"
-                    [class.text-white]="currentPage() === p"
-                    [class.border-blue-600]="currentPage() === p"
-                    class="w-8 h-8 flex items-center justify-center text-xs font-black border border-gray-200 hover:bg-blue-50 transition">
-              {{ p }}
-            </button>
-          </div>
-          <button (click)="setPage(currentPage() + 1)" 
-                  [disabled]="currentPage() === totalPages"
-                  class="p-2 rounded-none border border-gray-200 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
+      <!-- Pagination Controls -->
+      <div class="border-t border-gray-100 pt-4">
+        <p-paginator 
+          (onPageChange)="onPageChange($event)" 
+          [first]="(currentPage() - 1) * pageSize()" 
+          [rows]="pageSize()" 
+          [totalRecords]="totalCounts().approved" 
+          [rowsPerPageOptions]="[10, 20, 50, 100]" 
+          [showCurrentPageReport]="true"
+          currentPageReportTemplate="Showing {first} to {last} of {totalRecords} questions"
+          styleClass="bg-white">
+        </p-paginator>
       </div>
     </div>
 
@@ -534,38 +545,18 @@
         </div>
       </div>
       <!-- Pagination -->
-      <div *ngIf="totalCounts().rejected > pageSize()" class="mt-8 flex items-center justify-between border-t border-gray-100 pt-6">
-        <div class="text-xs font-bold text-gray-400">
-          Showing <span class="text-gray-900">{{ (currentPage() - 1) * pageSize() + 1 }}</span> 
-          to <span class="text-gray-900">{{ Math.min(currentPage() * pageSize(), totalCounts().rejected) }}</span> 
-          of <span class="text-gray-900">{{ totalCounts().rejected }}</span> questions
-        </div>
-        <div class="flex items-center gap-1">
-          <button (click)="setPage(currentPage() - 1)" 
-                  [disabled]="currentPage() === 1"
-                  class="p-2 rounded-none border border-gray-200 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div class="flex items-center gap-1">
-            <button *ngFor="let p of getVisiblePages()" 
-                    (click)="setPage(p)"
-                    [class.bg-blue-600]="currentPage() === p"
-                    [class.text-white]="currentPage() === p"
-                    [class.border-blue-600]="currentPage() === p"
-                    class="w-8 h-8 flex items-center justify-center text-xs font-black border border-gray-200 hover:bg-blue-50 transition">
-              {{ p }}
-            </button>
-          </div>
-          <button (click)="setPage(currentPage() + 1)" 
-                  [disabled]="currentPage() === totalPages"
-                  class="p-2 rounded-none border border-gray-200 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
+      <!-- Pagination Controls -->
+      <div class="border-t border-gray-100 pt-4">
+        <p-paginator 
+          (onPageChange)="onPageChange($event)" 
+          [first]="(currentPage() - 1) * pageSize()" 
+          [rows]="pageSize()" 
+          [totalRecords]="totalCounts().rejected" 
+          [rowsPerPageOptions]="[10, 20, 50, 100]" 
+          [showCurrentPageReport]="true"
+          currentPageReportTemplate="Showing {first} to {last} of {totalRecords} questions"
+          styleClass="bg-white">
+        </p-paginator>
       </div>
     </div>
 
@@ -612,38 +603,18 @@
         </div>
       </div>
       <!-- Pagination -->
-      <div *ngIf="totalCounts().draft > pageSize()" class="mt-8 flex items-center justify-between border-t border-gray-100 pt-6">
-        <div class="text-xs font-bold text-gray-400">
-          Showing <span class="text-gray-900">{{ (currentPage() - 1) * pageSize() + 1 }}</span> 
-          to <span class="text-gray-900">{{ Math.min(currentPage() * pageSize(), totalCounts().draft) }}</span> 
-          of <span class="text-gray-900">{{ totalCounts().draft }}</span> questions
-        </div>
-        <div class="flex items-center gap-1">
-          <button (click)="setPage(currentPage() - 1)" 
-                  [disabled]="currentPage() === 1"
-                  class="p-2 rounded-none border border-gray-200 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div class="flex items-center gap-1">
-            <button *ngFor="let p of getVisiblePages()" 
-                    (click)="setPage(p)"
-                    [class.bg-blue-600]="currentPage() === p"
-                    [class.text-white]="currentPage() === p"
-                    [class.border-blue-600]="currentPage() === p"
-                    class="w-8 h-8 flex items-center justify-center text-xs font-black border border-gray-200 hover:bg-blue-50 transition">
-              {{ p }}
-            </button>
-          </div>
-          <button (click)="setPage(currentPage() + 1)" 
-                  [disabled]="currentPage() === totalPages"
-                  class="p-2 rounded-none border border-gray-200 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
+      <!-- Pagination Controls -->
+      <div class="border-t border-gray-100 pt-4">
+        <p-paginator 
+          (onPageChange)="onPageChange($event)" 
+          [first]="(currentPage() - 1) * pageSize()" 
+          [rows]="pageSize()" 
+          [totalRecords]="totalCounts().draft" 
+          [rowsPerPageOptions]="[10, 20, 50, 100]" 
+          [showCurrentPageReport]="true"
+          currentPageReportTemplate="Showing {first} to {last} of {totalRecords} questions"
+          styleClass="bg-white">
+        </p-paginator>
       </div>
     </div>
 
@@ -922,6 +893,99 @@
       <div class="mt-6 flex justify-between items-center text-gray-400 px-1">
         <span class="text-[10px] font-bold uppercase tracking-widest">Internal Record Only</span>
         <span class="text-[10px] font-bold uppercase tracking-widest">Generated: {{ today | date:'mediumDate' }}</span>
+      </div>
+    </div>
+    <!-- CATEGORIES VIEW -->
+    <div *ngIf="currentView() === 'categories'" class="animate-in fade-in duration-500">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Create Category Form -->
+        <div class="lg:col-span-1">
+          <div class="bg-white rounded-none border border-gray-100 shadow-sm p-6 sticky top-6">
+            <h2 class="text-xl font-black text-gray-900 mb-6">Create Category</h2>
+            
+            <div class="space-y-4">
+              <div>
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Name</label>
+                <input type="text" [(ngModel)]="newCategoryName" placeholder="e.g. Mathematics"
+                       class="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold">
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Parent Category (Optional)</label>
+                <select [(ngModel)]="newCategoryParent"
+                        class="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-none focus:bg-white focus:border-blue-400 outline-none transition-all font-bold">
+                  <option [ngValue]="null">Top Level</option>
+                  <option *ngFor="let cat of flatCategories" [value]="cat.id">
+                    {{ "— ".repeat(cat.depth) }}{{ cat.name }}
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Description</label>
+                <textarea [(ngModel)]="newCategoryDescription" rows="3"
+                          class="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-none focus:bg-white focus:border-blue-400 outline-none transition-all font-bold"></textarea>
+              </div>
+
+              <div class="flex items-center gap-3 p-4 bg-blue-50/50 border border-blue-100 rounded-none">
+                <input type="checkbox" [(ngModel)]="newCategoryIsGlobal" id="isGlobal" class="w-5 h-5 rounded-none border-gray-300 text-blue-600 focus:ring-blue-500">
+                <label for="isGlobal" class="text-sm font-bold text-blue-900 cursor-pointer">
+                  Make Global
+                  <span class="block text-[10px] text-blue-400 font-medium">Visible to all teachers</span>
+                </label>
+              </div>
+
+              <button (click)="addCategory()"
+                      class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-none shadow-lg shadow-blue-200 transition-all active:scale-[0.98]">
+                Create Category
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Categories List -->
+        <div class="lg:col-span-2">
+          <div class="bg-white rounded-none border border-gray-100 shadow-sm overflow-hidden">
+            <div class="px-8 py-6 border-b border-gray-50 flex items-center justify-between">
+              <h2 class="text-xl font-black text-gray-900">Existing Categories</h2>
+              <span class="px-3 py-1 bg-gray-100 text-[10px] font-black text-gray-400 rounded-none">
+                {{ categories().length }} TOTAL
+              </span>
+            </div>
+
+            <div class="divide-y divide-gray-50">
+              <div *ngIf="categories().length === 0" class="p-20 text-center">
+                <p class="text-gray-400 font-bold">No categories created yet.</p>
+              </div>
+              
+              <div *ngFor="let cat of flatCategories" 
+                   class="px-8 py-5 hover:bg-blue-50/20 transition group flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                  <div [style.width.px]="cat.depth * 30"></div>
+                  <div class="w-10 h-10 rounded-none bg-gray-50 border border-gray-100 flex items-center justify-center text-lg shadow-sm group-hover:bg-white transition-colors">
+                    {{ cat.parent_id ? '📄' : '📁' }}
+                  </div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-base font-black text-gray-900">{{ cat.name }}</span>
+                      <span *ngIf="cat.is_global" class="px-2 py-0.5 bg-green-100 text-green-600 text-[9px] font-black uppercase tracking-widest rounded">GLOBAL</span>
+                    </div>
+                    <p class="text-xs text-gray-400 font-bold mt-0.5" *ngIf="cat.description">{{ cat.description }}</p>
+                  </div>
+                </div>
+                
+                <button (click)="deleteCategory(cat.id)"
+                        class="p-2 text-gray-300 hover:text-red-600 transition-colors rounded-none hover:bg-red-50">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>

@@ -1,11 +1,13 @@
-import { Component, inject, signal, computed, OnInit, effect } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, effect, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SupabaseService } from '../services/supabase.service';
 import { Router, RouterModule } from '@angular/router';
+import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { AutoComplete } from 'primeng/autocomplete';
 import { MessageService } from 'primeng/api';
 import { Toast } from 'primeng/toast';
+import { Paginator } from 'primeng/paginator';
 
 interface Question {
   id: string;
@@ -42,20 +44,25 @@ interface Teacher {
 
 interface TypeCount {
   type: string;
-  label: string;
   count: number;
+  label: string;
   icon: string;
 }
 
 interface Category {
   id: string;
   name: string;
+  description?: string;
+  parent_id: string | null;
+  created_by: string;
+  is_global: boolean;
+  sort_order: number;
 }
 
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, AutoComplete, Toast],
+  imports: [CommonModule, RouterModule, FormsModule, AutoComplete, Toast, Paginator],
   providers: [MessageService],
   templateUrl: './admin-dashboard.html',
   styleUrl: './admin-dashboard.css'
@@ -80,7 +87,7 @@ export class AdminDashboardComponent implements OnInit {
   activeTab = signal<'pending' | 'approved' | 'rejected' | 'draft'>('pending');
 
   // View state
-  currentView = signal<'questions' | 'team' | 'report'>('questions');
+  currentView = signal<'questions' | 'team' | 'report' | 'categories'>('questions');
   selectedTeacherId = signal<string | null>(null);
 
   // Getter/Setter for Drawer visibility
@@ -96,6 +103,10 @@ export class AdminDashboardComponent implements OnInit {
   filterQtype = signal('');
   filterCategory = signal('');
   filterSearch = signal('');
+
+  // Debounced filter states to prevent 503 errors
+  debouncedSearch = signal('');
+  private searchSubject = new Subject<string>();
 
   protected readonly Math = Math;
 
@@ -113,7 +124,12 @@ export class AdminDashboardComponent implements OnInit {
   allRegisteredTeachers = signal<Teacher[]>([]);
 
   // Dropdown options (derived from loaded data)
+  // Category management state
   categories = signal<Category[]>([]);
+  newCategoryName = '';
+  newCategoryDescription = '';
+  newCategoryParent: string | null = null;
+  newCategoryIsGlobal = false;
 
   // Unique teachers from the database (Source of Truth)
   availableTeachers = computed(() => {
@@ -161,10 +177,10 @@ export class AdminDashboardComponent implements OnInit {
   });
 
   // Unique question types from all questions
+  allQuestionsMeta = signal<any[]>([]);
+
   availableQtypes = computed(() => {
-    const all = [...this.allPendingQuestions(), ...this.allApprovedQuestions(), ...this.allRejectedQuestions()];
-    const types = new Set(all.map(q => q.qtype).filter(Boolean));
-    return Array.from(types).sort();
+    return Object.keys(this.typeLabels).sort();
   });
 
   // Filtered lists (computed from raw data + filters)
@@ -177,15 +193,10 @@ export class AdminDashboardComponent implements OnInit {
   teacherPerformance = computed(() => {
     const teachers = this.allRegisteredTeachers();
     const assignments = this.allAssignments();
-    const allQs = [
-      ...this.allPendingQuestions(), 
-      ...this.allApprovedQuestions(), 
-      ...this.allRejectedQuestions(),
-      ...this.allDraftQuestions()
-    ];
+    const allQs = this.allQuestionsMeta();
     
     // Create a map of question IDs for quick lookup
-    const qMap = new Map<string, Question>();
+    const qMap = new Map<string, any>();
     allQs.forEach(q => qMap.set(q.id, q));
 
     return teachers.map(t => {
@@ -195,7 +206,7 @@ export class AdminDashboardComponent implements OnInit {
       // 2. Review stats (from the assignments table - the real source of truth)
       const myAssignments = assignments.filter(a => a.assigned_to_id === t.id);
       const myAssignedQIds = myAssignments.map(a => a.question_id);
-      const assigned = myAssignedQIds.map(id => qMap.get(id)).filter((q): q is Question => !!q);
+      const assigned = myAssignedQIds.map(id => qMap.get(id)).filter(q => !!q);
       
       return {
         ...t,
@@ -231,37 +242,66 @@ export class AdminDashboardComponent implements OnInit {
   };
 
   constructor() {
-    effect(() => {
-      if (this.supabaseService.currentUserRole() === 'admin') {
-        // Watch all filters and pagination signals to trigger re-load
-        this.activeTab();
-        this.currentPage();
-        this.pageSize();
-        this.filterTeacher();
-        this.filterQtype();
-        this.filterCategory();
-        this.filterSearch();
-        this.currentView();
-
-        if (this.currentView() === 'questions') {
-          this.loadQuestionsForActiveTab();
-          this.loadCounts();
-        }
-      }
+    // Setup debouncing for search
+    this.searchSubject.pipe(
+      debounceTime(400),
+      distinctUntilChanged()
+    ).subscribe(val => {
+      untracked(() => {
+        this.debouncedSearch.set(val);
+        this.currentPage.set(1);
+      });
     });
 
+    // Effect for data list (triggers on tab, page, or filter changes)
     effect(() => {
-      if (this.supabaseService.currentUserRole() === 'admin') {
+      const userRole = this.supabaseService.currentUserRole();
+      if (userRole !== 'admin') return;
+
+      // Track dependencies
+      this.activeTab();
+      this.currentPage();
+      this.pageSize();
+      this.debouncedSearch();
+      this.filterTeacher();
+      this.filterQtype();
+      this.filterCategory();
+      const view = this.currentView();
+      
+      untracked(() => {
+        if (view === 'questions') {
+          this.loadQuestionsForActiveTab();
+        }
+      });
+    });
+
+    // Effect for counts and metadata
+    effect(() => {
+      const userRole = this.supabaseService.currentUserRole();
+      if (userRole !== 'admin') return;
+
+      untracked(() => {
+        this.loadCounts();
         this.loadQuestionTypeCounts();
         this.loadCategories();
         this.loadTeachers();
         this.loadAssignments();
-      }
+      });
     });
   }
 
   ngOnInit() {
     // Initial load is handled by the effects above
+  }
+
+  onSearchChange(value: string) {
+    this.filterSearch.set(value);
+    this.searchSubject.next(value);
+  }
+
+  onTeacherFilterChange(value: string) {
+    this.filterTeacher.set(value);
+    this.currentPage.set(1);
   }
 
   async loadQuestionsForActiveTab() {
@@ -281,8 +321,11 @@ export class AdminDashboardComponent implements OnInit {
       if (this.filterQtype()) query = query.eq('qtype', this.filterQtype());
       if (this.filterCategory()) query = query.eq('category_id', this.filterCategory());
       if (this.filterTeacher()) query = query.ilike('metadata->>author_name', `%${this.filterTeacher()}%`);
-      if (this.filterSearch()) {
-        const kw = `%${this.filterSearch()}%`;
+      
+      // Use DEBOUNCED search
+      const search = this.debouncedSearch();
+      if (search) {
+        const kw = `%${search}%`;
         query = query.or(`name.ilike.${kw},question_text.ilike.${kw}`);
       }
 
@@ -295,23 +338,25 @@ export class AdminDashboardComponent implements OnInit {
 
       if (error) throw error;
 
-      if (status === 'pending_review') this.pendingQuestions.set(data as Question[]);
-      else if (status === 'approved') this.approvedQuestions.set(data as Question[]);
-      else if (status === 'rejected') this.rejectedQuestions.set(data as Question[]);
-      else if (status === 'draft') this.draftQuestions.set(data as Question[]);
+      untracked(() => {
+        if (status === 'pending_review') this.pendingQuestions.set(data as Question[]);
+        else if (status === 'approved') this.approvedQuestions.set(data as Question[]);
+        else if (status === 'rejected') this.rejectedQuestions.set(data as Question[]);
+        else if (status === 'draft') this.draftQuestions.set(data as Question[]);
 
-      // Update count for the active tab
-      const counts = { ...this.totalCounts() };
-      if (status === 'pending_review') counts.pending = count || 0;
-      else if (status === 'approved') counts.approved = count || 0;
-      else if (status === 'rejected') counts.rejected = count || 0;
-      else if (status === 'draft') counts.draft = count || 0;
-      this.totalCounts.set(counts);
+        // Update count for the active tab (sync with totalCounts)
+        const currentCounts = { ...this.totalCounts() };
+        if (status === 'pending_review') currentCounts.pending = count || 0;
+        else if (status === 'approved') currentCounts.approved = count || 0;
+        else if (status === 'rejected') currentCounts.rejected = count || 0;
+        else if (status === 'draft') currentCounts.draft = count || 0;
+        this.totalCounts.set(currentCounts);
+      });
 
     } catch (e) {
       console.error('Error loading admin questions:', e);
     } finally {
-      this.loading.set(false);
+      untracked(() => this.loading.set(false));
     }
   }
 
@@ -327,12 +372,14 @@ export class AdminDashboardComponent implements OnInit {
         .eq('status', status)
         .is('deleted_at', null);
 
-      // Apply the same filters as loadQuestionsForActiveTab
+      // Apply the same filters as loadQuestionsForActiveTab (using debounced values)
       if (this.filterQtype()) query = query.eq('qtype', this.filterQtype());
       if (this.filterCategory()) query = query.eq('category_id', this.filterCategory());
       if (this.filterTeacher()) query = query.ilike('metadata->>author_name', `%${this.filterTeacher()}%`);
-      if (this.filterSearch()) {
-        const kw = `%${this.filterSearch()}%`;
+      
+      const search = this.debouncedSearch();
+      if (search) {
+        const kw = `%${search}%`;
         query = query.or(`name.ilike.${kw},question_text.ilike.${kw}`);
       }
 
@@ -343,7 +390,7 @@ export class AdminDashboardComponent implements OnInit {
       else if (status === 'rejected') counts.rejected = count || 0;
       else if (status === 'draft') counts.draft = count || 0;
     }
-    this.totalCounts.set(counts);
+    untracked(() => this.totalCounts.set(counts));
   }
 
   private applyFilters(questions: Question[]): Question[] {
@@ -351,7 +398,6 @@ export class AdminDashboardComponent implements OnInit {
 
     const teacher = this.filterTeacher();
     if (teacher) {
-      // If we are filtering by teacher name (as before) or we update to ID
       result = result.filter(q => q.metadata?.author_name === teacher);
     }
 
@@ -365,7 +411,7 @@ export class AdminDashboardComponent implements OnInit {
       result = result.filter(q => q.category_id === catId);
     }
 
-    const search = this.filterSearch()?.toLowerCase();
+    const search = this.debouncedSearch()?.toLowerCase();
     if (search) {
       result = result.filter(q => 
         q.name?.toLowerCase().includes(search) || 
@@ -381,6 +427,8 @@ export class AdminDashboardComponent implements OnInit {
     this.filterQtype.set('');
     this.filterCategory.set('');
     this.filterSearch.set('');
+    this.searchSubject.next('');
+    this.currentPage.set(1);
   }
 
   get hasActiveFilters(): boolean {
@@ -390,7 +438,7 @@ export class AdminDashboardComponent implements OnInit {
   async loadCategories() {
     const { data, error } = await this.supabaseService.db
       .from('question_categories')
-      .select('id, name')
+      .select('*')
       .order('sort_order', { ascending: true });
 
     if (!error && data) {
@@ -399,19 +447,13 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   async loadTeachers() {
-    // 1. Try to fetch from user_roles
     const { data: roles, error: rolesError } = await this.supabaseService.db
       .from('user_roles')
       .select('user_id, role')
       .eq('role', 'teacher');
 
-    if (rolesError) {
-      console.error('Error loading teacher roles:', rolesError);
-      return;
-    }
+    if (rolesError) return;
 
-    // 2. We also try to fetch from a 'profiles' table if it exists 
-    // to get their real names. If not, we'll use a placeholder.
     const { data: profiles } = await this.supabaseService.db
       .from('profiles')
       .select('id, full_name, email');
@@ -419,16 +461,15 @@ export class AdminDashboardComponent implements OnInit {
     const profileMap = new Map<string, {name: string, email?: string}>();
     profiles?.forEach(p => profileMap.set(p.id, { name: p.full_name, email: p.email }));
 
-    // 3. Fallback: Lookup in questions table for missing names/emails in metadata
     const { data: qMeta } = await this.supabaseService.db
       .from('questions')
-      .select('created_by, metadata');
+      .select('id, created_by, status, metadata')
+      .is('deleted_at', null);
 
     qMeta?.forEach(q => {
       const meta = (q.metadata as any) || {};
       const uid = q.created_by;
       const existing = profileMap.get(uid);
-      
       const metaName = meta.author_name || meta.modified_by;
       const metaEmail = meta.author_email || meta.modified_by_email;
 
@@ -439,10 +480,7 @@ export class AdminDashboardComponent implements OnInit {
             email: metaEmail 
           });
         } else {
-          const isGeneric = !existing.name || 
-                           existing.name.toLowerCase() === 'teacher' || 
-                           existing.name.toLowerCase().startsWith('teacher (');
-          
+          const isGeneric = !existing.name || existing.name.toLowerCase() === 'teacher';
           if (isGeneric || !existing.email) {
             profileMap.set(uid, {
               name: (isGeneric && metaName) ? metaName : existing.name,
@@ -463,6 +501,7 @@ export class AdminDashboardComponent implements OnInit {
     });
 
     this.allRegisteredTeachers.set(teachers);
+    this.allQuestionsMeta.set(qMeta || []);
   }
 
   viewTeacherDetails(id: string) {
@@ -483,59 +522,9 @@ export class AdminDashboardComponent implements OnInit {
       .eq('id', question.id);
 
     if (!error) {
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Question marked as paid' });
       this.loadQuestionsForActiveTab();
       this.loadCounts();
-      this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Task marked as paid' });
-    }
-  }
-
-  async loadAssignments() {
-    const { data, error } = await this.supabaseService.db
-      .from('assignments')
-      .select('question_id, assigned_to_id');
-    
-    if (!error && data) {
-      this.allAssignments.set(data);
-    }
-  }
-
-  // Pagination Helpers
-  get totalPages() {
-    const status = this.activeTab();
-    const count = status === 'pending' ? this.totalCounts().pending :
-                 status === 'approved' ? this.totalCounts().approved :
-                 status === 'rejected' ? this.totalCounts().rejected :
-                 this.totalCounts().draft;
-    return Math.ceil(count / this.pageSize());
-  }
-
-  getVisiblePages(): number[] {
-    const current = this.currentPage();
-    const total = this.totalPages;
-    const maxVisible = 5;
-    const half = Math.floor(maxVisible / 2);
-    
-    let start = current - half;
-    let end = current + half;
-    
-    if (start < 1) {
-      start = 1;
-      end = Math.min(maxVisible, total);
-    }
-    
-    if (end > total) {
-      end = total;
-      start = Math.max(1, end - maxVisible + 1);
-    }
-    
-    const pages = [];
-    for (let i = start; i <= end; i++) pages.push(i);
-    return pages;
-  }
-
-  setPage(page: number) {
-    if (page >= 1 && page <= this.totalPages) {
-      this.currentPage.set(page);
     }
   }
 
@@ -546,7 +535,6 @@ export class AdminDashboardComponent implements OnInit {
       .eq('id', id);
 
     if (!error) {
-      // Also update all assignments for this question to reflect the status
       await this.supabaseService.db
         .from('assignments')
         .update({ 
@@ -585,15 +573,9 @@ export class AdminDashboardComponent implements OnInit {
     const admin = this.supabaseService.currentUser();
     const adminName = this.supabaseService.currentUserName;
 
-    if (!admin) {
-      this.messageService.add({ severity: 'error', summary: 'Authentication Error', detail: 'You must be logged in as an admin to assign reviewers.' });
-      return;
-    }
-
-    console.log('Adding reviewer:', teacher.name, 'to question:', question.id, 'Assigned by:', adminName, admin.id);
+    if (!admin) return;
 
     try {
-      // 1. Update Assignments Table
       const { error: insError } = await this.supabaseService.db
         .from('assignments')
         .insert({
@@ -608,7 +590,6 @@ export class AdminDashboardComponent implements OnInit {
 
       if (insError) throw insError;
 
-      // 2. Update Question Metadata
       const currentReviewers = question.metadata?.assigned_reviewers || [];
       if (!currentReviewers.find(r => r.id === teacher.id)) {
         const updatedReviewers = [...currentReviewers, { id: teacher.id, name: teacher.name }];
@@ -632,7 +613,6 @@ export class AdminDashboardComponent implements OnInit {
       this.messageService.add({ severity: 'success', summary: 'Success', detail: `Reviewer ${teacher.name} added` });
       this.loadAssignments();
     } catch (err: any) {
-      console.error('Error adding reviewer:', err);
       this.messageService.add({ severity: 'error', summary: 'Error', detail: err.message });
     }
   }
@@ -640,15 +620,9 @@ export class AdminDashboardComponent implements OnInit {
   async removeReviewer(question: Question, event: any) {
     const teacher: Teacher = event.value || event;
     const admin = this.supabaseService.currentUser();
-    if (!admin) {
-      this.messageService.add({ severity: 'error', summary: 'Authentication Error', detail: 'You must be logged in as an admin to remove reviewers.' });
-      return;
-    }
-
-    console.log('Removing reviewer:', teacher.name, 'from question:', question.id, 'Requested by:', admin.id);
+    if (!admin) return;
 
     try {
-      // 1. Remove from Assignments Table
       const { error: delError } = await this.supabaseService.db
         .from('assignments')
         .delete()
@@ -657,7 +631,6 @@ export class AdminDashboardComponent implements OnInit {
 
       if (delError) throw delError;
 
-      // 2. Update Question Metadata
       const currentReviewers = question.metadata?.assigned_reviewers || [];
       const updatedReviewers = currentReviewers.filter(r => r.id !== teacher.id);
       const metadata = {
@@ -676,7 +649,6 @@ export class AdminDashboardComponent implements OnInit {
       this.messageService.add({ severity: 'info', summary: 'Removed', detail: `Reviewer ${teacher.name} removed` });
       this.loadAssignments();
     } catch (err: any) {
-      console.error('Error removing reviewer:', err);
       this.messageService.add({ severity: 'error', summary: 'Error', detail: err.message });
     }
   }
@@ -738,5 +710,110 @@ export class AdminDashboardComponent implements OnInit {
     } catch (err: any) {
       this.messageService.add({ severity: 'error', summary: 'Error', detail: err.message });
     }
+  }
+
+  updatePageSize(size: number) {
+    this.pageSize.set(size);
+    this.currentPage.set(1);
+  }
+
+  onPageChange(event: any) {
+    if (this.pageSize() !== event.rows) {
+      this.updatePageSize(event.rows);
+    } else {
+      this.setPage(event.page + 1);
+    }
+  }
+
+  setPage(page: number) {
+    const total = this.totalPages;
+    if (page >= 1 && (total === 0 || page <= total)) {
+      if (this.currentPage() !== page) {
+        this.currentPage.set(page);
+      }
+    }
+  }
+
+  get totalPages() {
+    const status = this.activeTab();
+    const count = status === 'pending' ? this.totalCounts().pending :
+                 status === 'approved' ? this.totalCounts().approved :
+                 status === 'rejected' ? this.totalCounts().rejected :
+                 this.totalCounts().draft;
+    return Math.ceil(count / this.pageSize());
+  }
+
+  async loadAssignments() {
+    const { data, error } = await this.supabaseService.db
+      .from('assignments')
+      .select('question_id, assigned_to_id');
+    
+    if (!error && data) {
+      this.allAssignments.set(data);
+    }
+  }
+
+  // Category management methods for Admin
+  async addCategory() {
+    if (!this.newCategoryName.trim()) return;
+    const user = this.supabaseService.currentUser();
+    if (!user) return;
+
+    const { error } = await this.supabaseService.db
+      .from('question_categories')
+      .insert({
+        name: this.newCategoryName,
+        description: this.newCategoryDescription,
+        parent_id: this.newCategoryParent,
+        created_by: user.id,
+        is_global: this.newCategoryIsGlobal,
+        sort_order: this.categories().length
+      });
+
+    if (error) {
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: error.message });
+    } else {
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Category created' });
+      this.newCategoryName = '';
+      this.newCategoryDescription = '';
+      this.newCategoryParent = null;
+      this.newCategoryIsGlobal = false;
+      this.loadCategories();
+    }
+  }
+
+  async deleteCategory(id: string) {
+    if (!confirm('Are you sure? Questions in this category will be moved to uncategorized.')) return;
+
+    // First null out category_id for questions in this category
+    await this.supabaseService.db
+      .from('questions')
+      .update({ category_id: null })
+      .eq('category_id', id);
+
+    const { error } = await this.supabaseService.db
+      .from('question_categories')
+      .delete()
+      .eq('id', id);
+
+    if (!error) {
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Category deleted' });
+      this.loadCategories();
+    } else {
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: error.message });
+    }
+  }
+
+  get flatCategories() {
+    const flat: any[] = [];
+    const build = (parentId: string | null, depth: number) => {
+      const children = this.categories().filter(c => c.parent_id === parentId);
+      children.forEach(c => {
+        flat.push({ ...c, depth });
+        build(c.id, depth + 1);
+      });
+    };
+    build(null, 0);
+    return flat;
   }
 }

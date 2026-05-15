@@ -75,6 +75,7 @@ export class QuestionFormComponent implements OnInit {
   showNewCategory = signal(false);
   newCategoryName = signal('');
   newCategoryParent = signal<string | null>(null);
+  newCategoryIsGlobal = signal(false);
   creatingCategory = signal(false);
   questionMetadata = signal<any>({});
   
@@ -322,10 +323,21 @@ export class QuestionFormComponent implements OnInit {
   }
 
   async loadFormCategories() {
-    const { data, error } = await this.supabase.db
+    const user = this.supabase.currentUser();
+    const role = this.supabase.currentUserRole();
+    if (!user) return;
+
+    let query = this.supabase.db
       .from('question_categories')
       .select('*')
       .order('sort_order', { ascending: true });
+
+    // Best Practice: Teachers only see their own categories
+    if (role !== 'admin') {
+      query = query.or(`created_by.eq.${user.id},is_global.eq.true`);
+    }
+
+    const { data, error } = await query;
 
     if (error || !data) return;
 
@@ -373,7 +385,9 @@ export class QuestionFormComponent implements OnInit {
         .insert({
           name: name,
           parent_id: this.newCategoryParent() || null,
-          sort_order: nextOrder
+          sort_order: nextOrder,
+          created_by: this.supabase.currentUser()?.id,
+          is_global: this.newCategoryIsGlobal() && this.supabase.currentUserRole() === 'admin'
         })
         .select()
         .single();
@@ -835,6 +849,21 @@ export class QuestionFormComponent implements OnInit {
           .single();
         currentMetadata = qRecord?.metadata || {};
         originalCreator = qRecord?.created_by || user.id;
+
+        // EMERGENCY RECOVERY: If current creator is an admin but metadata has a teacher's email, 
+        // try to recover the original teacher's ID from the profiles table.
+        if (this.isAdmin && currentMetadata.author_email && currentMetadata.author_email !== user.email) {
+          const { data: profile } = await this.supabase.db
+            .from('profiles')
+            .select('id')
+            .eq('email', currentMetadata.author_email)
+            .single();
+          
+          if (profile?.id) {
+            console.log('Recovering original author ID from email:', currentMetadata.author_email);
+            originalCreator = profile.id;
+          }
+        }
       }
 
       const questionData = {
@@ -845,7 +874,7 @@ export class QuestionFormComponent implements OnInit {
         penalty: Number(formValue.penalty) || 0,
         qtype: formValue.qtype,
         category_id: formValue.category_id || null,
-        created_by: user.id,
+        created_by: originalCreator,
         metadata: {
           ...currentMetadata,
           ...extraMetadata,
