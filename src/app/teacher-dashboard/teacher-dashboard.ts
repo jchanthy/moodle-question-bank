@@ -18,7 +18,9 @@ export interface Question {
   updated_at?: string;
   deleted_at?: string | null;
   parent_id: string | null;
+  created_by: string;
   metadata?: {
+    author_id?: string;
     author_name?: string;
     author_email?: string;
     modified_by?: string;
@@ -41,8 +43,10 @@ export interface Question {
   showHistory?: boolean;
   isEditingName?: boolean;
   category_id?: string | null;
-  default_grade?: number;
+  id_number?: string | null;
+  assignment_completed_at?: string | null;
   penalty?: number;
+  default_grade?: number;
 }
 
 export interface Category {
@@ -91,6 +95,7 @@ export class TeacherDashboardComponent implements OnInit {
 
   myQuestions = signal<Question[]>([]);
   assignedQuestions = signal<Question[]>([]);
+  allQuestions = signal<Question[]>([]);
   loading = signal(true);
   showComments = signal(false);
   selectedQuestion = signal<Question | null>(null);
@@ -114,22 +119,84 @@ export class TeacherDashboardComponent implements OnInit {
   activeMenuId = signal<string | null>(null);
   totalCount = signal(0);
 
-  typeLabels: Record<string, { label: string; icon: string }> = {
-    'multichoice': { label: 'Multiple Choice', icon: '🔘' },
-    'truefalse': { label: 'True/False', icon: '✅' },
-    'shortanswer': { label: 'Short Answer', icon: '✏️' },
-    'numerical': { label: 'Numerical', icon: '🔢' },
-    'essay': { label: 'Essay', icon: '📝' },
-    'match': { label: 'Matching', icon: '🔗' },
-    'calculated': { label: 'Calculated', icon: '🧮' },
-    'calculatedmulti': { label: 'Calc. Multichoice', icon: '🧮' },
-    'calculatedsimple': { label: 'Calc. Simple', icon: '🧮' },
-    'ddwtos': { label: 'Drag into Text', icon: '📋' },
-    'ddimageortext': { label: 'Drag onto Image', icon: '🖼️' },
-    'ddmarker': { label: 'Drag Matching', icon: '📌' },
-    'ordering': { label: 'Ordering', icon: '↕️' },
-    'coderunner': { label: 'CodeRunner', icon: '💻' },
+  typeLabels: Record<string, { label: string; icon: string; description: string }> = {
+    'multichoice': { 
+      label: 'Multiple Choice', icon: '🔘', 
+      description: 'Standard question with one or more correct answers chosen from a list.' 
+    },
+    'truefalse': { 
+      label: 'True/False', icon: '✅', 
+      description: 'Simple two-choice question for validating facts or statements.' 
+    },
+    'shortanswer': { 
+      label: 'Short Answer', icon: '✏️', 
+      description: 'Accepts a single word or short phrase. Can be case-sensitive.' 
+    },
+    'numerical': { 
+      label: 'Numerical', icon: '🔢', 
+      description: 'Specifically for math answers. Supports tolerances and units.' 
+    },
+    'essay': { 
+      label: 'Essay', icon: '📝', 
+      description: 'Long-form text response. Requires manual grading by the teacher.' 
+    },
+    'match': { 
+      label: 'Matching', icon: '🔗', 
+      description: 'Students must match a list of sub-questions with a list of answers.' 
+    },
+    'calculated': { 
+      label: 'Calculated', icon: '🧮', 
+      description: 'Math questions where numbers are randomly generated from a dataset.' 
+    },
+    'calculatedmulti': { 
+      label: 'Calc. Multichoice', icon: '🧮', 
+      description: 'Calculated question presented as multiple choice options.' 
+    },
+    'calculatedsimple': { 
+      label: 'Calc. Simple', icon: '🧮', 
+      description: 'Easier way to create calculated questions without full datasets.' 
+    },
+    'ddwtos': { 
+      label: 'Drag into Text', icon: '📋', 
+      description: 'Missing words in a text passage are filled by dragging "pills" into gaps.' 
+    },
+    'ddimageortext': { 
+      label: 'Drag onto Image', icon: '🖼️', 
+      description: 'Drag images or text labels onto predefined drop zones on a background image.' 
+    },
+    'ddmarker': { 
+      label: 'Drag Matching', icon: '📌', 
+      description: 'Markers are placed onto a background image. Good for anatomy or maps.' 
+    },
+    'ordering': { 
+      label: 'Ordering', icon: '↕️', 
+      description: 'Students must arrange items in the correct logical or chronological sequence.' 
+    },
+    'coderunner': { 
+      label: 'CodeRunner', icon: '💻', 
+      description: 'Programming questions where code is automatically executed and tested.' 
+    },
+    'gapselect': {
+      label: 'Select Missing Words', icon: '🔠',
+      description: 'Students fill in missing words by selecting them from a dropdown menu.'
+    },
+    'multianswer': {
+      label: 'Embedded Answers (Cloze)', icon: '🧩',
+      description: 'Complex question type with embedded multiple choice, short answer, or numerical responses.'
+    },
+    'random': {
+      label: 'Random Question', icon: '🎲',
+      description: 'A placeholder for a random question selected from a specific category.'
+    },
+    'multichoiceanswernone': {
+      label: 'All-or-Nothing MCQ', icon: '❗',
+      description: 'Multiple Choice where full credit is given ONLY if all correct options are chosen.'
+    }
   };
+
+  availableQtypes = computed(() => {
+    return Object.keys(this.typeLabels).sort();
+  });
 
   // Selection & Pagination
   selectedIds = signal<Set<string>>(new Set());
@@ -141,6 +208,7 @@ export class TeacherDashboardComponent implements OnInit {
   categories = signal<Category[]>([]);
   selectedCategoryId = signal<string | null>(null);
   showCategoryPanel = signal(false);
+  showTypeHelp = signal(false);
   newCategoryName = '';
   newCategoryDescription = '';
   newCategoryParent: string | null = null;
@@ -167,14 +235,114 @@ export class TeacherDashboardComponent implements OnInit {
   private importFileBuffer: ArrayBuffer | null = null;
 
   // Computed properties for template
-  paginatedQuestions = computed(() => {
+  filteredQuestions = computed(() => {
+    const authored = this.allQuestions();
+    const assigned = this.assignedQuestions();
+    
+    // Combine authored and assigned questions, deduplicate by ID
+    const combinedMap = new Map<string, Question>();
+    authored.forEach(q => combinedMap.set(q.id, q));
+    assigned.forEach(q => combinedMap.set(q.id, q));
+    const allQs = Array.from(combinedMap.values());
+
     const view = this.currentView();
-    if (view === 'assigned') return this.assignedQuestions();
-    return this.myQuestions();
+    const user = this.supabaseService.currentUser();
+    if (!user) return [];
+
+    // 1. Filter for latest versions in family
+    const familyMap = new Map<string, Question>();
+    allQs.forEach(q => {
+      const familyId = q.parent_id || q.id;
+      const existing = familyMap.get(familyId);
+      if (!existing || q.version > existing.version) {
+        familyMap.set(familyId, q);
+      }
+    });
+
+    // 2. Populate allVersions and create result array
+    let result = Array.from(familyMap.values()).map(q => {
+      const familyId = q.parent_id || q.id;
+      return {
+        ...q,
+        allVersions: allQs.filter(v => (v.parent_id || v.id) === familyId)
+                         .sort((a, b) => b.version - a.version)
+      };
+    });
+
+    // 3. Filter by View
+    if (view === 'assigned') {
+      const assigned = this.assignedQuestions();
+      result = result.filter(q => {
+        const familyId = q.parent_id || q.id;
+        return assigned.some(aq => {
+          const aqFamilyId = aq.parent_id || aq.id;
+          return aq.id === q.id || aqFamilyId === familyId;
+        });
+      });
+    } else if (view === 'archive') {
+      // Archive is different - it shows deleted questions. 
+      // This is handled by loadMyQuestions already (it fetches deleted if view is archive)
+      // But we still want latest version of deleted items.
+    } else {
+      // 'my' view: Author is me
+      result = result.filter(q => q.created_by === user.id || q.metadata?.author_id === user.id);
+    }
+
+    // 4. Apply search and UI filters (since they might not be fully applied in DB for assigned questions)
+    const kw = this.debouncedKeyword()?.toLowerCase();
+    const status = this.filterStatus();
+    const type = this.filterType();
+    const catId = this.selectedCategoryId();
+    const dateFrom = this.filterDateFrom() ? new Date(this.filterDateFrom()).getTime() : null;
+    const dateTo = this.filterDateTo() ? new Date(this.filterDateTo()).getTime() : null;
+
+    return result.filter(q => {
+      // Keyword filter
+      if (kw) {
+        const nameMatch = q.name?.toLowerCase().includes(kw);
+        const textMatch = q.question_text?.toLowerCase().includes(kw);
+        const idMatch = q.id_number?.toLowerCase().includes(kw);
+        if (!nameMatch && !textMatch && !idMatch) return false;
+      }
+
+      // Status filter
+      if (status && q.status !== status) return false;
+
+      // Type filter
+      if (type && q.qtype !== type) return false;
+
+      // Category filter
+      if (catId && q.category_id !== catId) return false;
+
+      // Date range filter
+      if (dateFrom || dateTo) {
+        const updated = new Date(q.updated_at || q.created_at).getTime();
+        if (dateFrom && updated < dateFrom) return false;
+        if (dateTo && updated > dateTo) return false;
+      }
+
+      return true;
+    });
+  });
+
+  paginatedQuestions = computed(() => {
+    const questions = this.filteredQuestions();
+    const from = (this.currentPage() - 1) * this.pageSize();
+    const to = from + this.pageSize();
+    
+    return [...questions].sort((a, b) => {
+      const dateA = new Date(a.updated_at || a.created_at).getTime();
+      const dateB = new Date(b.updated_at || b.created_at).getTime();
+      return this.sortOrder() === 'asc' ? dateA - dateB : dateB - dateA;
+    }).slice(from, to);
   });
   
   categoryOptions = computed(() => {
     return this.categories().map(c => ({ label: c.name, value: c.id }));
+  });
+
+  pendingAssignmentsCount = computed(() => {
+    return this.assignedQuestions().filter(q => !q.assignment_completed_at).length;
   });
 
   constructor() {
@@ -234,7 +402,29 @@ export class TeacherDashboardComponent implements OnInit {
     this.keywordSubject.next(value);
   }
 
-  myQuestionsCount = signal(0);
+  myQuestionsCount = computed(() => {
+    const user = this.supabaseService.currentUser();
+    if (!user) return 0;
+    // Use filteredQuestions but filter for 'my' view specifically for this badge
+    // Actually, we can just use the length of filteredQuestions if the current view is 'my'
+    // but to be safe and accurate for the badge regardless of view:
+    
+    const allQs = this.allQuestions();
+    const familyMap = new Map<string, Question>();
+    allQs.forEach(q => {
+      // Only count questions where I am author
+      if (q.created_by === user.id || q.metadata?.author_id === user.id) {
+        if (!q.deleted_at) { // Only count non-deleted
+          const familyId = q.parent_id || q.id;
+          const existing = familyMap.get(familyId);
+          if (!existing || q.version > existing.version) {
+            familyMap.set(familyId, q);
+          }
+        }
+      }
+    });
+    return familyMap.size;
+  });
 
   async loadMyQuestions() {
     const user = this.supabaseService.currentUser();
@@ -244,10 +434,7 @@ export class TeacherDashboardComponent implements OnInit {
     untracked(() => this.loading.set(true));
 
     try {
-      // Background count for 'My Questions' badge
-      this.supabaseService.db.from('questions').select('*', { count: 'exact', head: true })
-        .eq('created_by', user.id).is('deleted_at', null)
-        .then(({ count }) => untracked(() => this.myQuestionsCount.set(count || 0)));
+      // Badge count is now handled by computed myQuestionsCount signal
 
       let query = this.supabaseService.db
         .from('questions')
@@ -256,7 +443,7 @@ export class TeacherDashboardComponent implements OnInit {
       // If no category is selected, show only my questions
       // If a category is selected, we show questions in that category
       if (!this.selectedCategoryId()) {
-        query = query.eq('created_by', user.id);
+        query = query.or(`created_by.eq.${user.id},metadata->>author_id.eq.${user.id}`);
       } else {
         query = query.eq('category_id', this.selectedCategoryId()!);
       }
@@ -302,13 +489,14 @@ export class TeacherDashboardComponent implements OnInit {
       const to = from + size - 1;
 
       const { data, error, count } = await query
-        .order(this.sortField(), { ascending: this.sortOrder() === 'asc' })
-        .range(from, to);
+        .order(this.sortField(), { ascending: this.sortOrder() === 'asc' });
 
       if (error) throw error;
 
       untracked(() => {
-        this.myQuestions.set(data as Question[]);
+        const questions = data as Question[];
+        this.allQuestions.set(questions);
+        this.myQuestions.set(questions); // Keep for legacy if needed, but computed uses allQuestions
         this.totalCount.set(count || 0);
       });
 
@@ -327,9 +515,8 @@ export class TeacherDashboardComponent implements OnInit {
 
     const { data: assignments } = await this.supabaseService.db
       .from('assignments')
-      .select('question_id')
-      .eq('assigned_to_id', user.id)
-      .is('completed_at', null);
+      .select('question_id, completed_at')
+      .eq('assigned_to_id', user.id);
 
     if (assignments && assignments.length > 0) {
       const ids = assignments.map(a => a.question_id);
@@ -339,7 +526,15 @@ export class TeacherDashboardComponent implements OnInit {
         .in('id', ids)
         .is('deleted_at', null);
       
-      untracked(() => this.assignedQuestions.set(qs as Question[] || []));
+      const questionsWithMeta = (qs as any[] || []).map(q => {
+        const assignment = assignments.find(a => a.question_id === q.id);
+        return {
+          ...q,
+          assignment_completed_at: assignment?.completed_at
+        };
+      });
+
+      untracked(() => this.assignedQuestions.set(questionsWithMeta));
     } else {
       untracked(() => this.assignedQuestions.set([]));
     }
@@ -517,8 +712,10 @@ export class TeacherDashboardComponent implements OnInit {
     q.isEditingName = false;
   }
 
-  async updateQuestionStatus(q: Question, event: any) {
-    const status = event.target.value;
+  async updateQuestionStatus(q: Question, statusOrEvent: any) {
+    const status = typeof statusOrEvent === 'string' ? statusOrEvent : statusOrEvent.target.value;
+    const user = this.supabaseService.currentUser();
+
     const { error } = await this.supabaseService.db
       .from('questions')
       .update({ status })
@@ -529,12 +726,27 @@ export class TeacherDashboardComponent implements OnInit {
     } else {
       q.status = status;
       this.showToast('Status updated', 'success');
+
+      // If it's a final review status (approved/rejected), mark the assignment as completed
+      if (user && (status === 'approved' || status === 'rejected')) {
+        await this.supabaseService.db
+          .from('assignments')
+          .update({ completed_at: new Date().toISOString() })
+          .eq('question_id', q.id)
+          .eq('assigned_to_id', user.id)
+          .is('completed_at', null);
+        
+        // Refresh to update 'Finished Review' badges and tab counts
+        this.loadAssignedQuestions();
+      }
+      
+      this.loadMyQuestions();
     }
   }
 
-  async switchVersion(q: Question, event: any) {
-    const version = parseInt(event.target.value);
-    this.showToast(`Switched to version ${version}`, 'info');
+  async switchVersion(q: Question, versionId: string) {
+    if (!versionId || versionId === q.id) return;
+    this.router.navigate(['/teacher/edit-question', versionId]);
   }
 
   openComments(q: Question) {

@@ -92,9 +92,15 @@ export class QuestionFormComponent implements OnInit {
     { value: 'essay', label: 'Essay', icon: 'pi pi-align-left', info: 'Long-form text response. Requires manual grading by the teacher.' },
     { value: 'match', label: 'Matching', icon: 'pi pi-sort-alt', info: 'Match sub-questions with corresponding correct answers.' },
     { value: 'ddwtos', label: 'Drag and Drop into Text', icon: 'pi pi-file-edit', info: 'Missing words in text are filled by dragging options into boxes.' },
+    { value: 'gapselect', label: 'Select Missing Words', icon: 'pi pi-list-italic', info: 'Students fill in missing words by selecting them from a dropdown menu.' },
     { value: 'ddimageortext', label: 'Drag and Drop onto Image', icon: 'pi pi-image', info: 'Interactive! Drag text labels onto specific zones on a background image.' },
+    { value: 'ddmarker', label: 'Drag Matching', icon: 'pi pi-map-marker', info: 'Markers are placed onto a background image. Good for anatomy or maps.' },
     { value: 'ordering', label: 'Ordering', icon: 'pi pi-sort-numeric-down', info: 'Student must arrange a list of items in the correct sequence.' },
     { value: 'coderunner', label: 'CodeRunner', icon: 'pi pi-code', info: 'For programming questions. Supports multiple languages and test cases.' },
+    { value: 'multianswer', label: 'Embedded Answers (Cloze)', icon: 'pi pi-th-large', info: 'Complex question type with embedded multiple choice, short answer, or numerical responses.' },
+    { value: 'calculated', label: 'Calculated', icon: 'pi pi-calculator', info: 'Math questions where numbers are randomly generated from a dataset.' },
+    { value: 'calculatedmulti', label: 'Calc. Multichoice', icon: 'pi pi-table', info: 'Calculated question presented as multiple choice options.' },
+    { value: 'calculatedsimple', label: 'Calc. Simple', icon: 'pi pi-cog', info: 'Easier way to create calculated questions without full datasets.' },
     { value: 'multichoiceanswernone', label: 'All-or-Nothing MCQ', icon: 'pi pi-exclamation-circle', info: 'Multiple Choice where full credit is given ONLY if all correct options are chosen.' }
   ];
 
@@ -106,9 +112,16 @@ export class QuestionFormComponent implements OnInit {
     essay: 'General feedback is very important here to help students understand what you expect in their response.',
     match: 'Create pairs. For each answer box, provide a "Question" (on the left) and its "Match" (on the right). Moodle will shuffle them.',
     ddwtos: 'Use [[1]], [[2]], etc. in your question text to define where the draggable boxes should be dropped.',
+    gapselect: 'Similar to Drag into Text, but uses dropdown menus. Define gaps using [[1]], [[2]], etc. in the question text.',
     ddimageortext: 'Upload a background image first. Then define your labels and drag them on the image to set their "home" coordinates.',
+    ddmarker: 'Similar to Drag onto Image, but students place markers on target areas. Define drop zones with shapes (circles, rectangles, polygons).',
     ordering: 'List the items in the correct sequence. Moodle will randomize them for the student.',
-    coderunner: 'Define the test cases (Input/Expected Output) carefully. Choose the right "Type" for the programming language being used.'
+    coderunner: 'Define the test cases (Input/Expected Output) carefully. Choose the right "Type" for the programming language being used.',
+    multianswer: 'Use specific syntax like {1:MC:A~B~C} or {1:SA:Ans} directly inside the question text for embedded sub-questions.',
+    calculated: 'Use wildcards like {x} and {y}. Moodle will substitute them with random values during the quiz.',
+    calculatedmulti: 'Calculated question logic combined with multiple choice format. Use {x} in answer options too.',
+    calculatedsimple: 'The easiest way to create math questions with random variables without full dataset management.',
+    multichoiceanswernone: 'Ensure all correct options are marked. Students get 0 if they miss even one correct choice or pick a wrong one.'
   };
 
   // Tag Suggestions Logic
@@ -848,7 +861,8 @@ export class QuestionFormComponent implements OnInit {
           .eq('id', questionId!)
           .single();
         currentMetadata = qRecord?.metadata || {};
-        originalCreator = qRecord?.created_by || user.id;
+        // Prioritize author_id from metadata, then fallback to database created_by
+        originalCreator = currentMetadata.author_id || qRecord?.created_by || user.id;
 
         // EMERGENCY RECOVERY: If current creator is an admin but metadata has a teacher's email, 
         // try to recover the original teacher's ID from the profiles table.
@@ -874,7 +888,9 @@ export class QuestionFormComponent implements OnInit {
         penalty: Number(formValue.penalty) || 0,
         qtype: formValue.qtype,
         category_id: formValue.category_id || null,
-        created_by: originalCreator,
+        // PASS RLS: Always use current user's ID for the database 'created_by' field on inserts/updates
+        // We will rely on metadata.author_id for true ownership.
+        created_by: user.id, 
         metadata: {
           ...currentMetadata,
           ...extraMetadata,
@@ -883,9 +899,10 @@ export class QuestionFormComponent implements OnInit {
           answernumbering: formValue.answernumbering,
           image_url: formValue.image_url,
           tags: formValue.tags || [],
-          // Preserve original author; only update who last modified
+          // Ownership tracking
+          author_id: currentMetadata.author_id || originalCreator,
           author_name: currentMetadata.author_name || this.currentTeacher,
-          author_email: currentMetadata.author_email || (currentMetadata.author_name ? '' : user.email),
+          author_email: currentMetadata.author_email || (currentMetadata.author_id ? '' : user.email),
           modified_by: this.currentTeacher,
           modified_by_email: user.email,
           modified_at: new Date().toISOString()
@@ -928,6 +945,12 @@ export class QuestionFormComponent implements OnInit {
 
         if (nError) throw nError;
         targetId = newQ.id;
+
+        // 1b. Soft-delete the OLD version so it doesn't clutter the active dashboard
+        await this.supabase.db
+          .from('questions')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', questionId!);
       } else if (this.editMode()) {
         console.log('Regular Update: Updating existing record ID:', questionId);
         // Regular update for existing drafts, rejected, or pending questions

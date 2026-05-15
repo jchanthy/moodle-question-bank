@@ -12,48 +12,17 @@
       </div>
       <div class="flex items-center gap-3">
         <a routerLink="/teacher/guide" 
-           class="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all border border-transparent hover:border-blue-100"
+           class="h-10 px-4 flex items-center justify-center gap-2.5 text-blue-600 hover:bg-blue-50 transition-all border border-blue-100 bg-blue-50/30 rounded-none group"
            title="Help & Guides">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
+          <span class="text-[10px] font-black uppercase tracking-[0.1em]">Question Type Guide</span>
         </a>
-
-        <!-- Import / Export Dropdown -->
-        <div class="relative group">
-          <button class="flex items-center gap-2 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-none font-bold text-sm hover:bg-gray-50 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-            </svg>
-            Import / Export
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          <div class="absolute right-0 top-full mt-1 bg-white border border-gray-100 rounded-none shadow-xl py-2 w-56 z-50 hidden group-hover:block">
-            <div class="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Import</div>
-            <button (click)="showImportModal.set(true); resetImport()" 
-                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium flex items-center gap-2 transition-colors">
-              <span class="text-base">📥</span> Upload / Import Questions
-            </button>
-            
-            <div class="border-t border-gray-50 my-2"></div>
-            
-            <div class="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Export Selection</div>
-            <button (click)="exportXML()" 
-                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium flex items-center gap-2 transition-colors">
-              <span class="text-base">📄</span> Moodle XML (.xml)
-            </button>
-            <button (click)="exportGIFT()" 
-                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium flex items-center gap-2 transition-colors">
-              <span class="text-base">🎁</span> GIFT Format (.txt)
-            </button>
-          </div>
-        </div>
 
         <!-- User Profile -->
         <div class="hidden md:flex items-center gap-3 pr-4 border-r border-gray-200">
-          <div class="text-right">
+          <a routerLink="/teacher/profile" class="text-right hover:opacity-80 transition cursor-pointer">
             <div class="flex items-center justify-end gap-2">
               <span class="text-sm font-black text-brand-dark">{{ supabaseService.currentUserName }}</span>
               <span *ngIf="supabaseService.currentUserRole()" 
@@ -63,10 +32,17 @@
               </span>
             </div>
             <p class="text-[10px] text-gray-500 font-bold leading-none">{{ supabaseService.currentUser()?.email }}</p>
-          </div>
-          <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-black">
-            {{ supabaseService.currentUserName.substring(0,1).toUpperCase() }}
-          </div>
+          </a>
+          <a routerLink="/teacher/profile" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-black hover:bg-blue-50 transition cursor-pointer overflow-hidden relative border border-gray-100 z-0">
+            <img *ngIf="supabaseService.currentUserProfile()?.avatar_url" 
+                 [src]="supabaseService.currentUserProfile()?.avatar_url"
+                 [style.object-position]="supabaseService.currentUserProfile()?.avatar_pos_x + '% ' + supabaseService.currentUserProfile()?.avatar_pos_y + '%'"
+                 [style.transform]="'scale(' + supabaseService.currentUserProfile()?.avatar_scale + ')'"
+                 class="w-full h-full object-cover origin-center block">
+            <span *ngIf="!supabaseService.currentUserProfile()?.avatar_url">
+              {{ supabaseService.currentUserName.substring(0,1).toUpperCase() }}
+            </span>
+          </a>
         </div>
 
 
@@ -91,15 +67,15 @@
           {{ myQuestionsCount() }}
         </span>
       </button>
-      <button (click)="currentView.set('assigned'); currentPage.set(1)"
+      <button (click)="currentView.set('assigned'); currentPage.set(1); selectedCategoryId.set(null); filterStatus.set('')"
               [class.bg-white]="currentView() === 'assigned'"
               [class.shadow-sm]="currentView() === 'assigned'"
               [class.text-indigo-600]="currentView() === 'assigned'"
               [class.font-bold]="currentView() === 'assigned'"
               class="px-6 py-2 text-xs font-black uppercase tracking-widest transition-all hover:text-indigo-600 flex items-center gap-2">
         Assigned for Review
-        <span class="bg-indigo-600 text-white px-1.5 py-0.5 rounded-full text-[9px]" *ngIf="assignedQuestions().length > 0">
-          {{ assignedQuestions().length }}
+        <span class="bg-indigo-600 text-white px-1.5 py-0.5 rounded-full text-[9px]" *ngIf="pendingAssignmentsCount() > 0">
+          {{ pendingAssignmentsCount() }}
         </span>
       </button>
       <button (click)="currentView.set('archive'); currentPage.set(1)"
@@ -193,7 +169,7 @@
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Select Existing</label>
+              <label class="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1">Select Existing</label>
               <select [ngModel]="importTargetCategoryId()" (ngModelChange)="importTargetCategoryId.set($event)"
                       class="w-full px-3 py-2 border border-gray-200 rounded-none text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
                 <option [ngValue]="null">Default (Current View)</option>
@@ -203,13 +179,13 @@
               </select>
             </div>
             <div>
-              <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Or Create New</label>
+              <label class="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1">Or Create New</label>
               <input type="text" [ngModel]="importNewCategoryName()" (ngModelChange)="importNewCategoryName.set($event)"
                      placeholder="New category name..."
                      class="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-blue-500 outline-none">
             </div>
           </div>
-          <p *ngIf="importNewCategoryName()" class="text-[10px] text-blue-600 font-medium">
+          <p *ngIf="importNewCategoryName()" class="text-[11px] text-blue-600 font-bold">
             ✨ Questions will be imported into a new category named "<strong>{{ importNewCategoryName() }}</strong>".
           </p>
         </div>
@@ -243,7 +219,7 @@
         </div>
 
         <!-- Detailed Log -->
-        <div *ngIf="importLoading()" class="bg-gray-900 rounded-none p-4 font-mono text-[10px] text-green-400 space-y-1 max-h-40 overflow-y-auto">
+        <div *ngIf="importLoading()" class="bg-gray-900 rounded-none p-4 font-mono text-[11px] text-green-400 space-y-1 max-h-40 overflow-y-auto">
           <div *ngFor="let log of importLogs()">> {{ log }}</div>
           <div class="animate-pulse">_</div>
         </div>
@@ -274,15 +250,49 @@
             <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
           <button *ngIf="selectedCategoryId()" (click)="selectCategory(null)" 
-                  class="text-xs font-bold text-blue-600 hover:underline">
-            Show All Questions
+                  class="text-xs font-bold text-blue-600 hover:underline px-2 transition-all">
+            Show All
           </button>
+          
+          <!-- Import / Export Dropdown -->
+          <div class="relative group">
+            <button class="flex items-center gap-2 border border-gray-200 text-gray-600 px-4 py-2 rounded-none font-bold text-sm hover:bg-gray-50 transition h-[42px] min-w-[140px] justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+              </svg>
+              Import / Export
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div class="absolute right-0 top-full mt-1 bg-white border border-gray-100 rounded-none shadow-xl py-2 w-56 z-50 hidden group-hover:block animate-in fade-in slide-in-from-top-2 duration-200">
+              <div class="px-4 py-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">Import Options</div>
+              <button (click)="showImportModal.set(true); resetImport()" 
+                      class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-bold flex items-center gap-2 transition-colors">
+                <span class="text-base">📥</span> Upload Questions
+              </button>
+              
+              <div class="border-t border-gray-50 my-2"></div>
+              
+              <div class="px-4 py-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">Export Selection</div>
+              <button (click)="exportXML()" 
+                      class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-bold flex items-center gap-2 transition-colors">
+                <span class="text-base">📄</span> Moodle XML (.xml)
+              </button>
+              <button (click)="exportGIFT()" 
+                      class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-bold flex items-center gap-2 transition-colors">
+                <span class="text-base">🎁</span> GIFT Format (.txt)
+              </button>
+            </div>
+          </div>
+
           <p-button label="Add New Question" icon="pi pi-plus" [routerLink]="['/teacher/new-question']" 
                     [queryParams]="{ category_id: selectedCategoryId() }"
-                    styleClass="p-button-primary rounded-none shadow-lg shadow-blue-100" />
+                    styleClass="p-button-primary rounded-none shadow-lg shadow-blue-100 h-[42px] font-bold text-sm" />
         </div>
+
       </div>
 
       <!-- Category Filter Pills (always visible) -->
@@ -292,7 +302,7 @@
                 [class.text-white]="!selectedCategoryId()"
                 [class.bg-gray-100]="selectedCategoryId()"
                 [class.text-gray-600]="selectedCategoryId()"
-                class="px-3 py-1.5 rounded-none text-xs font-bold transition-all hover:shadow-sm">
+                class="px-4 py-2 rounded-none text-sm font-bold transition-all hover:shadow-md">
           All
         </button>
         <ng-container *ngFor="let cat of flatCategories()">
@@ -301,7 +311,7 @@
                   [class.text-white]="selectedCategoryId() === cat.id"
                   [class.bg-gray-100]="selectedCategoryId() !== cat.id"
                   [class.text-gray-600]="selectedCategoryId() !== cat.id"
-                  class="px-3 py-1.5 rounded-none text-xs font-bold transition-all hover:shadow-sm"
+                  class="px-4 py-2 rounded-none text-sm font-bold transition-all hover:shadow-md"
                   [style.margin-left.px]="cat.depth * 12">
             {{ cat.depth > 0 ? '↳ ' : '' }}{{ cat.name }}
           </button>
@@ -386,8 +396,8 @@
             {{ selectedIds().size }}
           </div>
           <div class="hidden sm:flex flex-col">
-            <span class="text-[10px] font-black uppercase tracking-widest text-blue-400">Selected</span>
-            <span class="text-[9px] text-gray-400">Questions</span>
+            <span class="text-[11px] font-black uppercase tracking-widest text-blue-400">Selected</span>
+            <span class="text-[11px] text-gray-400 font-bold">Questions</span>
           </div>
         </div>
 
@@ -455,7 +465,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- Keyword Search -->
         <div class="flex flex-col gap-1 lg:col-span-2">
-          <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Keyword Search</label>
+          <label class="text-[11px] font-black text-gray-500 uppercase tracking-widest">Keyword Search</label>
           <input type="text" [ngModel]="filterKeyword()" (ngModelChange)="onKeywordChange($event)" 
                  placeholder="Search by name, ID, text, feedback..." 
                  class="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-blue-500 outline-none">
@@ -463,7 +473,7 @@
 
         <!-- Status -->
         <div class="flex flex-col gap-1">
-          <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Status</label>
+          <label class="text-[11px] font-black text-gray-500 uppercase tracking-widest">Status</label>
           <select [ngModel]="filterStatus()" (ngModelChange)="filterStatus.set($event); currentPage.set(1)" class="w-full px-3 py-2 border border-gray-200 rounded-none text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
             <option value="">All Statuses</option>
             <option value="draft">Draft</option>
@@ -475,40 +485,63 @@
 
         <!-- Type -->
         <div class="flex flex-col gap-1">
-          <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Question Type</label>
+          <div class="flex justify-between items-center">
+            <label class="text-[11px] font-black text-gray-500 uppercase tracking-widest">Question Type</label>
+            <button (click)="showTypeHelp.set(!showTypeHelp())" 
+                    class="text-[10px] font-bold text-blue-600 hover:text-blue-700 uppercase tracking-tighter flex items-center gap-1 transition-all">
+              <i class="pi" [class.pi-info-circle]="!showTypeHelp()" [class.pi-times]="showTypeHelp()"></i>
+              {{ showTypeHelp() ? 'Close Guide' : 'Question Type Guide' }}
+            </button>
+          </div>
           <select [ngModel]="filterType()" (ngModelChange)="filterType.set($event); currentPage.set(1)" class="w-full px-3 py-2 border border-gray-200 rounded-none text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
             <option value="">All Types</option>
-            <option value="multichoice">Multiple Choice</option>
-            <option value="truefalse">True/False</option>
-            <option value="shortanswer">Short Answer</option>
-            <option value="essay">Essay</option>
-            <option value="matching">Matching</option>
+            <option *ngFor="let type of availableQtypes()" [value]="type">
+              {{ typeLabels[type]?.label || type }}
+            </option>
           </select>
+        </div>
+
+        <!-- Question Type Help Panel -->
+        <div *ngIf="showTypeHelp()" 
+             class="lg:col-span-4 mt-6 pt-6 border-t border-gray-100 animate-in fade-in slide-in-from-top-2 duration-300">
+          <h4 class="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em] mb-4">Question Type Reference Guide</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div *ngFor="let type of typeLabels | keyvalue" 
+                 class="p-3 bg-gray-50 border border-gray-100 group hover:border-blue-200 hover:bg-blue-50 transition-all">
+              <div class="flex items-start gap-3">
+                <span class="text-xl shrink-0 group-hover:scale-125 transition-transform">{{ type.value.icon }}</span>
+                <div class="space-y-1">
+                  <p class="text-[11px] font-black text-gray-900 leading-none uppercase tracking-wider">{{ type.value.label }}</p>
+                  <p class="text-[10px] text-gray-500 leading-relaxed font-medium">{{ type.value.description }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Date From -->
         <div class="flex flex-col gap-1">
-          <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Modified After</label>
+          <label class="text-[11px] font-black text-gray-500 uppercase tracking-widest">Modified After</label>
           <input type="date" [ngModel]="filterDateFrom()" (ngModelChange)="filterDateFrom.set($event); currentPage.set(1)" class="w-full px-3 py-2 border border-gray-200 rounded-none text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
         </div>
 
         <!-- Date To -->
         <div class="flex flex-col gap-1">
-          <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Modified Before</label>
+          <label class="text-[11px] font-black text-gray-500 uppercase tracking-widest">Modified Before</label>
           <input type="date" [ngModel]="filterDateTo()" (ngModelChange)="filterDateTo.set($event); currentPage.set(1)" class="w-full px-3 py-2 border border-gray-200 rounded-none text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
         </div>
 
         <!-- Show Hidden -->
         <div class="flex flex-col justify-end pb-1.5 lg:col-span-1">
-          <label class="flex items-center gap-2 cursor-pointer group w-fit">
-            <input type="checkbox" [checked]="filterHidden()" (change)="toggleHiddenFilter()" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+          <label class="flex items-center gap-2 cursor-pointer group w-fit" (click)="$event.stopPropagation()">
+            <input type="checkbox" [checked]="filterHidden()" (change)="toggleHiddenFilter(); $event.stopPropagation()" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
             <span class="text-sm font-bold text-gray-600 group-hover:text-blue-600 transition-colors">Also show old questions</span>
           </label>
         </div>
 
         <!-- Sort By -->
         <div class="flex flex-col gap-1">
-          <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Sort By</label>
+          <label class="text-[11px] font-black text-gray-500 uppercase tracking-widest">Sort By</label>
           <div class="flex gap-1">
             <select [ngModel]="sortField()" (ngModelChange)="sortField.set($event)" class="flex-1 px-3 py-2 border border-gray-200 rounded-none text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
               <option value="updated_at">Latest Modified</option>
@@ -531,7 +564,12 @@
     </div>
 
     <!-- Moodle Style Question Bank Table -->
-    <div class="bg-white rounded-none shadow-sm border border-gray-200 overflow-hidden">
+    <div class="bg-white rounded-none shadow-sm border border-gray-200 overflow-hidden relative min-h-[400px]">
+      <!-- Suble loading bar at top of table -->
+      <div class="absolute top-0 left-0 right-0 z-10 h-1 overflow-hidden" *ngIf="loading()">
+        <div class="h-full animate-progress-bar"></div>
+      </div>
+      
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead class="bg-gray-50 border-b border-gray-200">
@@ -548,12 +586,12 @@
                 </svg>
               </th>
               <th class="px-4 py-3 align-top">Actions</th>
-              <th class="px-4 py-3 align-top">Question <div class="text-[9px] font-normal text-green-600">Question name / ID number</div></th>
-              <th class="px-4 py-3 align-top">Status</th>
-              <th class="px-4 py-3 align-top">Version</th>
-              <th class="px-4 py-3 align-top">Author <div class="text-[9px] font-normal text-blue-400">Name / Date</div></th>
-              <th class="px-4 py-3 text-center align-top">Comments</th>
-              <th class="px-4 py-3 align-top">Modified by <div class="text-[9px] font-normal text-green-600">Name / Date</div></th>
+              <th class="px-4 py-3 align-top uppercase">Question <div class="text-[11px] font-bold text-green-600/80 mt-0.5">Name / ID number</div></th>
+              <th class="px-4 py-3 align-top uppercase">Status</th>
+              <th class="px-4 py-3 align-top uppercase">Version</th>
+              <th class="px-4 py-3 align-top uppercase">Author <div class="text-[11px] font-bold text-blue-400/80 mt-0.5">Name / Date</div></th>
+              <th class="px-4 py-3 text-center align-top uppercase">Comments</th>
+              <th class="px-4 py-3 align-top uppercase">Modified by <div class="text-[11px] font-bold text-green-600/80 mt-0.5">Name / Date</div></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
@@ -563,13 +601,13 @@
                 <span class="bg-blue-100 px-2 py-1 rounded mr-2">Tip</span>
                 All {{ paginatedQuestions().length }} questions on this page are selected.
                 <button (click)="selectAllQuestions()" class="ml-1 text-blue-600 underline hover:text-blue-900 transition-colors">
-                  Select all {{ totalCount() }} questions in this category
+                  Select all {{ filteredQuestions().length }} questions
                 </button>
               </td>
             </tr>
-            <tr *ngIf="selectedIds().size === totalCount() && totalCount() > paginatedQuestions().length && currentView() !== 'assigned'" class="bg-blue-600 border-b border-blue-500">
+            <tr *ngIf="selectedIds().size === filteredQuestions().length && filteredQuestions().length > paginatedQuestions().length && currentView() !== 'assigned'" class="bg-blue-600 border-b border-blue-500">
               <td colspan="9" class="px-4 py-3 text-center text-xs font-bold text-white">
-                All {{ totalCount() }} questions in this category are selected.
+                All {{ filteredQuestions().length }} questions are selected.
                 <button (click)="clearSelection()" class="ml-4 text-blue-100 underline hover:text-white transition-colors">
                   Clear selection
                 </button>
@@ -667,14 +705,26 @@
 
                 <!-- Status (Dropdown) -->
                 <td class="px-4 py-4">
-                  <select [value]="question.status" 
-                          (change)="updateQuestionStatus(question, $any($event.target).value)"
-                          class="bg-white border border-gray-200 rounded-none px-2 py-1 text-xs font-bold text-gray-600 shadow-sm outline-none focus:border-blue-400 transition-colors cursor-pointer">
-                    <option value="draft">Draft</option>
-                    <option value="pending_review">Review</option>
-                    <option value="approved" *ngIf="question.status === 'approved'">Ready</option>
-                    <option value="rejected" *ngIf="question.status === 'rejected'">Rejected</option>
-                  </select>
+                  <div class="flex flex-col gap-1.5">
+                    <!-- Assignment Progress Badge -->
+                    <div *ngIf="currentView() === 'assigned' && question.assignment_completed_at" 
+                         class="bg-green-100 text-green-700 px-2 py-0.5 rounded-none text-[10px] font-black uppercase w-fit border border-green-200">
+                      Finished Review
+                    </div>
+                    <div *ngIf="currentView() === 'assigned' && !question.assignment_completed_at" 
+                         class="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-none text-[10px] font-black uppercase w-fit border border-indigo-100">
+                      To Review
+                    </div>
+
+                    <select [value]="question.status" 
+                            (change)="updateQuestionStatus(question, $any($event.target).value)"
+                            class="bg-white border border-gray-200 rounded-none px-2 py-1 text-xs font-bold text-gray-600 shadow-sm outline-none focus:border-blue-400 transition-colors cursor-pointer w-full">
+                      <option value="draft">Draft</option>
+                      <option value="pending_review">Review</option>
+                      <option value="approved" *ngIf="question.status === 'approved'">Ready</option>
+                      <option value="rejected" *ngIf="question.status === 'rejected'">Rejected</option>
+                    </select>
+                  </div>
                 </td>
 
                 <!-- Version (Dropdown Selector) -->
@@ -690,10 +740,10 @@
                   </div>
                 </td>
                 <td class="px-4 py-4">
-                  <div class="text-[11px] flex flex-col">
-                    <div class="text-blue-600 font-bold hover:underline cursor-pointer leading-tight">{{ question.metadata?.author_name || 'Me' }}</div>
-                    <div class="text-gray-400 text-[10px] leading-tight">{{ question.metadata?.author_email || '' }}</div>
-                    <div class="text-gray-300 mt-0.5 text-[9px]">{{ question.created_at | date:'d MMMM y, h:mm a' }}</div>
+                  <div class="text-[12px] flex flex-col">
+                    <div class="text-blue-600 font-black hover:underline cursor-pointer leading-tight">{{ question.metadata?.author_name || 'Me' }}</div>
+                    <div class="text-gray-400 text-[11px] font-medium leading-tight">{{ question.metadata?.author_email || '' }}</div>
+                    <div class="text-gray-300 mt-1 text-[11px] font-bold tracking-tight">{{ question.created_at | date:'d MMMM y, h:mm a' }}</div>
                   </div>
                 </td>
                 <td class="px-4 py-4">
@@ -705,10 +755,10 @@
                   </p-button>
                 </td>
                 <td class="px-4 py-4">
-                  <div class="text-[11px] flex flex-col">
-                    <div class="text-gray-700 font-bold leading-tight">{{ question.metadata?.modified_by || question.metadata?.author_name || 'Me' }}</div>
-                    <div class="text-gray-400 text-[10px] leading-tight">{{ question.metadata?.modified_by_email || (question.metadata?.modified_by ? '' : question.metadata?.author_email) || '' }}</div>
-                    <div class="text-gray-300 mt-0.5 text-[9px]">{{ question.metadata?.modified_at ? (question.metadata?.modified_at | date:'d MMM y, h:mm a') : (question.created_at | date:'d MMM y, h:mm a') }}</div>
+                  <div class="text-[12px] flex flex-col">
+                    <div class="text-gray-700 font-black leading-tight">{{ question.metadata?.modified_by || question.metadata?.author_name || 'Me' }}</div>
+                    <div class="text-gray-400 text-[11px] font-medium leading-tight">{{ question.metadata?.modified_by_email || (question.metadata?.modified_by ? '' : question.metadata?.author_email) || '' }}</div>
+                    <div class="text-gray-300 mt-1 text-[11px] font-bold tracking-tight">{{ question.metadata?.modified_at ? (question.metadata?.modified_at | date:'d MMM y, h:mm a') : (question.created_at | date:'d MMM y, h:mm a') }}</div>
                   </div>
                 </td>
               </tr>
@@ -735,14 +785,14 @@
             </ng-container>
 
             <!-- Empty State -->
-            <tr *ngIf="myQuestions().length === 0 && !loading()">
+            <tr *ngIf="filteredQuestions().length === 0 && !loading()">
               <td colspan="9" class="px-8 py-20 text-center border-none">
                 <div class="flex flex-col items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  <p class="text-gray-400 font-medium">Your question bank is empty.</p>
-                  <a routerLink="/teacher/new-question" class="mt-4 text-blue-600 font-bold hover:underline">Create your first question</a>
+                  <p class="text-gray-400 font-medium">No questions found.</p>
+                  <a routerLink="/teacher/new-question" class="mt-4 text-blue-600 font-bold hover:underline" *ngIf="currentView() === 'my'">Create your first question</a>
                 </div>
               </td>
             </tr>
@@ -756,7 +806,7 @@
           (onPageChange)="onPageChange($event)" 
           [first]="(currentPage() - 1) * pageSize()" 
           [rows]="pageSize()" 
-          [totalRecords]="totalCount()" 
+          [totalRecords]="filteredQuestions().length" 
           [rowsPerPageOptions]="[10, 20, 50, 100]" 
           [showCurrentPageReport]="true"
           currentPageReportTemplate="Showing {first} to {last} of {totalRecords} questions"

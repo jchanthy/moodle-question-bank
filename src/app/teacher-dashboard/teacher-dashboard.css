@@ -99,3 +99,14 @@ table tr:hover {
   color: #4f46e5; /* indigo-600 */
 }
 
+/* Indeterminate Progress Bar */
+@keyframes progress-bar-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-progress-bar {
+  width: 100%;
+  animation: progress-bar-indeterminate 1.5s infinite linear;
+  background: linear-gradient(to right, transparent, #3b82f6, transparent);
+}

@@ -1,0 +1,53 @@
+/* Profile Page Animations */
+@keyframes slideInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-in {
+  animation: slideInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom PrimeNG Overrides for Profile */
+:host ::ng-deep .p-multiselect {
+  border-radius: 0 !important;
+  border-color: #e5e7eb !important;
+  padding: 0.25rem 0.5rem !important;
+}
+
+:host ::ng-deep .p-multiselect-label {
+  font-size: 0.875rem !important;
+}
+
+:host ::ng-deep .p-multiselect-chip {
+  background: #eff6ff !important;
+  color: #2563eb !important;
+  font-weight: 700 !important;
+  font-size: 10px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 0 !important;
+}
+
+:host ::ng-deep .p-inputtext:focus, 
+:host ::ng-deep .p-inputtextarea:focus {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important;
+  border-color: #3b82f6 !important;
+}
+
+/* Fix for profile image container */
+.profile-image-container {
+  aspect-ratio: 1 / 1;
+}
+
+@media (max-width: 640px) {
+  .p-8 {
+    padding: 1.5rem !important;
+  }
+}
