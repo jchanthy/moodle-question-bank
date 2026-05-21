@@ -1,6 +1,9 @@
-<router-outlet />
+<div class="flex flex-col min-h-screen">
+  <main class="flex-grow">
+    <router-outlet />
+  </main>
 
-<!-- Global build/commit indicator -->
-<div class="fixed bottom-3 right-3 z-50 text-[10px] tracking-wider text-slate-400 bg-slate-900/85 border border-slate-700/50 px-2.5 py-1 rounded-md backdrop-blur-md pointer-events-none select-none font-mono shadow-sm hover:opacity-20 transition-opacity duration-300">
-  build ({{ gitCommit }})
+  <footer class="w-full py-5 text-center text-[10px] tracking-wider text-slate-400 dark:text-slate-500 font-mono border-t border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-950/20 select-none">
+    build ({{ gitCommit }})
+  </footer>
 </div>
