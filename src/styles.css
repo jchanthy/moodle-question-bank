@@ -2,25 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Font Definitions */
-@font-face {
-  font-family: 'Kantumruy Pro';
-  src: url('/Kantumruy_Pro/KantumruyPro-VariableFont_wght.ttf') format('truetype');
-  font-weight: 100 900;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Kantumruy Pro';
-  src: url('/Kantumruy_Pro/KantumruyPro-Italic-VariableFont_wght.ttf') format('truetype');
-  font-weight: 100 900;
-  font-style: italic;
-}
-
 /* Custom Global Styles */
 body {
   margin: 0;
-  font-family: 'Kantumruy Pro', 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -29,13 +14,11 @@ body {
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
   -webkit-appearance: none;
-  appearance: none;
   margin: 0;
 }
 
 input[type=number] {
   -moz-appearance: textfield;
-  appearance: textfield;
 }
 
 /* Global PrimeNG Component Styling Overrides */
