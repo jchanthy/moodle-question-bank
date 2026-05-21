@@ -412,8 +412,8 @@
                   </div>
                 </div>
               </div>
-              <h2 class="text-xl font-black text-gray-900 group-hover:text-blue-600 transition">{{ q.name }}</h2>
-              <p class="text-gray-600 mt-3 leading-relaxed">{{ q.question_text }}</p>
+              <div class="text-xl font-black text-gray-900 group-hover:text-blue-600 transition leading-relaxed">{{ q.question_text }}</div>
+              <p class="text-sm font-semibold text-gray-500 mt-2">{{ q.name }}</p>
 
               <!-- Assignment Section -->
               <div class="mt-4">
@@ -639,8 +639,8 @@
                   </span>
                 </div>
               </div>
-              <h2 class="text-xl font-black text-gray-900 group-hover:text-green-600 transition">{{ q.name }}</h2>
-              <p class="text-gray-600 mt-3 leading-relaxed">{{ q.question_text }}</p>
+              <div class="text-xl font-black text-gray-900 group-hover:text-green-600 transition leading-relaxed">{{ q.question_text }}</div>
+              <p class="text-sm font-semibold text-gray-500 mt-2">{{ q.name }}</p>
             </div>
 
             <div class="flex flex-row md:flex-col justify-end gap-3">
@@ -736,8 +736,8 @@
                   </span>
                 </div>
               </div>
-              <h2 class="text-xl font-black text-gray-900 group-hover:text-red-600 transition">{{ q.name }}</h2>
-              <p class="text-gray-600 mt-3 leading-relaxed">{{ q.question_text }}</p>
+              <div class="text-xl font-black text-gray-900 group-hover:text-red-600 transition leading-relaxed">{{ q.question_text }}</div>
+              <p class="text-sm font-semibold text-gray-500 mt-2">{{ q.name }}</p>
             </div>
 
             <div class="flex flex-row md:flex-col justify-end gap-3">
@@ -822,8 +822,8 @@
                 <span class="text-[10px] text-gray-400 font-medium">By {{ q.metadata?.author_name || 'Author' }} • {{
                   (q.updated_at || q.created_at) | date:'medium' }}</span>
               </div>
-              <h2 class="text-xl font-black text-gray-900 group-hover:text-gray-600 transition">{{ q.name }}</h2>
-              <p class="text-gray-600 mt-3 leading-relaxed line-clamp-2">{{ q.question_text }}</p>
+              <div class="text-xl font-black text-gray-900 group-hover:text-gray-600 transition leading-relaxed">{{ q.question_text }}</div>
+              <p class="text-sm font-semibold text-gray-500 mt-2">{{ q.name }}</p>
             </div>
 
             <div class="flex flex-row md:flex-col justify-end gap-3">
@@ -1100,8 +1100,8 @@
                   </div>
                 </td>
                 <td class="px-6 py-5">
-                  <div class="text-sm font-black text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">{{
-                    q.name }}</div>
+                  <div class="text-sm font-black text-gray-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-2 max-w-sm" [title]="q.question_text">{{
+                    q.question_text }}</div>
                   <div *ngIf="getCategoryName(q.category_id)"
                     class="text-[9px] font-bold text-blue-500 uppercase flex items-center gap-1 mb-1">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24"
@@ -1111,7 +1111,7 @@
                     </svg>
                     {{ getCategoryName(q.category_id) }}
                   </div>
-                  <p class="text-xs text-gray-400 line-clamp-1 max-w-sm">{{ q.question_text }}</p>
+                  <p class="text-xs text-gray-400 font-semibold mt-1">{{ q.name }}</p>
                 </td>
                 <td class="px-6 py-5 text-center">
                   <div

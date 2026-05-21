@@ -657,7 +657,7 @@
                 </svg>
               </th>
               <th class="px-4 py-3 align-top">Actions</th>
-              <th class="px-4 py-3 align-top uppercase">Question <div class="text-[11px] font-bold text-green-600/80 mt-0.5">Name / ID number</div></th>
+              <th class="px-4 py-3 align-top uppercase">Question <div class="text-[11px] font-bold text-green-600/80 mt-0.5">Text / Name</div></th>
               <th class="px-4 py-3 align-top uppercase">Status</th>
               <th class="px-4 py-3 align-top uppercase">Version</th>
               <th class="px-4 py-3 align-top uppercase">Author <div class="text-[11px] font-bold text-blue-400/80 mt-0.5">Name / Date</div></th>
@@ -744,21 +744,24 @@
                     </span>
                   </div>
                 </td>
-                <!-- Question Name (Inline Editable) -->
+                <!-- Question Text & Name (Inline Editable) -->
                 <td class="px-4 py-4">
                   <div class="flex items-center gap-2 group/name">
                     <ng-container *ngIf="!question.isEditingName">
                       <div class="flex flex-col">
-                        <span class="text-sm font-bold text-gray-800">{{ question.name }}</span>
-                        <!-- Display Tags -->
-                        <div *ngIf="question.metadata?.tags?.length" class="flex flex-wrap gap-1 mt-1">
-                          <span *ngFor="let tag of (question.metadata?.tags || [])" 
-                                class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                            {{ tag }}
-                          </span>
+                        <span class="text-sm font-semibold text-gray-800 line-clamp-2 max-w-lg mb-1" [title]="question.question_text">{{ question.question_text }}</span>
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <span class="text-[11px] font-bold text-gray-400">{{ question.name }}</span>
+                          <!-- Display Tags -->
+                          <div *ngIf="question.metadata?.tags?.length" class="flex flex-wrap gap-1">
+                            <span *ngFor="let tag of (question.metadata?.tags || [])" 
+                                  class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                              {{ tag }}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <button (click)="question.isEditingName = true" class="opacity-0 group-hover/name:opacity-100 transition-opacity ml-auto">
+                      <button (click)="question.isEditingName = true" class="opacity-0 group-hover/name:opacity-100 transition-opacity ml-auto" title="Edit Question Name">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                         </svg>
