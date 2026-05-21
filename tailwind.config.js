@@ -5,6 +5,9 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'Kantumruy Pro', 'sans-serif'],
+      },
       colors: {
         'brand': {
           'navy': '#13284c',

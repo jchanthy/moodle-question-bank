@@ -30,6 +30,14 @@ export class QuestionFormComponent implements OnInit {
   get isAdmin(): boolean {
     return this.supabase.currentUserRole() === 'admin';
   }
+
+  get isAssistant(): boolean {
+    return this.supabase.currentUserRole() === 'assistant_teacher';
+  }
+
+  get isTeacher(): boolean {
+    return this.supabase.currentUserRole() === 'teacher';
+  }
   
   get isAssignedReviewer(): boolean {
     const user = this.supabase.currentUser();
@@ -54,6 +62,22 @@ export class QuestionFormComponent implements OnInit {
     return status ? status.replace(/_/g, ' ').charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ') : '';
   }
 
+  get lockReason(): string {
+    const status = this.questionForm.get('status')?.value;
+    const authorId = this.questionAuthorId();
+    const user = this.supabase.currentUser();
+    const isAuthor = authorId === user?.id;
+    const isAssistant = this.supabase.currentUserRole() === 'assistant_teacher';
+
+    if (status === 'draft' && !isAuthor) {
+      return 'This is a private draft belonging to the question author and cannot be edited.';
+    }
+    if (isAssistant && status === 'pending_teacher_review') {
+      return 'This question has been submitted for teacher review and is locked.';
+    }
+    return 'This content is currently in review or approved. Withdraw from dashboard to make changes.';
+  }
+
   showToast(message: string, type: 'success' | 'error' | 'info' = 'success') {
     this.notification.set({ message, type });
     setTimeout(() => this.notification.set(null), 4000);
@@ -65,6 +89,7 @@ export class QuestionFormComponent implements OnInit {
 
   editMode = signal(false);
   isLocked = signal(false);
+  questionAuthorId = signal<string | null>(null);
   availableVersions = signal<any[]>([]); // To store all versions of this question family
   showImageUpload = signal(false);
   activeDraggingIndex = signal<number | null>(null);
@@ -288,13 +313,28 @@ export class QuestionFormComponent implements OnInit {
       // Handle metadata/image
       this.questionMetadata.set(question.metadata || {});
       
+      const authorId = question.metadata?.author_id || question.created_by;
+      this.questionAuthorId.set(authorId);
+      
       // Review Lock Logic
       const user = this.supabase.currentUser();
-      const isAuthor = question.created_by === user?.id;
+      const isAuthor = authorId === user?.id;
       const status = question.status;
+      const isAssistant = this.supabase.currentUserRole() === 'assistant_teacher';
       
-      // Lock for author if in review or approved
-      if (isAuthor && !this.isAdmin && (status === 'pending_review' || status === 'assigned' || status === 'approved')) {
+      // Lock conditions:
+      // 1. If it's a draft and the user is NOT the author (ensure private drafts stay private)
+      // 2. If it's in review/ready and the user is the author (except admins)
+      // 3. If it's submitted for teacher review and the user is the assistant teacher author
+      if (
+        (status === 'draft' && !isAuthor) ||
+        (isAuthor && !this.isAdmin && (
+          status === 'pending_review' || 
+          status === 'assigned' || 
+          status === 'approved' ||
+          (isAssistant && status === 'pending_teacher_review')
+        ))
+      ) {
         this.isLocked.set(true);
         this.questionForm.disable();
       } else {
@@ -803,11 +843,13 @@ export class QuestionFormComponent implements OnInit {
   }
 
   async onFormSubmit() {
+    const isAssistant = this.supabase.currentUserRole() === 'assistant_teacher';
+    const targetStatus = isAssistant ? 'pending_teacher_review' : 'pending_review';
     if (this.isReady) {
-      // If ready, we branch into a new version (which defaults to pending_review)
-      await this.saveQuestion('pending_review', false);
+      // If ready, we branch into a new version
+      await this.saveQuestion(targetStatus, false);
     } else {
-      // If already a draft or pending, just update it to pending_review
+      // If already a draft or pending, just update it to target status
       await this.submitForReview();
     }
   }
@@ -820,11 +862,13 @@ export class QuestionFormComponent implements OnInit {
     const currentStatus = this.questionForm.get('status')?.value;
     // Keep same status when continuing editing; default to 'draft' for new questions
     const status = (currentStatus === 'approved' || currentStatus === 'rejected') ? 'draft' : (currentStatus || 'draft');
-    await this.saveQuestion(status as 'draft' | 'pending_review' | 'approved', true);
+    await this.saveQuestion(status as any, true);
   }
 
   async submitForReview() {
-    await this.saveQuestion('pending_review', false);
+    const isAssistant = this.supabase.currentUserRole() === 'assistant_teacher';
+    const targetStatus = isAssistant ? 'pending_teacher_review' : 'pending_review';
+    await this.saveQuestion(targetStatus, false);
   }
 
   async markAsReady() {
@@ -841,7 +885,12 @@ export class QuestionFormComponent implements OnInit {
     }
   }
 
-  private async saveQuestion(status: 'draft' | 'pending_review' | 'approved' | 'rejected', continueEditing: boolean = false, extraMetadata: any = {}): Promise<boolean> {
+  private async saveQuestion(
+    status: 'draft' | 'pending_review' | 'approved' | 'rejected' | 'pending_teacher_review', 
+    continueEditing: boolean = false, 
+    extraMetadata: any = {},
+    forceInPlace: boolean = false
+  ): Promise<boolean> {
     if (this.questionForm.invalid) return false;
     this.loading.set(true);
     try {
@@ -912,7 +961,7 @@ export class QuestionFormComponent implements OnInit {
       };
 
       // BRANCHING LOGIC:
-      const forceNewVersion = this.editMode() && (
+      const forceNewVersion = !forceInPlace && this.editMode() && (
         currentStatus === 'approved' || 
         currentStatus === 'rejected' ||
         (!this.isAdmin && originalCreator !== user.id)
@@ -1041,6 +1090,29 @@ export class QuestionFormComponent implements OnInit {
         }
       }
 
+      // 3c. Notify teachers when an assistant teacher submits a question for teacher review
+      if (status === 'pending_teacher_review') {
+        try {
+          const creatorName = this.supabase.currentUserName || user.email || 'An assistant';
+          const title = forceNewVersion ? 'New Assistant Submission' : 'Question Submitted for Teacher Review';
+          
+          let message = `${creatorName} submitted "${questionData.name}" for peer review.`;
+          if (forceNewVersion) {
+            const nextVersionVal = (formValue.version ? Number(formValue.version) + 1 : 2);
+            message = `${creatorName} created a new version (v${nextVersionVal}) of "${questionData.name}"`;
+          }
+
+          await this.notificationService.notifyTeachers(
+            'submitted_for_teacher_review',
+            title,
+            message,
+            { question_id: targetId, author_name: creatorName }
+          );
+        } catch (nErr) {
+          console.error('Failed to notify teachers:', nErr);
+        }
+      }
+
       // 4. Show success toast
       if (continueEditing) {
         this.showToast('Changes saved. You can continue editing.', 'success');
@@ -1096,7 +1168,7 @@ export class QuestionFormComponent implements OnInit {
       review_status: 'approved'
     };
 
-    const success = await this.saveQuestion('approved', false, extraMetadata);
+    const success = await this.saveQuestion('approved', false, extraMetadata, true);
     if (success) {
       this.showToast('Question approved successfully!');
     }
@@ -1107,15 +1179,142 @@ export class QuestionFormComponent implements OnInit {
     const reason = prompt('Reason for rejection:');
     if (reason === null) return;
 
-    const extraMetadata = {
-      rejection_reason: reason,
-      rejected_by: this.supabase.currentUserName,
-      rejected_at: new Date().toISOString()
+    const trimmedReason = reason.trim() || 'Rejected by reviewer.';
+    const newComment = {
+      user: this.supabase.currentUserName,
+      text: trimmedReason,
+      date: new Date().toISOString()
     };
 
-    const success = await this.saveQuestion('rejected', false, extraMetadata);
+    const currentComments = this.questionMetadata()?.comments || [];
+    const extraMetadata = {
+      rejection_reason: trimmedReason,
+      rejected_by: this.supabase.currentUserName,
+      rejected_at: new Date().toISOString(),
+      comments: [...currentComments, newComment]
+    };
+
+    const success = await this.saveQuestion('rejected', false, extraMetadata, true);
     if (success) {
       this.showToast('Question rejected with feedback.');
+      // Retract active review notifications
+      await this.notificationService.retractReviewNotifications(this.questionId()!);
+    }
+  }
+
+  async teacherApproveToAdmin() {
+    if (this.supabase.currentUserRole() !== 'teacher' || !this.questionId()) return;
+
+    const extraMetadata = {
+      reviewed_by: this.supabase.currentUserName,
+      reviewed_at: new Date().toISOString(),
+      review_status: 'approved_by_teacher'
+    };
+
+    // Save as 'pending_review' which represents submitting to admin review
+    const success = await this.saveQuestion('pending_review', false, extraMetadata, true);
+    if (success) {
+      this.showToast('Question approved and submitted to Admin!');
+      
+      // Notify the original creator (assistant teacher)
+      const creatorId = this.questionMetadata()?.author_id;
+      if (creatorId) {
+        try {
+          await this.notificationService.createNotification(
+            creatorId,
+            'teacher_approved',
+            'Question Approved by Teacher',
+            `Your question "${this.questionForm.get('name')?.value}" was approved by ${this.supabase.currentUserName} and submitted to Admin.`,
+            { question_id: this.questionId() }
+          );
+        } catch (err) {
+          console.error('Failed to notify assistant:', err);
+        }
+      }
+    }
+  }
+
+  async teacherRejectToDraft() {
+    if (this.supabase.currentUserRole() !== 'teacher' || !this.questionId()) return;
+    const reason = prompt('Feedback / Reason for rejection:');
+    if (reason === null) return;
+
+    const trimmedReason = reason.trim() || 'Returned to draft by teacher.';
+    const newComment = {
+      user: this.supabase.currentUserName,
+      text: trimmedReason,
+      date: new Date().toISOString()
+    };
+
+    const currentComments = this.questionMetadata()?.comments || [];
+    const extraMetadata = {
+      rejection_reason: trimmedReason,
+      rejected_by: this.supabase.currentUserName,
+      rejected_at: new Date().toISOString(),
+      comments: [...currentComments, newComment]
+    };
+
+    // Save as 'draft'
+    const success = await this.saveQuestion('draft', false, extraMetadata, true);
+    if (success) {
+      this.showToast('Question returned to draft with feedback.');
+      
+      // Retract active review notifications
+      await this.notificationService.retractReviewNotifications(this.questionId()!);
+
+      // Notify the original creator (assistant teacher)
+      const creatorId = this.questionMetadata()?.author_id;
+      if (creatorId) {
+        try {
+          await this.notificationService.createNotification(
+            creatorId,
+            'teacher_rejected',
+            'Question Returned by Teacher',
+            `Your question "${this.questionForm.get('name')?.value}" was returned to draft: "${trimmedReason}"`,
+            { question_id: this.questionId(), reason: trimmedReason }
+          );
+        } catch (err) {
+          console.error('Failed to notify assistant:', err);
+        }
+      }
+    }
+  }
+
+  newCommentText = '';
+
+  async addFormComment() {
+    const text = this.newCommentText.trim();
+    if (!text || !this.questionId()) return;
+
+    const newComment = {
+      user: this.supabase.currentUserName,
+      text: text,
+      date: new Date().toISOString()
+    };
+
+    const currentMeta = this.questionMetadata() || {};
+    const updatedComments = [...(currentMeta.comments || []), newComment];
+    const updatedMetadata = {
+      ...currentMeta,
+      comments: updatedComments
+    };
+
+    this.loading.set(true);
+    try {
+      const { error } = await this.supabase.db
+        .from('questions')
+        .update({ metadata: updatedMetadata })
+        .eq('id', this.questionId()!);
+
+      if (error) throw error;
+
+      this.questionMetadata.set(updatedMetadata);
+      this.newCommentText = '';
+      this.showToast('Comment added successfully!', 'success');
+    } catch (err: any) {
+      this.showToast('Error adding comment: ' + err.message, 'error');
+    } finally {
+      this.loading.set(false);
     }
   }
 }

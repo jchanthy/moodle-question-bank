@@ -646,7 +646,16 @@ export class AdminDashboardComponent implements OnInit {
 
     // Fill from profiles first
     profiles?.forEach(p => {
-      const role = roles?.find(r => r.user_id === p.id)?.role;
+      let role = roles?.find(r => r.user_id === p.id)?.role;
+      if (!role) {
+        if (p.email === 'teacher@mail.com' || p.email === 'user1@mail.com') {
+          role = 'teacher';
+        } else if (p.email === 'admin@mail.com') {
+          role = 'admin';
+        } else if (p.email === 'teacher2@mail.com') {
+          role = 'assistant_teacher';
+        }
+      }
       profileMap.set(p.id, { 
         id: p.id,
         name: p.full_name, 
@@ -746,21 +755,36 @@ export class AdminDashboardComponent implements OnInit {
       .eq('id', id)
       .single();
 
+    let extraMetadata: any = null;
     if (question && status === 'rejected') {
-      const isRevoking = question.status === 'approved';
-      const actionText = isRevoking ? 'revoke approval for' : 'reject';
-      const detailText = isRevoking 
-        ? 'This will move the question back to the Rejected tab and notify the author.' 
-        : 'This will reject the question and notify the author.';
-      
-      if (!confirm(`Are you sure you want to ${actionText} "${question.name}"?\n\n${detailText}`)) {
-        return;
-      }
+      const reason = prompt('Reason for rejection:');
+      if (reason === null) return;
+
+      const trimmedReason = reason.trim() || 'Rejected by reviewer.';
+      const newComment = {
+        user: this.supabaseService.currentUserName,
+        text: trimmedReason,
+        date: new Date().toISOString()
+      };
+
+      const currentComments = (question.metadata as any)?.comments || [];
+      extraMetadata = {
+        ...(question.metadata || {}),
+        rejection_reason: trimmedReason,
+        rejected_by: this.supabaseService.currentUserName,
+        rejected_at: new Date().toISOString(),
+        comments: [...currentComments, newComment]
+      };
+    }
+
+    const updateData: any = { status };
+    if (extraMetadata) {
+      updateData.metadata = extraMetadata;
     }
 
     const { error } = await this.supabaseService.db
       .from('questions')
-      .update({ status })
+      .update(updateData)
       .eq('id', id);
 
     if (!error) {
@@ -775,6 +799,11 @@ export class AdminDashboardComponent implements OnInit {
 
       // Automatically clear (mark read) task notifications for all assigned reviewers
       this.notificationService.markReviewNotificationsAsRead(id);
+
+      // Retract active review notifications
+      if (status === 'rejected') {
+        await this.notificationService.retractReviewNotifications(id);
+      }
 
       // Notify the question author about the status change
       if (question) {

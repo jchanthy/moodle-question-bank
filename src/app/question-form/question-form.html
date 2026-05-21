@@ -60,7 +60,7 @@
                   <span class="px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-tight"
                     [ngClass]="{
                       'bg-green-100 text-green-700': v.status === 'approved',
-                      'bg-yellow-100 text-yellow-700': v.status === 'pending_review',
+                      'bg-yellow-100 text-yellow-700': v.status === 'pending_review' || v.status === 'pending_teacher_review',
                       'bg-red-100 text-red-700': v.status === 'rejected',
                       'bg-gray-100 text-gray-500': v.status === 'draft'
                     }">
@@ -98,7 +98,7 @@
           </svg>
           <div>
             <span class="text-sm font-black uppercase tracking-widest">Question is Locked</span>
-            <p class="text-[10px] text-indigo-100 font-medium">This content is currently in review or approved. Withdraw from dashboard to make changes.</p>
+            <p class="text-[10px] text-indigo-100 font-medium">{{ lockReason }}</p>
           </div>
         </div>
         <button type="button" [routerLink]="isAdmin ? '/admin' : '/teacher'" class="text-[10px] font-bold underline hover:text-indigo-200">Go to Dashboard</button>
@@ -109,13 +109,13 @@
         class="px-8 py-3 flex items-center justify-between border-b"
         [ngClass]="{
           'bg-green-50 text-green-700': questionForm.get('status')?.value === 'approved',
-          'bg-yellow-50 text-yellow-700': questionForm.get('status')?.value === 'pending_review',
+          'bg-yellow-50 text-yellow-700': questionForm.get('status')?.value === 'pending_review' || questionForm.get('status')?.value === 'pending_teacher_review',
           'bg-red-50 text-red-700': questionForm.get('status')?.value === 'rejected'
         }">
         <div class="flex items-center gap-2 text-xs font-black uppercase tracking-tighter">
           <div class="w-2 h-2 rounded-none" [ngClass]="{
             'bg-green-500 animate-pulse': questionForm.get('status')?.value === 'approved',
-            'bg-yellow-500 animate-pulse': questionForm.get('status')?.value === 'pending_review',
+            'bg-yellow-500 animate-pulse': questionForm.get('status')?.value === 'pending_review' || questionForm.get('status')?.value === 'pending_teacher_review',
             'bg-red-500': questionForm.get('status')?.value === 'rejected'
           }"></div>
           Current Version Status: {{ displayStatus }}
@@ -260,6 +260,67 @@
 
       <form *ngIf="!isPreviewMode()" [formGroup]="questionForm" (ngSubmit)="onFormSubmit()" class="p-8 pb-32 space-y-8 animate-in fade-in duration-300">
         
+        <!-- Review Comments & Feedback History -->
+        <div *ngIf="editMode() && (questionMetadata()?.comments?.length || questionMetadata()?.rejection_reason)" 
+             class="bg-blue-50/50 border border-blue-100 rounded-none p-6 space-y-4 mb-6 shadow-sm">
+          <div class="flex items-center justify-between border-b border-blue-100 pb-3">
+            <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest flex items-center gap-2">
+              <i class="pi pi-comments text-blue-500 text-lg"></i>
+              Review Comments & Feedback History
+            </h3>
+            <span class="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-none font-black uppercase tracking-wider">
+              {{ (questionMetadata()?.comments?.length || 0) + (questionMetadata()?.rejection_reason ? 1 : 0) }} items
+            </span>
+          </div>
+
+          <div class="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+            <!-- Legacy Rejection Reason (Fallback) -->
+            <div *ngIf="questionMetadata()?.rejection_reason" class="flex gap-4">
+              <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 text-red-700 flex items-center justify-center font-bold text-xs uppercase shadow-sm">
+                {{ (questionMetadata()?.rejected_by || 'R').substring(0, 1) }}
+              </div>
+              <div class="flex-1 bg-white border border-red-100 p-4 rounded-none shadow-sm">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-xs font-black text-gray-900">{{ questionMetadata()?.rejected_by || 'Reviewer' }} (Legacy Rejection)</span>
+                  <span class="text-[10px] text-gray-400">{{ questionMetadata()?.rejected_at | date:'short' }}</span>
+                </div>
+                <div class="text-sm text-red-700 font-bold leading-relaxed">
+                  {{ questionMetadata()?.rejection_reason }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Modern Comments List -->
+            <div *ngFor="let comment of questionMetadata()?.comments" class="flex gap-4">
+              <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs uppercase shadow-sm">
+                {{ comment.user.substring(0, 1) }}
+              </div>
+              <div class="flex-1 bg-white border border-blue-50 p-4 rounded-none shadow-sm">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-xs font-black text-gray-900">{{ comment.user }}</span>
+                  <span class="text-[10px] text-gray-400">{{ comment.date | date:'short' }}</span>
+                </div>
+                <div class="text-sm text-gray-700 font-medium leading-relaxed whitespace-pre-wrap">
+                  {{ comment.text }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Inline Comment Box -->
+          <div class="pt-3 border-t border-blue-100 flex gap-2">
+            <input type="text" [(ngModel)]="newCommentText" [ngModelOptions]="{standalone: true}"
+                   placeholder="Add a review comment or response..." 
+                   class="flex-1 px-4 py-2 border border-blue-200 rounded-none text-xs outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-medium">
+            <button type="button" (click)="addFormComment()" [disabled]="!newCommentText.trim() || loading()"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-none font-bold text-xs flex items-center gap-1.5 disabled:opacity-50 transition-all">
+              <span *ngIf="loading()" class="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-none"></span>
+              <i *ngIf="!loading()" class="pi pi-send"></i>
+              Send
+            </button>
+          </div>
+        </div>
+
         <!-- General Information Section -->
         <section class="space-y-6">
           <h2 class="text-lg font-bold text-gray-900 border-b border-blue-50 flex items-center gap-2">
@@ -687,7 +748,7 @@
             <span class="px-4 py-1.5 rounded-none text-sm font-black uppercase tracking-widest border"
               [ngClass]="{
                 'bg-green-50 text-green-700 border-green-100': questionForm.get('status')?.value === 'approved',
-                'bg-yellow-50 text-yellow-700 border-yellow-100': questionForm.get('status')?.value === 'pending_review',
+                'bg-yellow-50 text-yellow-700 border-yellow-100': questionForm.get('status')?.value === 'pending_review' || questionForm.get('status')?.value === 'pending_teacher_review',
                 'bg-red-50 text-red-700 border-red-100': questionForm.get('status')?.value === 'rejected',
                 'bg-gray-50 text-gray-500 border-blue-100/50': questionForm.get('status')?.value === 'draft'
               }">
@@ -764,6 +825,22 @@
                 </button>
               </ng-container>
 
+              <!-- Teacher Peer-Review Actions (when status is pending_teacher_review) -->
+              <ng-container *ngIf="isTeacher && questionForm.get('status')?.value === 'pending_teacher_review'">
+                <button type="button" (click)="teacherRejectToDraft()" 
+                  class="px-6 py-2.5 bg-red-50 text-red-600 rounded-none font-bold hover:bg-red-100 transition border border-red-100 text-sm">
+                  Reject & Return to Assistant
+                </button>
+                
+                <button type="button" (click)="teacherApproveToAdmin()" 
+                  class="px-8 py-2.5 bg-green-600 text-white rounded-none font-black hover:bg-green-700 transition shadow-lg shadow-green-200 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Approve & Submit to Admin
+                </button>
+              </ng-container>
+ 
               <!-- Author Primary Action (Only if not in review by someone else) -->
               <button *ngIf="questionForm.get('status')?.value === 'draft' || questionForm.get('status')?.value === 'rejected'"
                 type="submit" [disabled]="questionForm.invalid || loading()"
@@ -772,7 +849,7 @@
                 <svg *ngIf="!loading()" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                 </svg>
-                {{ loading() ? 'Submitting...' : 'Submit for Review' }}
+                {{ loading() ? 'Submitting...' : (isAssistant ? 'Submit to Teacher' : 'Submit for Review') }}
               </button>
             </ng-container>
 

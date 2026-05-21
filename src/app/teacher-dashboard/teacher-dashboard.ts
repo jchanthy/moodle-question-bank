@@ -100,6 +100,7 @@ export class TeacherDashboardComponent implements OnInit {
 
   myQuestions = signal<Question[]>([]);
   assignedQuestions = signal<Question[]>([]);
+  assistantSubmissions = signal<Question[]>([]);
   allQuestions = signal<Question[]>([]);
   loading = signal(true);
   showComments = signal(false);
@@ -141,7 +142,7 @@ export class TeacherDashboardComponent implements OnInit {
     }
   }
   newCommentText = '';
-  currentView = signal<'my' | 'assigned' | 'archive'>('my');
+  currentView = signal<'my' | 'assigned' | 'archive' | 'assistant_submissions'>('my');
   
   // Filters
   filterHidden = signal(false);
@@ -279,11 +280,13 @@ export class TeacherDashboardComponent implements OnInit {
   filteredQuestions = computed(() => {
     const authored = this.allQuestions();
     const assigned = this.assignedQuestions();
+    const assistant = this.assistantSubmissions();
     
-    // Combine authored and assigned questions, deduplicate by ID
+    // Combine authored, assigned, and assistant questions, deduplicate by ID
     const combinedMap = new Map<string, Question>();
     authored.forEach(q => combinedMap.set(q.id, q));
     assigned.forEach(q => combinedMap.set(q.id, q));
+    assistant.forEach(q => combinedMap.set(q.id, q));
     const allQs = Array.from(combinedMap.values());
 
     const view = this.currentView();
@@ -320,10 +323,20 @@ export class TeacherDashboardComponent implements OnInit {
           return aq.id === q.id || aqFamilyId === familyId;
         });
       });
+    } else if (view === 'assistant_submissions') {
+      const assistant = this.assistantSubmissions();
+      result = result.filter(q => {
+        const familyId = q.parent_id || q.id;
+        return assistant.some(aq => {
+          const aqFamilyId = aq.parent_id || aq.id;
+          return aq.id === q.id || aqFamilyId === familyId;
+        });
+      });
     } else if (view === 'archive') {
       // Archive is different - it shows deleted questions. 
       // This is handled by loadMyQuestions already (it fetches deleted if view is archive)
       // But we still want latest version of deleted items.
+      result = result.filter(q => q.deleted_at !== null);
     } else {
       // 'my' view: Author is me
       result = result.filter(q => q.created_by === user.id || q.metadata?.author_id === user.id);
@@ -386,6 +399,10 @@ export class TeacherDashboardComponent implements OnInit {
     return this.assignedQuestions().filter(q => !q.assignment_completed_at).length;
   });
 
+  pendingAssistantSubmissionsCount = computed(() => {
+    return this.assistantSubmissions().length;
+  });
+
   constructor() {
     // Setup debouncing for search keyword
     this.keywordSubject.pipe(
@@ -406,6 +423,7 @@ export class TeacherDashboardComponent implements OnInit {
       if (!user) return;
 
       // Dependency tracking
+      this.currentView();
       this.currentPage();
       this.pageSize();
       this.filterType();
@@ -452,6 +470,14 @@ export class TeacherDashboardComponent implements OnInit {
   onKeywordChange(value: string) {
     this.filterKeyword.set(value);
     this.keywordSubject.next(value);
+  }
+
+  isAssignedToMe(q: Question): boolean {
+    const familyId = q.parent_id || q.id;
+    return this.assignedQuestions().some(aq => {
+      const aqFamilyId = aq.parent_id || aq.id;
+      return aq.id === q.id || aqFamilyId === familyId;
+    });
   }
 
   myQuestionsCount = computed(() => {
@@ -553,6 +579,7 @@ export class TeacherDashboardComponent implements OnInit {
       });
 
       this.loadAssignedQuestions();
+      this.loadAssistantSubmissions();
 
     } catch (err: any) {
       this.showToast(err.message, 'error');
@@ -589,6 +616,28 @@ export class TeacherDashboardComponent implements OnInit {
       untracked(() => this.assignedQuestions.set(questionsWithMeta));
     } else {
       untracked(() => this.assignedQuestions.set([]));
+    }
+  }
+
+  async loadAssistantSubmissions() {
+    const role = this.supabaseService.currentUserRole();
+    if (role !== 'teacher') {
+      untracked(() => this.assistantSubmissions.set([]));
+      return;
+    }
+
+    try {
+      const { data, error } = await this.supabaseService.db
+        .from('questions')
+        .select('*')
+        .eq('status', 'pending_teacher_review')
+        .is('deleted_at', null);
+
+      if (!error && data) {
+        untracked(() => this.assistantSubmissions.set(data as Question[]));
+      }
+    } catch (err) {
+      console.error('Error loading assistant submissions:', err);
     }
   }
 
@@ -730,6 +779,40 @@ export class TeacherDashboardComponent implements OnInit {
     }
   }
 
+  async restoreQuestion(id: string, name?: string) {
+    if (!confirm(`Are you sure you want to restore "${name || 'this question'}"?`)) return;
+
+    const { error } = await this.supabaseService.db
+      .from('questions')
+      .update({ deleted_at: null })
+      .eq('id', id);
+
+    if (error) {
+      this.showToast(error.message, 'error');
+    } else {
+      this.showToast('Question restored successfully', 'success');
+      this.loadMyQuestions();
+      this.loadCategories();
+    }
+  }
+
+  async purgeQuestion(id: string, name?: string) {
+    if (!confirm(`Are you sure you want to PERMANENTLY delete "${name || 'this question'}"? This action cannot be undone.`)) return;
+
+    const { error } = await this.supabaseService.db
+      .from('questions')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      this.showToast(error.message, 'error');
+    } else {
+      this.showToast('Question permanently deleted', 'success');
+      this.loadMyQuestions();
+      this.loadCategories();
+    }
+  }
+
   async withdrawFromReview(q: Question) {
     const { error } = await this.supabaseService.db
       .from('questions')
@@ -741,6 +824,13 @@ export class TeacherDashboardComponent implements OnInit {
     } else {
       q.status = 'draft';
       this.showToast('Withdrawn to draft', 'success');
+      
+      // Retract/Delete the active review notifications from database
+      await this.notificationService.retractReviewNotifications(q.id);
+
+      this.loadMyQuestions();
+      this.loadAssignedQuestions();
+      this.loadAssistantSubmissions();
     }
   }
 
@@ -752,13 +842,13 @@ export class TeacherDashboardComponent implements OnInit {
 
     const { error } = await this.supabaseService.db
       .from('questions')
-      .update({ name: newName })
+      .update({ name: newName.trim() })
       .eq('id', q.id);
 
     if (error) {
       this.showToast(error.message, 'error');
     } else {
-      q.name = newName;
+      q.name = newName.trim();
       this.showToast('Name updated', 'success');
     }
     q.isEditingName = false;
@@ -767,17 +857,94 @@ export class TeacherDashboardComponent implements OnInit {
   async updateQuestionStatus(q: Question, statusOrEvent: any) {
     const status = typeof statusOrEvent === 'string' ? statusOrEvent : statusOrEvent.target.value;
     const user = this.supabaseService.currentUser();
+    const originalStatus = q.status;
 
+    let commentText = '';
+    let updatedMetadata = q.metadata || {};
+
+    if (status === 'draft' && originalStatus === 'pending_teacher_review') {
+      const comment = prompt('Please enter feedback/comments for returning this question to the assistant:');
+      if (comment === null) {
+        // User cancelled, reset dropdown
+        this.loadMyQuestions();
+        this.loadAssignedQuestions();
+        this.loadAssistantSubmissions();
+        return;
+      }
+      commentText = comment.trim();
+      const newComment = {
+        user: this.supabaseService.currentUserName,
+        text: commentText || 'Returned to draft by teacher.',
+        date: new Date().toISOString()
+      };
+      updatedMetadata = {
+        ...updatedMetadata,
+        comments: [...(updatedMetadata.comments || []), newComment]
+      };
+    } else if (status === 'rejected') {
+      const comment = prompt('Please enter feedback/comments for rejecting this question:');
+      if (comment === null) {
+        // User cancelled, reset dropdown
+        this.loadMyQuestions();
+        this.loadAssignedQuestions();
+        this.loadAssistantSubmissions();
+        return;
+      }
+      commentText = comment.trim();
+      const newComment = {
+        user: this.supabaseService.currentUserName,
+        text: commentText || 'Question rejected.',
+        date: new Date().toISOString()
+      };
+      updatedMetadata = {
+        ...updatedMetadata,
+        comments: [...(updatedMetadata.comments || []), newComment]
+      };
+    }
     const { error } = await this.supabaseService.db
       .from('questions')
-      .update({ status })
+      .update({ status, metadata: updatedMetadata })
       .eq('id', q.id);
 
     if (error) {
       this.showToast(error.message, 'error');
     } else {
       q.status = status;
+      q.metadata = updatedMetadata;
+      const completedAt = (status === 'approved' || status === 'rejected') ? new Date().toISOString() : q.assignment_completed_at;
+      if (status === 'approved' || status === 'rejected') {
+        q.assignment_completed_at = completedAt;
+      }
       this.showToast('Status updated', 'success');
+
+      // Update all source signals synchronously to guarantee instant UI updates & Angular Signal reactivity
+      this.allQuestions.update(list => 
+        list.map(item => item.id === q.id ? { ...item, status, metadata: updatedMetadata, assignment_completed_at: completedAt } : item)
+      );
+      this.myQuestions.update(list => 
+        list.map(item => item.id === q.id ? { ...item, status, metadata: updatedMetadata, assignment_completed_at: completedAt } : item)
+      );
+      this.assignedQuestions.update(list => 
+        list.map(item => item.id === q.id ? { ...item, status, metadata: updatedMetadata, assignment_completed_at: completedAt } : item)
+      );
+      this.assistantSubmissions.update(list => 
+        list.filter(item => item.id !== q.id || status === 'pending_teacher_review')
+      );
+
+      // If updated back to draft or rejected, retract active review notifications
+      if (status === 'draft' || status === 'rejected') {
+        await this.notificationService.retractReviewNotifications(q.id);
+      }
+
+      // Notify teachers when assistant teacher submits for teacher review
+      if (status === 'pending_teacher_review') {
+        this.notificationService.notifyTeachers(
+          'submitted_for_teacher_review',
+          'Question Submitted for Teacher Review',
+          `${this.supabaseService.currentUserName} submitted "${q.name}" for teacher review.`,
+          { question_id: q.id, author_name: this.supabaseService.currentUserName }
+        );
+      }
 
       // Notify admins when teacher submits for review
       if (status === 'pending_review') {
@@ -786,6 +953,27 @@ export class TeacherDashboardComponent implements OnInit {
           'Question Submitted for Review',
           `${this.supabaseService.currentUserName} submitted "${q.name}" for review.`,
           { question_id: q.id, author_name: this.supabaseService.currentUserName }
+        );
+
+        if (originalStatus === 'pending_teacher_review' && q.metadata?.author_id) {
+          this.notificationService.createNotification(
+            q.metadata.author_id,
+            'teacher_approved',
+            'Question Approved by Teacher',
+            `Your question "${q.name}" was approved and submitted to admins by ${this.supabaseService.currentUserName}.`,
+            { question_id: q.id }
+          );
+        }
+      }
+
+      // Notify assistant if teacher rejected & returned to draft
+      if (status === 'draft' && originalStatus === 'pending_teacher_review' && q.metadata?.author_id) {
+        this.notificationService.createNotification(
+          q.metadata.author_id,
+          'teacher_rejected',
+          'Question Returned to Draft',
+          `Your question "${q.name}" was returned to draft by ${this.supabaseService.currentUserName}: ${commentText || 'Returned to draft.'}`,
+          { question_id: q.id }
         );
       }
 
@@ -800,12 +988,11 @@ export class TeacherDashboardComponent implements OnInit {
         
         // Automatically clear (mark read) the task notification for this teacher
         this.notificationService.markReviewNotificationsAsRead(q.id, user.id);
-        
-        // Refresh to update 'Finished Review' badges and tab counts
-        this.loadAssignedQuestions();
       }
       
       this.loadMyQuestions();
+      this.loadAssignedQuestions();
+      this.loadAssistantSubmissions();
     }
   }
 

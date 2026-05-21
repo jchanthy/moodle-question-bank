@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
+import { Router } from '@angular/router';
 
 @Injectable({
   providedIn: 'root'
@@ -10,7 +11,7 @@ export class SupabaseService {
 
   // State management with Signals
   currentUser = signal<User | null>(null);
-  currentUserRole = signal<'teacher' | 'admin' | null>(null);
+  currentUserRole = signal<'teacher' | 'admin' | 'assistant_teacher' | null>(null);
   currentUserProfile = signal<any | null>(null);
 
   get currentUserName(): string {
@@ -19,7 +20,7 @@ export class SupabaseService {
     return user.user_metadata?.['full_name'] || user.email?.split('@')[0] || 'Teacher';
   }
 
-  constructor() {
+  constructor(private router: Router) {
     this.supabase = createClient(environment.supabaseUrl, environment.supabaseKey);
 
     // Initialize auth state
@@ -32,7 +33,7 @@ export class SupabaseService {
     });
 
     // Listen for auth changes
-    this.supabase.auth.onAuthStateChange((_event, session) => {
+    this.supabase.auth.onAuthStateChange((event, session) => {
       const user = session?.user ?? null;
       
       // Update core state immediately (Synchronous)
@@ -46,6 +47,13 @@ export class SupabaseService {
       } else {
         this.currentUserRole.set(null);
         this.currentUserProfile.set(null);
+        
+        // Securely redirect to /auth if we are currently on a secure page
+        const currentUrl = this.router.url;
+        if (!currentUrl.includes('/auth')) {
+          console.log(`onAuthStateChange: User signed out (event: ${event}). Redirecting to /auth`);
+          this.router.navigate(['/auth']);
+        }
       }
     });
   }
@@ -69,6 +77,10 @@ export class SupabaseService {
 
   private async fetchUserRole(userId: string) {
     try {
+      const user = this.currentUser();
+      if (!user) return;
+
+      // Try database first
       const { data, error } = await this.supabase
         .from('user_roles')
         .select('role')
@@ -76,7 +88,19 @@ export class SupabaseService {
         .maybeSingle();
 
       if (data && !error) {
-        this.currentUserRole.set(data.role);
+        this.currentUserRole.set(data.role as any);
+        return;
+      }
+
+      // Fallback to email-based roles if database role is not set
+      if (user.email === 'teacher2@mail.com') {
+        this.currentUserRole.set('assistant_teacher');
+      } else if (user.email === 'teacher@mail.com' || user.email === 'user1@mail.com') {
+        this.currentUserRole.set('teacher');
+      } else if (user.email === 'admin@mail.com') {
+        this.currentUserRole.set('admin');
+      } else {
+        this.currentUserRole.set('teacher'); // default fallback
       }
     } catch (err) {
       console.error('Role fetch failed:', err);

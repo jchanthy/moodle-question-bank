@@ -4,7 +4,7 @@ import { SupabaseService } from './supabase.service';
 export interface Notification {
   id: string;
   user_id: string;
-  type: 'submitted_for_review' | 'review_assigned' | 'question_approved' | 'question_rejected';
+  type: 'submitted_for_review' | 'submitted_for_teacher_review' | 'review_assigned' | 'question_approved' | 'question_rejected' | 'teacher_approved' | 'teacher_rejected';
   title: string;
   message: string;
   metadata: any;
@@ -50,7 +50,7 @@ export class NotificationService {
   async notifyAdmins(type: string, title: string, message: string, metadata: any = {}) {
     console.log(`[NotificationService] Notifying all admins, type: ${type}`);
     // 1. Fetch all admin user IDs
-    const { data: admins, error: fetchError } = await this.supabase.db
+    let { data: admins, error: fetchError } = await this.supabase.db
       .from('user_roles')
       .select('user_id')
       .eq('role', 'admin');
@@ -58,6 +58,18 @@ export class NotificationService {
     if (fetchError) {
       console.error('[NotificationService] Error fetching admins to notify:', fetchError);
       return;
+    }
+
+    // Fallback if empty
+    if (!admins || admins.length === 0) {
+      const { data: profiles, error: profileError } = await this.supabase.db
+        .from('profiles')
+        .select('id')
+        .eq('email', 'admin@mail.com');
+      
+      if (!profileError && profiles) {
+        admins = profiles.map(p => ({ user_id: p.id }));
+      }
     }
 
     if (admins && admins.length > 0) {
@@ -78,6 +90,56 @@ export class NotificationService {
         console.error('[NotificationService] Error batch inserting admin notifications:', error);
       } else {
         console.log(`[NotificationService] Successfully notified ${admins.length} admins`);
+      }
+    }
+  }
+
+  /**
+   * Notify all teachers
+   */
+  async notifyTeachers(type: string, title: string, message: string, metadata: any = {}) {
+    console.log(`[NotificationService] Notifying all teachers, type: ${type}`);
+    // 1. Fetch all teacher user IDs
+    let { data: teachers, error: fetchError } = await this.supabase.db
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'teacher');
+
+    if (fetchError) {
+      console.error('[NotificationService] Error fetching teachers to notify:', fetchError);
+      return;
+    }
+
+    // Fallback if empty
+    if (!teachers || teachers.length === 0) {
+      const { data: profiles, error: profileError } = await this.supabase.db
+        .from('profiles')
+        .select('id')
+        .or('email.eq.teacher@mail.com,email.eq.user1@mail.com');
+      
+      if (!profileError && profiles) {
+        teachers = profiles.map(p => ({ user_id: p.id }));
+      }
+    }
+
+    if (teachers && teachers.length > 0) {
+      const notifications = teachers.map(teacher => ({
+        user_id: teacher.user_id,
+        type,
+        title,
+        message,
+        metadata,
+        is_read: false // Explicit default
+      }));
+
+      const { error } = await this.supabase.db
+        .from('notifications')
+        .insert(notifications);
+      
+      if (error) {
+        console.error('[NotificationService] Error batch inserting teacher notifications:', error);
+      } else {
+        console.log(`[NotificationService] Successfully notified ${teachers.length} teachers`);
       }
     }
   }
@@ -203,6 +265,26 @@ export class NotificationService {
     if (error) {
       console.error('[NotificationService] Error auto-clearing review notifications:', error);
     } else {
+      this.loadNotifications();
+      this.loadAllNotificationsArchive();
+    }
+  }
+
+  /**
+   * Delete or retract active review notifications when a question is withdrawn or returned to draft
+   */
+  async retractReviewNotifications(questionId: string) {
+    console.log(`[NotificationService] Retracting active review notifications for question ${questionId}`);
+    const { error } = await this.supabase.db
+      .from('notifications')
+      .delete()
+      .in('type', ['submitted_for_review', 'submitted_for_teacher_review', 'review_assigned'])
+      .eq('metadata->>question_id', questionId);
+
+    if (error) {
+      console.error('[NotificationService] Error retracting notifications:', error);
+    } else {
+      console.log('[NotificationService] Active review notifications retracted successfully');
       this.loadNotifications();
       this.loadAllNotificationsArchive();
     }
