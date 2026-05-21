@@ -765,13 +765,16 @@ export class TeacherDashboardComponent implements OnInit {
   async deleteQuestion(id: string, name?: string) {
     if (!confirm(`Are you sure you want to delete "${name || 'this question'}"?`)) return;
 
-    const { error } = await this.supabaseService.db
+    const { data: uData, error } = await this.supabaseService.db
       .from('questions')
       .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', id)
+      .select();
 
     if (error) {
       this.showToast(error.message, 'error');
+    } else if (!uData || uData.length === 0) {
+      this.showToast('Delete failed. You may not have permission to delete this question.', 'error');
     } else {
       this.showToast('Question moved to trash', 'success');
       this.loadMyQuestions();
@@ -782,13 +785,16 @@ export class TeacherDashboardComponent implements OnInit {
   async restoreQuestion(id: string, name?: string) {
     if (!confirm(`Are you sure you want to restore "${name || 'this question'}"?`)) return;
 
-    const { error } = await this.supabaseService.db
+    const { data: uData, error } = await this.supabaseService.db
       .from('questions')
       .update({ deleted_at: null })
-      .eq('id', id);
+      .eq('id', id)
+      .select();
 
     if (error) {
       this.showToast(error.message, 'error');
+    } else if (!uData || uData.length === 0) {
+      this.showToast('Restore failed. You may not have permission to restore this question.', 'error');
     } else {
       this.showToast('Question restored successfully', 'success');
       this.loadMyQuestions();
@@ -814,13 +820,16 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   async withdrawFromReview(q: Question) {
-    const { error } = await this.supabaseService.db
+    const { data: uData, error } = await this.supabaseService.db
       .from('questions')
       .update({ status: 'draft' })
-      .eq('id', q.id);
+      .eq('id', q.id)
+      .select();
 
     if (error) {
       this.showToast(error.message, 'error');
+    } else if (!uData || uData.length === 0) {
+      this.showToast('Withdraw failed. You may not have permission to modify this question.', 'error');
     } else {
       q.status = 'draft';
       this.showToast('Withdrawn to draft', 'success');
@@ -840,13 +849,16 @@ export class TeacherDashboardComponent implements OnInit {
       return;
     }
 
-    const { error } = await this.supabaseService.db
+    const { data: uData, error } = await this.supabaseService.db
       .from('questions')
       .update({ name: newName.trim() })
-      .eq('id', q.id);
+      .eq('id', q.id)
+      .select();
 
     if (error) {
       this.showToast(error.message, 'error');
+    } else if (!uData || uData.length === 0) {
+      this.showToast('Name update failed. You may not have permission to modify this question.', 'error');
     } else {
       q.name = newName.trim();
       this.showToast('Name updated', 'success');
@@ -901,13 +913,22 @@ export class TeacherDashboardComponent implements OnInit {
         comments: [...(updatedMetadata.comments || []), newComment]
       };
     }
-    const { error } = await this.supabaseService.db
+    const { data: uData, error } = await this.supabaseService.db
       .from('questions')
       .update({ status, metadata: updatedMetadata })
-      .eq('id', q.id);
+      .eq('id', q.id)
+      .select();
 
     if (error) {
       this.showToast(error.message, 'error');
+      this.loadMyQuestions();
+      this.loadAssignedQuestions();
+      this.loadAssistantSubmissions();
+    } else if (!uData || uData.length === 0) {
+      this.showToast('Update failed. You may not have permission to modify this question.', 'error');
+      this.loadMyQuestions();
+      this.loadAssignedQuestions();
+      this.loadAssistantSubmissions();
     } else {
       q.status = status;
       q.metadata = updatedMetadata;
