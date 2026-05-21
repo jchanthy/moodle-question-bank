@@ -1,10 +1,22 @@
-import { Component, inject, signal, computed, OnInit, effect, untracked } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, inject, signal, computed, OnInit, effect, untracked, HostListener, ElementRef, ViewChild } from '@angular/core';
+import { CommonModule, NgIf, NgFor, DatePipe } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { SupabaseService } from '../services/supabase.service';
 import { ImportExportService, ParsedQuestion } from '../services/import-export.service';
 import { Router, RouterModule } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
+import { NotificationService } from '../services/notification.service';
+import { SelectModule } from 'primeng/select';
+import { TableModule } from 'primeng/table';
+import { DialogModule } from 'primeng/dialog';
+import { ToastModule } from 'primeng/toast';
+import { MessageService } from 'primeng/api';
+import { PaginatorModule } from 'primeng/paginator';
+import { DrawerModule } from 'primeng/drawer';
+import { ButtonModule } from 'primeng/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatButton } from '@angular/material/button';
+import { MatTooltip } from '@angular/material/tooltip';
 
 export interface Question {
   id: string;
@@ -64,23 +76,14 @@ export interface Category {
   depth: number;
 }
 
-import { Select } from 'primeng/select';
-import { TableModule } from 'primeng/table';
-import { Button } from 'primeng/button';
-import { Dialog } from 'primeng/dialog';
-import { Toast } from 'primeng/toast';
-import { MessageService } from 'primeng/api';
-import { Paginator } from 'primeng/paginator';
-import { Drawer } from 'primeng/drawer';
-
 @Component({
   selector: 'app-teacher-dashboard',
   standalone: true,
   imports: [
     CommonModule, RouterModule, FormsModule, ReactiveFormsModule,
-    Select, TableModule, Button, Dialog, 
-    Toast, Paginator,
-    Drawer
+    SelectModule, TableModule, DialogModule, 
+    ToastModule, PaginatorModule, DrawerModule, ButtonModule,
+    MatIcon
   ],
   providers: [MessageService],
   templateUrl: './teacher-dashboard.html',
@@ -91,6 +94,8 @@ export class TeacherDashboardComponent implements OnInit {
   importExportService = inject(ImportExportService);
   router = inject(Router);
   messageService = inject(MessageService);
+  notificationService = inject(NotificationService);
+  elementRef = inject(ElementRef);
   Math = Math;
 
   myQuestions = signal<Question[]>([]);
@@ -99,6 +104,42 @@ export class TeacherDashboardComponent implements OnInit {
   loading = signal(true);
   showComments = signal(false);
   selectedQuestion = signal<Question | null>(null);
+  @ViewChild('notificationContainer') notificationContainer?: ElementRef;
+  
+  showNotifications = signal(false);
+  showAllNotifications = signal(false);
+  allNotificationsFilter = signal<'all' | 'unread'>('all');
+  dropdownFilter = signal<'all' | 'unread'>('unread');
+
+  openAllNotifications() {
+    this.showNotifications.set(false);
+    this.notificationService.loadAllNotificationsArchive();
+    this.showAllNotifications.set(true);
+  }
+
+  async onNotificationClick(n: any) {
+    // 1. Mark notification as read
+    await this.notificationService.markAsRead(n.id);
+    
+    // 2. Close notification dropdown and archive panel
+    this.showNotifications.set(false);
+    this.showAllNotifications.set(false);
+    
+    // 3. Navigate directly to the related question edit/view page if it exists
+    if (n.metadata?.question_id) {
+      this.router.navigate(['/teacher/edit-question', n.metadata.question_id]);
+    }
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    if (this.notificationContainer) {
+      const clickedInside = this.notificationContainer.nativeElement.contains(event.target);
+      if (!clickedInside) {
+        this.showNotifications.set(false);
+      }
+    }
+  }
   newCommentText = '';
   currentView = signal<'my' | 'assigned' | 'archive'>('my');
   
@@ -391,10 +432,21 @@ export class TeacherDashboardComponent implements OnInit {
         untracked(() => this.loadCategories());
       }
     });
+
+    // Automatically redirect admin users to their correct workspace
+    effect(() => {
+      const role = this.supabaseService.currentUserRole();
+      if (role === 'admin') {
+        untracked(() => {
+          this.router.navigate(['/admin']);
+        });
+      }
+    });
   }
 
   ngOnInit() {
     // Initial load handled by effects
+    this.notificationService.loadNotifications();
   }
 
   onKeywordChange(value: string) {
@@ -727,6 +779,16 @@ export class TeacherDashboardComponent implements OnInit {
       q.status = status;
       this.showToast('Status updated', 'success');
 
+      // Notify admins when teacher submits for review
+      if (status === 'pending_review') {
+        this.notificationService.notifyAdmins(
+          'submitted_for_review',
+          'Question Submitted for Review',
+          `${this.supabaseService.currentUserName} submitted "${q.name}" for review.`,
+          { question_id: q.id, author_name: this.supabaseService.currentUserName }
+        );
+      }
+
       // If it's a final review status (approved/rejected), mark the assignment as completed
       if (user && (status === 'approved' || status === 'rejected')) {
         await this.supabaseService.db
@@ -735,6 +797,9 @@ export class TeacherDashboardComponent implements OnInit {
           .eq('question_id', q.id)
           .eq('assigned_to_id', user.id)
           .is('completed_at', null);
+        
+        // Automatically clear (mark read) the task notification for this teacher
+        this.notificationService.markReviewNotificationsAsRead(q.id, user.id);
         
         // Refresh to update 'Finished Review' badges and tab counts
         this.loadAssignedQuestions();

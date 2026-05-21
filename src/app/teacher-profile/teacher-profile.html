@@ -6,7 +6,7 @@
     <!-- Navigation Header -->
     <div class="flex justify-between items-center mb-10">
       <div class="flex items-center gap-4">
-        <button routerLink="/teacher" class="w-10 h-10 flex items-center justify-center bg-white border border-gray-100 text-gray-400 rounded-none hover:text-blue-600 hover:shadow-sm transition-all group">
+        <button [routerLink]="supabase.currentUserRole() === 'admin' ? '/admin' : '/teacher'" class="w-10 h-10 flex items-center justify-center bg-white border border-gray-100 text-gray-400 rounded-none hover:text-blue-600 hover:shadow-sm transition-all group">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform group-hover:-translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
@@ -17,11 +17,11 @@
         </div>
       </div>
       
-      <button (click)="signOut()" class="text-gray-400 hover:text-red-600 transition p-2" title="Sign Out">
+      <!-- <button (click)="signOut()" class="text-gray-400 hover:text-red-600 transition p-2" title="Sign Out">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M10 3H3v18h7M16 17l5-5-5-5M21 12H9" />
         </svg>
-      </button>
+      </button> -->
     </div>
 
     <div *ngIf="loading()" class="flex justify-center py-20">

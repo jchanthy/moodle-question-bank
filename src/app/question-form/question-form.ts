@@ -4,6 +4,7 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, Validators, FormArray } 
 import { SupabaseService } from '../services/supabase.service';
 import { ImportExportService } from '../services/import-export.service';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
+import { NotificationService } from '../services/notification.service';
 
 import { AutoComplete } from 'primeng/autocomplete';
 
@@ -20,6 +21,7 @@ export class QuestionFormComponent implements OnInit {
   private importExport = inject(ImportExportService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private notificationService = inject(NotificationService);
 
   loading = signal(false);
   uploading = signal(false);
@@ -1013,6 +1015,29 @@ export class QuestionFormComponent implements OnInit {
             .is('completed_at', null);
         } catch (e) {
           console.warn('Assignments sync failed:', e);
+        }
+      }
+
+      // 3b. Notify admins when a teacher submits a question for review
+      if (status === 'pending_review' && !this.isAdmin) {
+        try {
+          const creatorName = this.supabase.currentUserName || user.email || 'A teacher';
+          const title = forceNewVersion ? 'New Question Version' : 'Question Submitted for Review';
+          
+          let message = `${creatorName} submitted "${questionData.name}" for review.`;
+          if (forceNewVersion) {
+            const nextVersionVal = (formValue.version ? Number(formValue.version) + 1 : 2);
+            message = `${creatorName} created a new version (v${nextVersionVal}) of "${questionData.name}"`;
+          }
+
+          await this.notificationService.notifyAdmins(
+            'submitted_for_review',
+            title,
+            message,
+            { question_id: targetId, author_name: creatorName }
+          );
+        } catch (nErr) {
+          console.error('Failed to notify admins:', nErr);
         }
       }
 

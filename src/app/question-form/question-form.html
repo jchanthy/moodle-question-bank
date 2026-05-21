@@ -101,7 +101,7 @@
             <p class="text-[10px] text-indigo-100 font-medium">This content is currently in review or approved. Withdraw from dashboard to make changes.</p>
           </div>
         </div>
-        <button type="button" routerLink="/teacher" class="text-[10px] font-bold underline hover:text-indigo-200">Go to Dashboard</button>
+        <button type="button" [routerLink]="isAdmin ? '/admin' : '/teacher'" class="text-[10px] font-bold underline hover:text-indigo-200">Go to Dashboard</button>
       </div>
 
       <!-- Status Banner -->

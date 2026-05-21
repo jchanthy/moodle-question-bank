@@ -1,0 +1,57 @@
+@use '@angular/material' as mat;
+
+// Define the M3 theme using your brand color #3db5e6
+$theme: mat.define-theme((
+  color: (
+    theme-type: light,
+    primary: mat.$cyan-palette,
+    tertiary: mat.$blue-palette,
+  ),
+  typography: (
+    brand-family: 'Kantumruy Pro, Inter, sans-serif',
+    plain-family: 'Inter, sans-serif',
+  ),
+  density: (
+    scale: -1,
+  )
+));
+
+// Apply all Material component themes
+html {
+  @include mat.all-component-themes($theme);
+  
+  // Custom Overrides for Premium Aesthetic — brand color
+  --mat-sys-primary: #3db5e6;
+  --mat-sys-on-primary: #ffffff;
+  
+  // Force 0px border radius across ALL material components
+  --mat-app-background-color: #f8fafc;
+  --mat-sys-corner-small: 0px;
+  --mat-sys-corner-medium: 0px;
+  --mat-sys-corner-large: 0px;
+  --mat-sys-corner-extra-large: 0px;
+  --mat-sys-corner-full: 0px;
+  
+  // Custom Glassmorphism Utility
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+}
+
+// Custom Scrollbar for modern look
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

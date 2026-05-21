@@ -1,15 +1,19 @@
-import { Component, inject, signal, computed, OnInit, effect, untracked } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, inject, signal, computed, OnInit, effect, untracked, HostListener, ElementRef, ViewChild } from '@angular/core';
+import { CommonModule, NgIf, NgFor, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SupabaseService } from '../services/supabase.service';
 import { ImportExportService } from '../services/import-export.service';
 import { Router, RouterModule } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, firstValueFrom } from 'rxjs';
-import { AutoComplete } from 'primeng/autocomplete';
+import { NotificationService } from '../services/notification.service';
+import { AutoCompleteModule } from 'primeng/autocomplete';
+import { ToastModule } from 'primeng/toast';
+import { PaginatorModule } from 'primeng/paginator';
 import { MessageService } from 'primeng/api';
-import { Toast } from 'primeng/toast';
-import { Paginator } from 'primeng/paginator';
-import { Button } from 'primeng/button';
+import { ButtonModule } from 'primeng/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatButton } from '@angular/material/button';
+import { MatTooltip } from '@angular/material/tooltip';
 
 interface Question {
   id: string;
@@ -69,7 +73,11 @@ interface Category {
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, AutoComplete, Toast, Paginator, Button],
+  imports: [
+    CommonModule, RouterModule, FormsModule,
+    AutoCompleteModule, ToastModule, PaginatorModule, ButtonModule,
+    MatIcon
+  ],
   providers: [MessageService],
   templateUrl: './admin-dashboard.html',
   styleUrl: './admin-dashboard.css'
@@ -78,6 +86,45 @@ export class AdminDashboardComponent implements OnInit {
   supabaseService = inject(SupabaseService);
   router = inject(Router);
   messageService = inject(MessageService);
+  notificationService = inject(NotificationService);
+  elementRef = inject(ElementRef);
+  
+  @ViewChild('notificationContainer') notificationContainer?: ElementRef;
+  
+  showNotifications = signal(false);
+  showAllNotifications = signal(false);
+  allNotificationsFilter = signal<'all' | 'unread'>('all');
+  dropdownFilter = signal<'all' | 'unread'>('unread');
+
+  openAllNotifications() {
+    this.showNotifications.set(false);
+    this.notificationService.loadAllNotificationsArchive();
+    this.showAllNotifications.set(true);
+  }
+
+  async onNotificationClick(n: any) {
+    // 1. Mark notification as read
+    await this.notificationService.markAsRead(n.id);
+    
+    // 2. Close notification dropdown and archive panel
+    this.showNotifications.set(false);
+    this.showAllNotifications.set(false);
+    
+    // 3. Navigate directly to the related question edit/view page if it exists
+    if (n.metadata?.question_id) {
+      this.router.navigate(['/teacher/edit-question', n.metadata.question_id]);
+    }
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    if (this.notificationContainer) {
+      const clickedInside = this.notificationContainer.nativeElement.contains(event.target);
+      if (!clickedInside) {
+        this.showNotifications.set(false);
+      }
+    }
+  }
   importExportService = inject(ImportExportService);
   today = new Date();
 
@@ -100,12 +147,10 @@ export class AdminDashboardComponent implements OnInit {
   currentView = signal<'questions' | 'team' | 'report' | 'categories'>('questions');
   selectedTeacherId = signal<string | null>(null);
 
-  // Getter/Setter for Drawer visibility
-  get isDrawerVisible(): boolean {
-    return !!this.selectedTeacherId();
-  }
-  set isDrawerVisible(value: boolean) {
-    if (!value) this.selectedTeacherId.set(null);
+  // Computed signal for Drawer visibility
+  isDrawerVisible = computed(() => !!this.selectedTeacherId());
+  closeDrawer() {
+    this.selectedTeacherId.set(null);
   }
 
   // Filter state
@@ -385,18 +430,32 @@ export class AdminDashboardComponent implements OnInit {
       });
     });
 
-    // Effect for counts and metadata
+    // Effect for counts and metadata — runs once when role is confirmed
+    let initDone = false;
     effect(() => {
       const userRole = this.supabaseService.currentUserRole();
       if (userRole !== 'admin') return;
+      if (initDone) return;
+      initDone = true;
 
       untracked(() => {
         this.loadAllQuestionsData();
         this.loadQuestionTypeCounts();
         this.loadCategories();
         this.loadTeachers();
+        this.notificationService.loadNotifications();
         this.loadAssignments();
       });
+    });
+
+    // Automatically redirect teacher users to their correct workspace
+    effect(() => {
+      const role = this.supabaseService.currentUserRole();
+      if (role === 'teacher') {
+        untracked(() => {
+          this.router.navigate(['/teacher']);
+        });
+      }
     });
   }
 
@@ -551,9 +610,9 @@ export class AdminDashboardComponent implements OnInit {
     this.currentPage.set(1);
   }
 
-  get hasActiveFilters(): boolean {
+  hasActiveFilters = computed(() => {
     return !!(this.filterTeacher() || this.filterQtype() || this.filterCategory() || this.filterSearch());
-  }
+  });
 
   async loadCategories() {
     const { data, error } = await this.supabaseService.db
@@ -610,10 +669,12 @@ export class AdminDashboardComponent implements OnInit {
     // Augment with question metadata (authors who might not have profiles/roles)
     qMeta?.forEach(q => {
       const meta = (q.metadata as any) || {};
-      const uid = q.created_by;
+      // Use author_id from metadata (true author), fallback to created_by
+      const uid = meta.author_id || q.created_by;
       const existing = profileMap.get(uid);
-      const metaName = meta.author_name || meta.modified_by;
-      const metaEmail = meta.author_email || meta.modified_by_email;
+      // Only use author_name — never use modified_by (that's whoever last edited, not the author)
+      const metaName = meta.author_name;
+      const metaEmail = meta.author_email;
 
       if (metaName || metaEmail) {
         if (!existing) {
@@ -624,7 +685,8 @@ export class AdminDashboardComponent implements OnInit {
             isExplicitTeacher: false 
           });
         } else {
-          const isGeneric = !existing.name || existing.name.toLowerCase().includes('user') || existing.name.toLowerCase() === 'teacher';
+          // Only override if the existing name is generic (auto-generated placeholder)
+          const isGeneric = !existing.name || existing.name.startsWith('User (') || existing.name.startsWith('Teacher (');
           if (isGeneric || !existing.email) {
             profileMap.set(uid, {
               ...existing,
@@ -677,6 +739,25 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   async updateStatus(id: string, status: 'approved' | 'rejected') {
+    // Fetch the question to get details and current status
+    const { data: question } = await this.supabaseService.db
+      .from('questions')
+      .select('name, status, created_by, metadata')
+      .eq('id', id)
+      .single();
+
+    if (question && status === 'rejected') {
+      const isRevoking = question.status === 'approved';
+      const actionText = isRevoking ? 'revoke approval for' : 'reject';
+      const detailText = isRevoking 
+        ? 'This will move the question back to the Rejected tab and notify the author.' 
+        : 'This will reject the question and notify the author.';
+      
+      if (!confirm(`Are you sure you want to ${actionText} "${question.name}"?\n\n${detailText}`)) {
+        return;
+      }
+    }
+
     const { error } = await this.supabaseService.db
       .from('questions')
       .update({ status })
@@ -691,6 +772,23 @@ export class AdminDashboardComponent implements OnInit {
         })
         .eq('question_id', id)
         .is('completed_at', null);
+
+      // Automatically clear (mark read) task notifications for all assigned reviewers
+      this.notificationService.markReviewNotificationsAsRead(id);
+
+      // Notify the question author about the status change
+      if (question) {
+        const authorId = question.metadata?.author_id || question.created_by;
+        const adminName = this.supabaseService.currentUserName;
+        
+        this.notificationService.createNotification(
+          authorId,
+          status === 'approved' ? 'question_approved' : 'question_rejected',
+          `Question ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+          `${adminName} has ${status} your question "${question.name}".`,
+          { question_id: id, status, reviewed_by: adminName }
+        );
+      }
 
       this.loadQuestionsForActiveTab();
       this.loadAllQuestionsData();
@@ -767,6 +865,19 @@ export class AdminDashboardComponent implements OnInit {
         });
 
       if (insError) throw insError;
+
+      // Notify the teacher about the new assignment
+      this.notificationService.createNotification(
+        teacher.id,
+        'review_assigned',
+        'New Review Task Assigned',
+        `Admin ${adminName} has assigned you to review the question "${question.name}".`,
+        { 
+          question_id: question.id, 
+          assigned_by: adminName,
+          email_trigger: true // This can be used by Supabase Edge Functions to send an email
+        }
+      );
 
       const currentReviewers = question.metadata?.assigned_reviewers || [];
       if (!currentReviewers.find(r => r.id === teacher.id)) {
@@ -915,7 +1026,7 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   setPage(page: number) {
-    const total = this.totalPages;
+    const total = this.totalPages();
     if (page >= 1 && (total === 0 || page <= total)) {
       if (this.currentPage() !== page) {
         this.currentPage.set(page);
@@ -923,14 +1034,14 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
-  get totalPages() {
+  totalPages = computed(() => {
     const status = this.activeTab();
     const count = status === 'pending' ? this.totalCounts().pending :
                  status === 'approved' ? this.totalCounts().approved :
                  status === 'rejected' ? this.totalCounts().rejected :
                  this.totalCounts().draft;
     return Math.ceil(count / this.pageSize());
-  }
+  });
 
   async loadAssignments() {
     const { data, error } = await this.supabaseService.db
@@ -993,7 +1104,7 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
-  get flatCategories() {
+  flatCategories = computed(() => {
     const flat: any[] = [];
     const build = (parentId: string | null, depth: number) => {
       const children = this.categories().filter(c => c.parent_id === parentId);
@@ -1004,7 +1115,7 @@ export class AdminDashboardComponent implements OnInit {
     };
     build(null, 0);
     return flat;
-  }
+  });
 
   async exportReadyQuestions() {
     this.loading.set(true);
@@ -1022,8 +1133,47 @@ export class AdminDashboardComponent implements OnInit {
         return;
       }
 
-      // 2. Fetch answers for these questions
-      const qIds = questions.map(q => q.id);
+      // 2. Filter questions to match the active filters on the UI (latest versions first)
+      let filtered = questions as Question[];
+      
+      const familyMap = new Map<string, Question>();
+      filtered.forEach(q => {
+        const familyId = q.parent_id || q.id;
+        const existing = familyMap.get(familyId);
+        if (!existing || q.version > existing.version) {
+          familyMap.set(familyId, q);
+        }
+      });
+      filtered = Array.from(familyMap.values());
+
+      if (this.filterCategory()) {
+        filtered = filtered.filter(q => q.category_id === this.filterCategory());
+      }
+      
+      if (this.filterQtype()) {
+        filtered = filtered.filter(q => q.qtype === this.filterQtype());
+      }
+      
+      if (this.filterTeacher()) {
+        const teacher = this.filterTeacher().toLowerCase();
+        filtered = filtered.filter(q => q.metadata?.author_name?.toLowerCase().includes(teacher));
+      }
+      
+      const search = this.debouncedSearch()?.toLowerCase();
+      if (search) {
+        filtered = filtered.filter(q => 
+          q.name?.toLowerCase().includes(search) || 
+          q.question_text?.toLowerCase().includes(search)
+        );
+      }
+
+      if (filtered.length === 0) {
+        this.messageService.add({ severity: 'info', summary: 'No Matching Questions', detail: 'There are no ready questions matching your active filters to export.' });
+        return;
+      }
+
+      // 3. Fetch answers for only these filtered questions
+      const qIds = filtered.map(q => q.id);
       const { data: answers, error: aError } = await this.supabaseService.db
         .from('answers')
         .select('*')
@@ -1037,17 +1187,28 @@ export class AdminDashboardComponent implements OnInit {
         answersMap.get(a.question_id)!.push(a);
       });
 
-      // 3. Fetch categories for path building
+      // 4. Fetch categories for path building
       const { data: categories } = await this.supabaseService.db
         .from('question_categories')
         .select('*');
 
-      // 4. Generate and download XML
-      const xml = this.importExportService.exportMoodleXML(questions, answersMap, categories || []);
+      // 5. Generate and download XML
+      const xml = this.importExportService.exportMoodleXML(filtered, answersMap, categories || []);
       const timestamp = new Date().toISOString().split('T')[0];
-      this.importExportService.downloadFile(xml, `moodle-questions-ready-${timestamp}.xml`, 'application/xml');
       
-      this.messageService.add({ severity: 'success', summary: 'Export Success', detail: `Exported ${questions.length} questions.` });
+      let fileName = `moodle-questions-ready-${timestamp}.xml`;
+      if (this.filterCategory()) {
+        const catName = this.getCategoryName(this.filterCategory())
+          .toLowerCase()
+          .replace(/[^a-z0-9_-]/gi, '_');
+        if (catName) {
+          fileName = `moodle-questions-ready-${catName}-${timestamp}.xml`;
+        }
+      }
+
+      this.importExportService.downloadFile(xml, fileName, 'application/xml');
+      
+      this.messageService.add({ severity: 'success', summary: 'Export Success', detail: `Exported ${filtered.length} questions.` });
     } catch (err: any) {
       this.messageService.add({ severity: 'error', summary: 'Export Failed', detail: err.message });
     } finally {
