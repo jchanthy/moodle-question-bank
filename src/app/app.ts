@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { gitCommit } from '../environments/version';
 
 @Component({
   selector: 'app-root',
@@ -9,4 +10,5 @@ import { RouterOutlet } from '@angular/router';
 })
 export class App {
   protected readonly title = signal('moodle-question-bank');
+  protected readonly gitCommit = gitCommit;
 }
