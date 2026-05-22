@@ -327,7 +327,7 @@ export class TeacherDashboardComponent implements OnInit {
       const assistant = this.assistantSubmissions();
       result = result.filter(q => {
         const familyId = q.parent_id || q.id;
-        return assistant.some(aq => {
+        return q.status === 'pending_teacher_review' && assistant.some(aq => {
           const aqFamilyId = aq.parent_id || aq.id;
           return aq.id === q.id || aqFamilyId === familyId;
         });
@@ -913,108 +913,215 @@ export class TeacherDashboardComponent implements OnInit {
         comments: [...(updatedMetadata.comments || []), newComment]
       };
     }
-    const { data: uData, error } = await this.supabaseService.db
-      .from('questions')
-      .update({ status, metadata: updatedMetadata })
-      .eq('id', q.id)
-      .select();
 
-    if (error) {
-      this.showToast(error.message, 'error');
-      this.loadMyQuestions();
-      this.loadAssignedQuestions();
-      this.loadAssistantSubmissions();
-    } else if (!uData || uData.length === 0) {
-      this.showToast('Update failed. You may not have permission to modify this question.', 'error');
-      this.loadMyQuestions();
-      this.loadAssignedQuestions();
-      this.loadAssistantSubmissions();
-    } else {
-      q.status = status;
-      q.metadata = updatedMetadata;
-      const completedAt = (status === 'approved' || status === 'rejected') ? new Date().toISOString() : q.assignment_completed_at;
-      if (status === 'approved' || status === 'rejected') {
-        q.assignment_completed_at = completedAt;
+    let targetId = q.id;
+    let nextVersion = q.version;
+    let newQInserted = false;
+
+    // Check if we need to create a new version (Version Branching)
+    const isOwner = user && (q.created_by === user.id || q.metadata?.author_id === user.id);
+    const forceNewVersion = !isOwner;
+
+    if (forceNewVersion && user) {
+      const parentId = q.parent_id || q.id;
+      
+      // Find the maximum version in this family to ensure we always increment
+      const { data: latestRecords } = await this.supabaseService.db
+        .from('questions')
+        .select('version')
+        .or(`id.eq.${parentId},parent_id.eq.${parentId}`)
+        .order('version', { ascending: false })
+        .limit(1);
+
+      const maxVersion = latestRecords?.[0]?.version || q.version || 1;
+      nextVersion = maxVersion + 1;
+      
+      // Prepare metadata for new version
+      const currentMetadata = q.metadata || {};
+      const newMetadata = {
+        ...currentMetadata,
+        ...updatedMetadata,
+        author_id: currentMetadata.author_id || q.created_by,
+        author_name: currentMetadata.author_name || (q as any).author_name || '',
+        author_email: currentMetadata.author_email || (q as any).author_email || '',
+        modified_by: this.supabaseService.currentUserName,
+        modified_by_email: user.email,
+        modified_at: new Date().toISOString()
+      };
+
+      // Insert new version
+      const { data: newQ, error: nError } = await this.supabaseService.db
+        .from('questions')
+        .insert({
+          name: q.name,
+          question_text: q.question_text,
+          general_feedback: q.general_feedback || null,
+          qtype: q.qtype,
+          version: nextVersion,
+          status: status,
+          parent_id: parentId,
+          created_by: user.id,
+          category_id: q.category_id || null,
+          penalty: q.penalty !== undefined ? q.penalty : null,
+          default_grade: q.default_grade !== undefined ? q.default_grade : 1,
+          metadata: newMetadata
+        })
+        .select()
+        .single();
+
+      if (nError) {
+        this.showToast(nError.message, 'error');
+        this.loadMyQuestions();
+        this.loadAssignedQuestions();
+        this.loadAssistantSubmissions();
+        return;
       }
-      this.showToast('Status updated', 'success');
 
-      // Update all source signals synchronously to guarantee instant UI updates & Angular Signal reactivity
-      this.allQuestions.update(list => 
-        list.map(item => item.id === q.id ? { ...item, status, metadata: updatedMetadata, assignment_completed_at: completedAt } : item)
-      );
-      this.myQuestions.update(list => 
-        list.map(item => item.id === q.id ? { ...item, status, metadata: updatedMetadata, assignment_completed_at: completedAt } : item)
-      );
-      this.assignedQuestions.update(list => 
-        list.map(item => item.id === q.id ? { ...item, status, metadata: updatedMetadata, assignment_completed_at: completedAt } : item)
-      );
-      this.assistantSubmissions.update(list => 
-        list.filter(item => item.id !== q.id || status === 'pending_teacher_review')
-      );
+      targetId = newQ.id;
+      newQInserted = true;
+      updatedMetadata = newMetadata;
 
-      // If updated back to draft or rejected, retract active review notifications
-      if (status === 'draft' || status === 'rejected') {
-        await this.notificationService.retractReviewNotifications(q.id);
-      }
+      // Copy answers of the old question to the new question
+      const { data: answersData } = await this.supabaseService.db
+        .from('answers')
+        .select('*')
+        .eq('question_id', q.id);
 
-      // Notify teachers when assistant teacher submits for teacher review
-      if (status === 'pending_teacher_review') {
-        this.notificationService.notifyTeachers(
-          'submitted_for_teacher_review',
-          'Question Submitted for Teacher Review',
-          `${this.supabaseService.currentUserName} submitted "${q.name}" for teacher review.`,
-          { question_id: q.id, author_name: this.supabaseService.currentUserName }
-        );
-      }
-
-      // Notify admins when teacher submits for review
-      if (status === 'pending_review') {
-        this.notificationService.notifyAdmins(
-          'submitted_for_review',
-          'Question Submitted for Review',
-          `${this.supabaseService.currentUserName} submitted "${q.name}" for review.`,
-          { question_id: q.id, author_name: this.supabaseService.currentUserName }
-        );
-
-        if (originalStatus === 'pending_teacher_review' && q.metadata?.author_id) {
-          this.notificationService.createNotification(
-            q.metadata.author_id,
-            'teacher_approved',
-            'Question Approved by Teacher',
-            `Your question "${q.name}" was approved and submitted to admins by ${this.supabaseService.currentUserName}.`,
-            { question_id: q.id }
-          );
+      if (answersData && answersData.length > 0) {
+        const answersToInsert = answersData.map(ans => ({
+          question_id: targetId,
+          answer_text: ans.answer_text,
+          fraction: ans.fraction,
+          feedback: ans.feedback,
+          x: ans.x,
+          y: ans.y
+        }));
+        const { error: ansError } = await this.supabaseService.db
+          .from('answers')
+          .insert(answersToInsert);
+        if (ansError) {
+          console.error('Error copying answers for new version:', ansError.message);
         }
       }
+    } else {
+      // Regular in-place update for owner
+      const { data: uData, error } = await this.supabaseService.db
+        .from('questions')
+        .update({ status, metadata: updatedMetadata })
+        .eq('id', q.id)
+        .select();
 
-      // Notify assistant if teacher rejected & returned to draft
-      if (status === 'draft' && originalStatus === 'pending_teacher_review' && q.metadata?.author_id) {
+      if (error) {
+        this.showToast(error.message, 'error');
+        this.loadMyQuestions();
+        this.loadAssignedQuestions();
+        this.loadAssistantSubmissions();
+        return;
+      } else if (!uData || uData.length === 0) {
+        this.showToast('Update failed. You may not have permission to modify this question.', 'error');
+        this.loadMyQuestions();
+        this.loadAssignedQuestions();
+        this.loadAssistantSubmissions();
+        return;
+      }
+    }
+
+    // Common logic for UI and signal updates
+    const completedAt = (status === 'approved' || status === 'rejected') ? new Date().toISOString() : q.assignment_completed_at;
+    
+    // Create the updated representation object for reactive signals
+    const updatedQuestionObj: Question = {
+      ...q,
+      id: targetId,
+      version: nextVersion,
+      status: status,
+      metadata: updatedMetadata,
+      assignment_completed_at: completedAt,
+      created_by: user ? user.id : q.created_by
+    };
+
+    if (status === 'approved' || status === 'rejected') {
+      updatedQuestionObj.assignment_completed_at = completedAt;
+    }
+
+    this.showToast('Status updated', 'success');
+
+    // Update all source signals synchronously to guarantee instant UI updates & Angular Signal reactivity
+    this.allQuestions.update(list => 
+      list.map(item => item.id === q.id ? updatedQuestionObj : item)
+    );
+    this.myQuestions.update(list => 
+      list.map(item => item.id === q.id ? updatedQuestionObj : item)
+    );
+    this.assignedQuestions.update(list => 
+      list.map(item => item.id === q.id ? updatedQuestionObj : item)
+    );
+    this.assistantSubmissions.update(list => 
+      list.filter(item => item.id !== q.id || status === 'pending_teacher_review')
+    );
+
+    // If updated back to draft or rejected, retract active review notifications
+    if (status === 'draft' || status === 'rejected') {
+      await this.notificationService.retractReviewNotifications(q.id);
+    }
+
+    // Notify teachers when assistant teacher submits for teacher review
+    if (status === 'pending_teacher_review') {
+      this.notificationService.notifyTeachers(
+        'submitted_for_teacher_review',
+        'Question Submitted for Teacher Review',
+        `${this.supabaseService.currentUserName} submitted "${q.name}" for teacher review.`,
+        { question_id: targetId, author_name: this.supabaseService.currentUserName }
+      );
+    }
+
+    // Notify admins when teacher submits for review
+    if (status === 'pending_review') {
+      this.notificationService.notifyAdmins(
+        'submitted_for_review',
+        'Question Submitted for Review',
+        `${this.supabaseService.currentUserName} submitted "${q.name}" for review.`,
+        { question_id: targetId, author_name: this.supabaseService.currentUserName }
+      );
+
+      if (originalStatus === 'pending_teacher_review' && q.metadata?.author_id) {
         this.notificationService.createNotification(
           q.metadata.author_id,
-          'teacher_rejected',
-          'Question Returned to Draft',
-          `Your question "${q.name}" was returned to draft by ${this.supabaseService.currentUserName}: ${commentText || 'Returned to draft.'}`,
-          { question_id: q.id }
+          'teacher_approved',
+          'Question Approved by Teacher',
+          `Your question "${q.name}" was approved and submitted to admins by ${this.supabaseService.currentUserName}.`,
+          { question_id: targetId }
         );
       }
-
-      // If it's a final review status (approved/rejected), mark the assignment as completed
-      if (user && (status === 'approved' || status === 'rejected')) {
-        await this.supabaseService.db
-          .from('assignments')
-          .update({ completed_at: new Date().toISOString() })
-          .eq('question_id', q.id)
-          .eq('assigned_to_id', user.id)
-          .is('completed_at', null);
-        
-        // Automatically clear (mark read) the task notification for this teacher
-        this.notificationService.markReviewNotificationsAsRead(q.id, user.id);
-      }
-      
-      this.loadMyQuestions();
-      this.loadAssignedQuestions();
-      this.loadAssistantSubmissions();
     }
+
+    // Notify assistant if teacher rejected & returned to draft
+    if (status === 'draft' && originalStatus === 'pending_teacher_review' && q.metadata?.author_id) {
+      this.notificationService.createNotification(
+        q.metadata.author_id,
+        'teacher_rejected',
+        'Question Returned to Draft',
+        `Your question "${q.name}" was returned to draft by ${this.supabaseService.currentUserName}: ${commentText || 'Returned to draft.'}`,
+        { question_id: targetId }
+      );
+    }
+
+    // If it's a final review status (approved/rejected), mark the assignment as completed
+    if (user && (status === 'approved' || status === 'rejected')) {
+      await this.supabaseService.db
+        .from('assignments')
+        .update({ completed_at: new Date().toISOString() })
+        .eq('question_id', q.id)
+        .eq('assigned_to_id', user.id)
+        .is('completed_at', null);
+      
+      // Automatically clear (mark read) the task notification for this teacher
+      this.notificationService.markReviewNotificationsAsRead(q.id, user.id);
+    }
+    
+    this.loadMyQuestions();
+    this.loadAssignedQuestions();
+    this.loadAssistantSubmissions();
   }
 
   async switchVersion(q: Question, versionId: string) {
@@ -1036,28 +1143,162 @@ export class TeacherDashboardComponent implements OnInit {
     const q = qParam || this.selectedQuestion();
     if (!q || !this.newCommentText.trim()) return;
 
+    const user = this.supabaseService.currentUser();
+    if (!user) return;
+
     const newComment = {
       user: this.supabaseService.currentUserName,
       text: this.newCommentText,
       date: new Date().toISOString()
     };
 
-    const metadata = {
-      ...(q.metadata || {}),
-      comments: [...(q.metadata?.comments || []), newComment]
-    };
+    const isOwner = q.created_by === user.id;
 
-    const { error } = await this.supabaseService.db
-      .from('questions')
-      .update({ metadata })
-      .eq('id', q.id);
+    if (isOwner) {
+      const metadata = {
+        ...(q.metadata || {}),
+        comments: [...(q.metadata?.comments || []), newComment]
+      };
 
-    if (!error) {
-      this.newCommentText = '';
-      if (this.selectedQuestion()?.id === q.id) {
-        this.selectedQuestion.set({ ...q, metadata });
+      const { error } = await this.supabaseService.db
+        .from('questions')
+        .update({ metadata })
+        .eq('id', q.id);
+
+      if (error) {
+        this.showToast(error.message, 'error');
+        return;
       }
+
+      this.newCommentText = '';
+      const updatedQuestionObj = { ...q, metadata };
+      if (this.selectedQuestion()?.id === q.id) {
+        this.selectedQuestion.set(updatedQuestionObj);
+      }
+
+      this.allQuestions.update(list => 
+        list.map(item => item.id === q.id ? updatedQuestionObj : item)
+      );
+      this.myQuestions.update(list => 
+        list.map(item => item.id === q.id ? updatedQuestionObj : item)
+      );
+      this.assignedQuestions.update(list => 
+        list.map(item => item.id === q.id ? updatedQuestionObj : item)
+      );
+      this.assistantSubmissions.update(list => 
+        list.map(item => item.id === q.id ? updatedQuestionObj : item)
+      );
+
       this.loadMyQuestions();
+      this.loadAssignedQuestions();
+      this.loadAssistantSubmissions();
+    } else {
+      const parentId = q.parent_id || q.id;
+
+      // Find the maximum version in this family to ensure we always increment
+      const { data: latestRecords } = await this.supabaseService.db
+        .from('questions')
+        .select('version')
+        .or(`id.eq.${parentId},parent_id.eq.${parentId}`)
+        .order('version', { ascending: false })
+        .limit(1);
+
+      const maxVersion = latestRecords?.[0]?.version || q.version || 1;
+      const nextVersion = maxVersion + 1;
+
+      // Prepare metadata for new version
+      const currentMetadata = q.metadata || {};
+      const newMetadata = {
+        ...currentMetadata,
+        comments: [...(q.metadata?.comments || []), newComment],
+        author_id: currentMetadata.author_id || q.created_by,
+        author_name: currentMetadata.author_name || (q as any).author_name || '',
+        author_email: currentMetadata.author_email || (q as any).author_email || '',
+        modified_by: this.supabaseService.currentUserName,
+        modified_by_email: user.email,
+        modified_at: new Date().toISOString()
+      };
+
+      // Insert new version
+      const { data: newQ, error: nError } = await this.supabaseService.db
+        .from('questions')
+        .insert({
+          name: q.name,
+          question_text: q.question_text,
+          general_feedback: q.general_feedback || null,
+          qtype: q.qtype,
+          version: nextVersion,
+          status: q.status, // preserve original status
+          parent_id: parentId,
+          created_by: user.id,
+          category_id: q.category_id || null,
+          penalty: q.penalty !== undefined ? q.penalty : null,
+          default_grade: q.default_grade !== undefined ? q.default_grade : 1,
+          metadata: newMetadata
+        })
+        .select()
+        .single();
+
+      if (nError) {
+        this.showToast(nError.message, 'error');
+        return;
+      }
+
+      const targetId = newQ.id;
+
+      // Copy answers of the old question to the new question
+      const { data: answersData } = await this.supabaseService.db
+        .from('answers')
+        .select('*')
+        .eq('question_id', q.id);
+
+      if (answersData && answersData.length > 0) {
+        const answersToInsert = answersData.map(ans => ({
+          question_id: targetId,
+          answer_text: ans.answer_text,
+          fraction: ans.fraction,
+          feedback: ans.feedback,
+          x: ans.x,
+          y: ans.y
+        }));
+        const { error: ansError } = await this.supabaseService.db
+          .from('answers')
+          .insert(answersToInsert);
+        if (ansError) {
+          console.error('Error copying answers for new version:', ansError.message);
+        }
+      }
+
+      this.newCommentText = '';
+
+      const updatedQuestionObj: Question = {
+        ...q,
+        id: targetId,
+        version: nextVersion,
+        metadata: newMetadata,
+        created_by: user.id
+      };
+
+      if (this.selectedQuestion()?.id === q.id) {
+        this.selectedQuestion.set(updatedQuestionObj);
+      }
+
+      this.allQuestions.update(list => 
+        list.map(item => item.id === q.id ? updatedQuestionObj : item)
+      );
+      this.myQuestions.update(list => 
+        list.map(item => item.id === q.id ? updatedQuestionObj : item)
+      );
+      this.assignedQuestions.update(list => 
+        list.map(item => item.id === q.id ? updatedQuestionObj : item)
+      );
+      this.assistantSubmissions.update(list => 
+        list.map(item => item.id === q.id ? updatedQuestionObj : item)
+      );
+
+      this.loadMyQuestions();
+      this.loadAssignedQuestions();
+      this.loadAssistantSubmissions();
     }
   }
 

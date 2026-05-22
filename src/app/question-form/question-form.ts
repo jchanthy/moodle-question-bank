@@ -904,6 +904,7 @@ export class QuestionFormComponent implements OnInit {
 
       let currentMetadata: any = {};
       let originalCreator = user.id;
+      let dbCreator = user.id;
 
       if (this.editMode()) {
         const { data: qRecord } = await this.supabase.db
@@ -912,8 +913,9 @@ export class QuestionFormComponent implements OnInit {
           .eq('id', questionId!)
           .single();
         currentMetadata = qRecord?.metadata || {};
+        dbCreator = qRecord?.created_by || user.id;
         // Prioritize author_id from metadata, then fallback to database created_by
-        originalCreator = currentMetadata.author_id || qRecord?.created_by || user.id;
+        originalCreator = currentMetadata.author_id || dbCreator || user.id;
 
         // EMERGENCY RECOVERY: If current creator is an admin but metadata has a teacher's email, 
         // try to recover the original teacher's ID from the profiles table.
@@ -964,7 +966,7 @@ export class QuestionFormComponent implements OnInit {
       const forceNewVersion = !forceInPlace && this.editMode() && (
         currentStatus === 'approved' || 
         currentStatus === 'rejected' ||
-        (!this.isAdmin && originalCreator !== user.id)
+        (!this.isAdmin && (originalCreator !== user.id || dbCreator !== user.id))
       );
 
       if (forceNewVersion) {

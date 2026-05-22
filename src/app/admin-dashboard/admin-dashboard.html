@@ -73,14 +73,22 @@
                   [class.bg-blue-600]="dropdownFilter() === 'unread'"
                   [class.text-white]="dropdownFilter() === 'unread'"
                   [class.border-blue-600]="dropdownFilter() === 'unread'"
-                  class="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border border-gray-200 transition bg-white text-gray-500 hover:bg-gray-100">
+                  [class.bg-white]="dropdownFilter() !== 'unread'"
+                  [class.text-gray-500]="dropdownFilter() !== 'unread'"
+                  [class.border-gray-200]="dropdownFilter() !== 'unread'"
+                  [class.hover:bg-gray-100]="dropdownFilter() !== 'unread'"
+                  class="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border transition">
                   Unread ({{ notificationService.unreadCount() }})
                 </button>
                 <button (click)="dropdownFilter.set('all')"
                   [class.bg-blue-600]="dropdownFilter() === 'all'"
                   [class.text-white]="dropdownFilter() === 'all'"
                   [class.border-blue-600]="dropdownFilter() === 'all'"
-                  class="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border border-gray-200 transition bg-white text-gray-500 hover:bg-gray-100">
+                  [class.bg-white]="dropdownFilter() !== 'all'"
+                  [class.text-gray-500]="dropdownFilter() !== 'all'"
+                  [class.border-gray-200]="dropdownFilter() !== 'all'"
+                  [class.hover:bg-gray-100]="dropdownFilter() !== 'all'"
+                  class="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border transition">
                   All
                 </button>
               </div>
@@ -1295,13 +1303,19 @@
           <button (click)="allNotificationsFilter.set('all')"
             [class.bg-blue-600]="allNotificationsFilter() === 'all'"
             [class.text-white]="allNotificationsFilter() === 'all'"
-            class="px-4 py-1.5 text-xs font-black transition rounded-none bg-gray-50 text-gray-500 hover:bg-gray-100">
+            [class.bg-gray-50]="allNotificationsFilter() !== 'all'"
+            [class.text-gray-500]="allNotificationsFilter() !== 'all'"
+            [class.hover:bg-gray-100]="allNotificationsFilter() !== 'all'"
+            class="px-4 py-1.5 text-xs font-black transition rounded-none">
             All ({{ notificationService.allNotificationsArchive().length }})
           </button>
           <button (click)="allNotificationsFilter.set('unread')"
             [class.bg-blue-600]="allNotificationsFilter() === 'unread'"
             [class.text-white]="allNotificationsFilter() === 'unread'"
-            class="px-4 py-1.5 text-xs font-black transition rounded-none bg-gray-50 text-gray-500 hover:bg-gray-100">
+            [class.bg-gray-50]="allNotificationsFilter() !== 'unread'"
+            [class.text-gray-500]="allNotificationsFilter() !== 'unread'"
+            [class.hover:bg-gray-100]="allNotificationsFilter() !== 'unread'"
+            class="px-4 py-1.5 text-xs font-black transition rounded-none">
             Unread ({{ notificationService.unreadCount() }})
           </button>
         </div>

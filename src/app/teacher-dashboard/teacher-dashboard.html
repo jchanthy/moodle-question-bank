@@ -72,14 +72,22 @@
                   [class.bg-blue-600]="dropdownFilter() === 'unread'"
                   [class.text-white]="dropdownFilter() === 'unread'"
                   [class.border-blue-600]="dropdownFilter() === 'unread'"
-                  class="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border border-gray-200 transition bg-white text-gray-500 hover:bg-gray-100">
+                  [class.bg-white]="dropdownFilter() !== 'unread'"
+                  [class.text-gray-500]="dropdownFilter() !== 'unread'"
+                  [class.border-gray-200]="dropdownFilter() !== 'unread'"
+                  [class.hover:bg-gray-100]="dropdownFilter() !== 'unread'"
+                  class="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border transition">
                   Unread ({{ notificationService.unreadCount() }})
                 </button>
                 <button (click)="dropdownFilter.set('all')"
                   [class.bg-blue-600]="dropdownFilter() === 'all'"
                   [class.text-white]="dropdownFilter() === 'all'"
                   [class.border-blue-600]="dropdownFilter() === 'all'"
-                  class="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border border-gray-200 transition bg-white text-gray-500 hover:bg-gray-100">
+                  [class.bg-white]="dropdownFilter() !== 'all'"
+                  [class.text-gray-500]="dropdownFilter() !== 'all'"
+                  [class.border-gray-200]="dropdownFilter() !== 'all'"
+                  [class.hover:bg-gray-100]="dropdownFilter() !== 'all'"
+                  class="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border transition">
                   All
                 </button>
               </div>
@@ -1111,12 +1119,12 @@
           placeholder="Write a comment..." 
           class="w-full bg-white border border-gray-200 rounded-none p-4 pr-16 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all min-h-[100px] resize-none"
         ></textarea>
-        <p-button 
-          icon="pi pi-send" 
+        <button 
           [disabled]="!newCommentText.trim()"
-          (onClick)="addComment()"
-          styleClass="absolute bottom-4 right-4">
-        </p-button>
+          (click)="addComment()"
+          class="absolute bottom-4 right-4 w-9 h-9 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-100 disabled:text-gray-400 text-white rounded-none transition-all duration-200 flex items-center justify-center shadow-sm hover:shadow-md active:scale-95">
+          <i class="pi pi-send text-xs"></i>
+        </button>
       </div>
     </div>
   </div>
@@ -1197,13 +1205,19 @@
         <button (click)="allNotificationsFilter.set('all')"
           [class.bg-blue-600]="allNotificationsFilter() === 'all'"
           [class.text-white]="allNotificationsFilter() === 'all'"
-          class="px-4 py-1.5 text-xs font-black transition rounded-none bg-gray-50 text-gray-500 hover:bg-gray-100">
+          [class.bg-gray-50]="allNotificationsFilter() !== 'all'"
+          [class.text-gray-500]="allNotificationsFilter() !== 'all'"
+          [class.hover:bg-gray-100]="allNotificationsFilter() !== 'all'"
+          class="px-4 py-1.5 text-xs font-black transition rounded-none">
           All ({{ notificationService.allNotificationsArchive().length }})
         </button>
         <button (click)="allNotificationsFilter.set('unread')"
           [class.bg-blue-600]="allNotificationsFilter() === 'unread'"
           [class.text-white]="allNotificationsFilter() === 'unread'"
-          class="px-4 py-1.5 text-xs font-black transition rounded-none bg-gray-50 text-gray-500 hover:bg-gray-100">
+          [class.bg-gray-50]="allNotificationsFilter() !== 'unread'"
+          [class.text-gray-500]="allNotificationsFilter() !== 'unread'"
+          [class.hover:bg-gray-100]="allNotificationsFilter() !== 'unread'"
+          class="px-4 py-1.5 text-xs font-black transition rounded-none">
           Unread ({{ notificationService.unreadCount() }})
         </button>
       </div>
