@@ -1170,7 +1170,8 @@ export class QuestionFormComponent implements OnInit {
       review_status: 'approved'
     };
 
-    const success = await this.saveQuestion('approved', false, extraMetadata, true);
+    const isOwner = this.supabase.currentUser()?.id === this.questionAuthorId();
+    const success = await this.saveQuestion('approved', false, extraMetadata, isOwner);
     if (success) {
       this.showToast('Question approved successfully!');
     }
@@ -1196,7 +1197,8 @@ export class QuestionFormComponent implements OnInit {
       comments: [...currentComments, newComment]
     };
 
-    const success = await this.saveQuestion('rejected', false, extraMetadata, true);
+    const isOwner = this.supabase.currentUser()?.id === this.questionAuthorId();
+    const success = await this.saveQuestion('rejected', false, extraMetadata, isOwner);
     if (success) {
       this.showToast('Question rejected with feedback.');
       // Retract active review notifications
@@ -1213,8 +1215,9 @@ export class QuestionFormComponent implements OnInit {
       review_status: 'approved_by_teacher'
     };
 
+    const isOwner = this.supabase.currentUser()?.id === this.questionAuthorId();
     // Save as 'pending_review' which represents submitting to admin review
-    const success = await this.saveQuestion('pending_review', false, extraMetadata, true);
+    const success = await this.saveQuestion('pending_review', false, extraMetadata, isOwner);
     if (success) {
       this.showToast('Question approved and submitted to Admin!');
       
@@ -1256,8 +1259,9 @@ export class QuestionFormComponent implements OnInit {
       comments: [...currentComments, newComment]
     };
 
+    const isOwner = this.supabase.currentUser()?.id === this.questionAuthorId();
     // Save as 'draft'
-    const success = await this.saveQuestion('draft', false, extraMetadata, true);
+    const success = await this.saveQuestion('draft', false, extraMetadata, isOwner);
     if (success) {
       this.showToast('Question returned to draft with feedback.');
       

@@ -677,7 +677,28 @@ export class TeacherDashboardComponent implements OnInit {
       const { data, error } = await query;
 
       if (!error && data) {
-        untracked(() => this.assistantSubmissions.set(data as Question[]));
+        let filteredQuestions = data as Question[];
+        
+        if (data.length > 0) {
+          const questionIds = data.map(q => q.id);
+          const parentIds = data.map(q => q.parent_id).filter(Boolean);
+          const allFamilyIds = [...new Set([...questionIds, ...parentIds])];
+
+          // Fetch any newer versions of these questions in the database
+          const { data: newerVersions } = await this.supabaseService.db
+            .from('questions')
+            .select('parent_id, version')
+            .in('parent_id', allFamilyIds);
+
+          filteredQuestions = (data as Question[]).filter(q => {
+            const familyId = q.parent_id || q.id;
+            // Filter out if there is a version in newerVersions with parent_id = familyId and version > q.version
+            const hasNewer = newerVersions?.some(nv => nv.parent_id === familyId && nv.version > q.version);
+            return !hasNewer;
+          });
+        }
+
+        untracked(() => this.assistantSubmissions.set(filteredQuestions));
       }
     } catch (err) {
       console.error('Error loading assistant submissions:', err);
@@ -695,9 +716,9 @@ export class TeacherDashboardComponent implements OnInit {
       .is('questions.deleted_at', null)
       .order('sort_order', { ascending: true });
 
-    // Best Practice: Teachers only see their own categories to reduce clutter.
-    // Admins see all categories for management purposes.
-    if (role !== 'admin') {
+    // Best Practice: Assistant teachers only see their own or global categories to reduce clutter.
+    // Teachers and admins see all categories to fully collaborate on peer reviews and submissions.
+    if (role === 'assistant_teacher') {
       query = query.or(`created_by.eq.${user.id},is_global.eq.true`);
     }
 
