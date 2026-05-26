@@ -53,14 +53,7 @@ export class TeacherProfileComponent implements OnInit {
 
   isAdjusting = signal(false);
 
-  specializationOptions = [
-    { label: 'General Pedagogy', value: 'pedagogy' },
-    { label: 'STEM', value: 'stem' },
-    { label: 'Social Sciences', value: 'social' },
-    { label: 'Languages', value: 'languages' },
-    { label: 'IT & Digital Literacy', value: 'it' },
-    { label: 'Assessment Design', value: 'assessment' }
-  ];
+  specializationOptions: { label: string; value: string }[] = [];
 
   constructor(
     public supabase: SupabaseService,
@@ -69,7 +62,28 @@ export class TeacherProfileComponent implements OnInit {
   ) {}
 
   async ngOnInit() {
+    await this.loadRootCategories();
     await this.loadProfile();
+  }
+
+  async loadRootCategories() {
+    try {
+      const { data, error } = await this.supabase.db
+        .from('question_categories')
+        .select('id, name')
+        .is('parent_id', null)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      if (data) {
+        this.specializationOptions = data.map(c => ({
+          label: c.name,
+          value: c.id
+        }));
+      }
+    } catch (error: any) {
+      console.error('Error loading subjects/categories:', error.message);
+    }
   }
 
   async loadProfile() {

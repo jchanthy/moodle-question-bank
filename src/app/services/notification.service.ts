@@ -98,20 +98,78 @@ export class NotificationService {
    * Notify all teachers
    */
   async notifyTeachers(type: string, title: string, message: string, metadata: any = {}) {
-    console.log(`[NotificationService] Notifying all teachers, type: ${type}`);
-    // 1. Fetch all teacher user IDs
-    let { data: teachers, error: fetchError } = await this.supabase.db
-      .from('user_roles')
-      .select('user_id')
-      .eq('role', 'teacher');
+    console.log(`[NotificationService] Notifying teachers, type: ${type}`);
+    let teachers: { user_id: string }[] = [];
 
-    if (fetchError) {
-      console.error('[NotificationService] Error fetching teachers to notify:', fetchError);
-      return;
+    try {
+      // If notifying for teacher review, filter teachers by subject/category specialization
+      if (type === 'submitted_for_teacher_review' && metadata?.question_id) {
+        // 1. Fetch the question's category_id
+        const { data: q } = await this.supabase.db
+          .from('questions')
+          .select('category_id')
+          .eq('id', metadata.question_id)
+          .maybeSingle();
+
+        if (q && q.category_id) {
+          // 2. Climb up to find root category ID
+          let currentCatId = q.category_id;
+          let rootCatId = currentCatId;
+          
+          while (currentCatId) {
+            const { data: cat } = await this.supabase.db
+              .from('question_categories')
+              .select('id, parent_id')
+              .eq('id', currentCatId)
+              .maybeSingle();
+            
+            if (cat) {
+              rootCatId = cat.id;
+              currentCatId = cat.parent_id;
+            } else {
+              break;
+            }
+          }
+
+          // 3. Find teachers whose specialization contains rootCatId
+          const { data: specTeachers } = await this.supabase.db
+            .from('profiles')
+            .select('id')
+            .contains('specialization', [rootCatId]);
+
+          if (specTeachers && specTeachers.length > 0) {
+            const teacherIds = specTeachers.map(t => t.id);
+            // Filter user_roles by role='teacher' and user_id in teacherIds
+            const { data: filteredRoles } = await this.supabase.db
+              .from('user_roles')
+              .select('user_id')
+              .eq('role', 'teacher')
+              .in('user_id', teacherIds);
+
+            if (filteredRoles && filteredRoles.length > 0) {
+              teachers = filteredRoles.map(t => ({ user_id: t.user_id }));
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[NotificationService] Error filtering teachers by subject:', err);
     }
 
-    // Fallback if empty
-    if (!teachers || teachers.length === 0) {
+    // Fallback: If no specialized teachers found or not a teacher review submission, notify all teachers
+    if (teachers.length === 0) {
+      const { data: allTeachers, error: fetchError } = await this.supabase.db
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'teacher');
+
+      if (!fetchError && allTeachers && allTeachers.length > 0) {
+        teachers = allTeachers.map(t => ({ user_id: t.user_id }));
+      }
+    }
+
+    // Fallback if still empty
+    if (teachers.length === 0) {
       const { data: profiles, error: profileError } = await this.supabase.db
         .from('profiles')
         .select('id')

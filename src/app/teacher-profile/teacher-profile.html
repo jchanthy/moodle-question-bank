@@ -179,18 +179,21 @@
             </div>
           </section>
 
-          <!-- Expertise -->
+          <!-- Expertise / Teaching Subjects -->
           <section>
             <h3 class="text-sm font-black text-blue-600 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
               <span class="w-8 h-[2px] bg-blue-600"></span>
-              Specialization Tags
+              My Teaching Subjects
             </h3>
             <div class="flex flex-col gap-1.5">
-              <label class="text-xs font-black text-gray-400 uppercase tracking-widest">Areas of Expertise</label>
+              <label class="text-xs font-black text-gray-400 uppercase tracking-widest">Subjects / Categories I Teach</label>
               <p-multiSelect [options]="specializationOptions" [(ngModel)]="profile.specialization" 
-                             defaultLabel="Select your areas" 
+                             defaultLabel="Select your teaching subjects..." 
                              display="chip"
                              styleClass="w-full rounded-none border-gray-200" />
+              <p class="text-[10px] text-gray-400 mt-1 leading-relaxed italic">
+                * Select the root subjects you teach. Assistant teacher question submissions in these subjects and their sub-categories will be routed to your dashboard queue and notifications.
+              </p>
             </div>
           </section>
 

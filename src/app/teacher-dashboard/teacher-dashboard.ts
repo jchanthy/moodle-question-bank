@@ -640,11 +640,41 @@ export class TeacherDashboardComponent implements OnInit {
     }
 
     try {
-      const { data, error } = await this.supabaseService.db
+      let query = this.supabaseService.db
         .from('questions')
         .select('*')
         .eq('status', 'pending_teacher_review')
         .is('deleted_at', null);
+
+      // Filter by teacher's subject specialization/categories
+      const user = this.supabaseService.currentUser();
+      if (user) {
+        const { data: profile } = await this.supabaseService.db
+          .from('profiles')
+          .select('specialization')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (profile && profile.specialization && profile.specialization.length > 0) {
+          const specIds = profile.specialization;
+          const allowedIds = new Set<string>();
+
+          // Helper to recursively collect all child categories
+          const collectIds = (parentId: string) => {
+            allowedIds.add(parentId);
+            this.categories()
+              .filter(c => c.parent_id === parentId)
+              .forEach(c => collectIds(c.id));
+          };
+          specIds.forEach((id: string) => collectIds(id));
+
+          if (allowedIds.size > 0) {
+            query = query.in('category_id', Array.from(allowedIds));
+          }
+        }
+      }
+
+      const { data, error } = await query;
 
       if (!error && data) {
         untracked(() => this.assistantSubmissions.set(data as Question[]));
