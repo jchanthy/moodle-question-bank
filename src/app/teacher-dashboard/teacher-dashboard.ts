@@ -392,7 +392,25 @@ export class TeacherDashboardComponent implements OnInit {
   });
   
   categoryOptions = computed(() => {
-    return this.categories().map(c => ({ label: c.name, value: c.id }));
+    const cat = this.categoryToDelete();
+    if (!cat) return [];
+    
+    // Get all descendant IDs of cat.id to prevent circular movement
+    const descendants = new Set<string>();
+    const getDescendants = (parentId: string) => {
+      this.categories()
+        .filter(c => c.parent_id === parentId)
+        .forEach(c => {
+          descendants.add(c.id);
+          getDescendants(c.id);
+        });
+    };
+    getDescendants(cat.id);
+    
+    // Filter out the category itself and its descendants
+    return this.categories()
+      .filter(c => c.id !== cat.id && !descendants.has(c.id))
+      .map(c => ({ label: c.name, value: c.id }));
   });
 
   pendingAssignmentsCount = computed(() => {
@@ -644,6 +662,7 @@ export class TeacherDashboardComponent implements OnInit {
     let query = this.supabaseService.db
       .from('question_categories')
       .select('*, questions(count)')
+      .is('questions.deleted_at', null)
       .order('sort_order', { ascending: true });
 
     // Best Practice: Teachers only see their own categories to reduce clutter.
@@ -715,9 +734,81 @@ export class TeacherDashboardComponent implements OnInit {
     }
   }
 
-  initiateDeleteCategory(catId: string) {
+  startEditCategory(cat: Category) {
+    this.editingCategory.set({ ...cat });
+  }
+
+  updateEditingCategoryName(name: string) {
+    const current = this.editingCategory();
+    if (current) {
+      this.editingCategory.set({ ...current, name });
+    }
+  }
+
+  cancelEditCategory() {
+    this.editingCategory.set(null);
+  }
+
+  async saveCategoryName() {
+    const current = this.editingCategory();
+    if (!current || !current.name.trim()) {
+      this.cancelEditCategory();
+      return;
+    }
+
+    const original = this.categories().find(c => c.id === current.id);
+    if (original && original.name.trim() === current.name.trim()) {
+      this.cancelEditCategory();
+      return;
+    }
+
+    const { data, error } = await this.supabaseService.db
+      .from('question_categories')
+      .update({ name: current.name.trim() })
+      .eq('id', current.id)
+      .select();
+
+    if (error) {
+      this.showToast('Failed to rename category: ' + error.message, 'error');
+    } else if (!data || data.length === 0) {
+      this.showToast('Failed to rename category. You may not have permission.', 'error');
+    } else {
+      this.showToast('Category renamed successfully', 'success');
+      this.loadCategories();
+    }
+    this.cancelEditCategory();
+  }
+
+  async initiateDeleteCategory(catId: string) {
     const cat = this.categories().find(c => c.id === catId);
-    if (cat) {
+    if (!cat) return;
+
+    // Check if there are child categories
+    const childCats = this.categories().filter(c => c.parent_id === cat.id);
+
+    if (cat.question_count === 0 && childCats.length === 0) {
+      if (confirm(`Are you sure you want to delete category "${cat.name}"?`)) {
+        // Nullify any hidden questions (e.g., soft-deleted or drafts) to avoid foreign key violations
+        await this.supabaseService.db
+          .from('questions')
+          .update({ category_id: null })
+          .eq('category_id', cat.id);
+
+        const { error } = await this.supabaseService.db
+          .from('question_categories')
+          .delete()
+          .eq('id', cat.id);
+
+        if (error) {
+          this.showToast('Failed to delete category: ' + error.message, 'error');
+        } else {
+          this.showToast('Category deleted successfully', 'success');
+          this.loadCategories();
+        }
+      }
+    } else {
+      // Not empty, show the move & delete dialog
+      this.deleteMoveToCategoryId.set(null);
       this.categoryToDelete.set(cat);
     }
   }
@@ -731,6 +822,7 @@ export class TeacherDashboardComponent implements OnInit {
     if (!cat) return;
 
     if (this.deleteMoveToCategoryId()) {
+      // Move all questions in this category (including active and soft-deleted ones)
       const { error: moveError } = await this.supabaseService.db
         .from('questions')
         .update({ category_id: this.deleteMoveToCategoryId() })
@@ -741,6 +833,12 @@ export class TeacherDashboardComponent implements OnInit {
         this.showToast('Failed to move questions: ' + moveError.message, 'error');
         return;
       }
+    } else {
+      // Fallback: nullify category_id of lingering questions
+      await this.supabaseService.db
+        .from('questions')
+        .update({ category_id: null })
+        .eq('category_id', cat.id);
     }
 
     const { error } = await this.supabaseService.db
@@ -749,9 +847,9 @@ export class TeacherDashboardComponent implements OnInit {
       .eq('id', cat.id);
 
     if (error) {
-      this.showToast(error.message, 'error');
+      this.showToast('Failed to delete category: ' + error.message, 'error');
     } else {
-      this.showToast('Category deleted', 'success');
+      this.showToast('Category deleted successfully', 'success');
       this.categoryToDelete.set(null);
       this.loadCategories();
     }
