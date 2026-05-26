@@ -802,21 +802,116 @@ export class TeacherDashboardComponent implements OnInit {
     }
   }
 
-  async purgeQuestion(id: string, name?: string) {
-    if (!confirm(`Are you sure you want to PERMANENTLY delete "${name || 'this question'}"? This action cannot be undone.`)) return;
+  async purgeQuestion(questionOrId: Question | string, name?: string) {
+    let id: string;
+    let displayName: string;
+    let parentId: string | null = null;
 
-    const { error } = await this.supabaseService.db
-      .from('questions')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      this.showToast(error.message, 'error');
+    if (typeof questionOrId === 'string') {
+      id = questionOrId;
+      displayName = name || 'this question';
+      
+      // Fetch the question to get its parent_id
+      const { data: qData } = await this.supabaseService.db
+        .from('questions')
+        .select('id, parent_id, name')
+        .eq('id', id)
+        .maybeSingle();
+      
+      if (qData) {
+        parentId = qData.parent_id;
+        displayName = qData.name || displayName;
+      }
     } else {
-      this.showToast('Question permanently deleted', 'success');
-      this.loadMyQuestions();
-      this.loadCategories();
+      id = questionOrId.id;
+      displayName = questionOrId.name;
+      parentId = questionOrId.parent_id;
     }
+
+    if (!confirm(`Are you sure you want to PERMANENTLY delete "${displayName}" and all its versions? This action cannot be undone.`)) return;
+
+    const familyId = parentId || id;
+
+    // Fetch all versions in this family from the database to delete them in correct order
+    const { data: familyVersions, error: fetchErr } = await this.supabaseService.db
+      .from('questions')
+      .select('id, parent_id, version')
+      .or(`parent_id.eq.${familyId},id.eq.${familyId}`);
+
+    if (fetchErr) {
+      this.showToast(`Failed to fetch question versions: ${fetchErr.message}`, 'error');
+      return;
+    }
+
+    if (!familyVersions || familyVersions.length === 0) {
+      // If none found in DB, just try to delete the ID itself in case of RLS view restrictions
+      const { error: delErr } = await this.supabaseService.db
+        .from('questions')
+        .delete()
+        .eq('id', id);
+      if (delErr) {
+        this.showToast(delErr.message, 'error');
+      } else {
+        this.showToast('Question permanently deleted', 'success');
+        this.loadMyQuestions();
+        this.loadCategories();
+      }
+      return;
+    }
+
+    // Sort descending by version (highest version first, parent version v1 last)
+    const sortedVersions = [...familyVersions].sort((a, b) => b.version - a.version);
+
+    let succeededCount = 0;
+    let failedErrors: string[] = [];
+
+    for (const ver of sortedVersions) {
+      // 1. Delete associated answers
+      await this.supabaseService.db
+        .from('answers')
+        .delete()
+        .eq('question_id', ver.id);
+
+      // 2. Delete associated assignments
+      await this.supabaseService.db
+        .from('assignments')
+        .delete()
+        .eq('question_id', ver.id);
+
+      // 3. Delete notifications
+      await this.supabaseService.db
+        .from('notifications')
+        .delete()
+        .eq('metadata->>question_id', ver.id);
+
+      // 4. Delete the question version itself
+      const { data, error: delErr } = await this.supabaseService.db
+        .from('questions')
+        .delete()
+        .eq('id', ver.id)
+        .select();
+
+      if (delErr) {
+        failedErrors.push(`v${ver.version}: ${delErr.message}`);
+      } else if (data && data.length > 0) {
+        succeededCount++;
+      } else {
+        failedErrors.push(`v${ver.version}: No permission to delete this version.`);
+      }
+    }
+
+    if (failedErrors.length > 0) {
+      if (succeededCount > 0) {
+        this.showToast(`Partially deleted: ${succeededCount} versions removed. ${failedErrors.length} versions failed due to permissions.`, 'info');
+      } else {
+        this.showToast(`Failed to delete question: ${failedErrors[0]}`, 'error');
+      }
+    } else {
+      this.showToast('Question and all its versions permanently deleted', 'success');
+    }
+
+    this.loadMyQuestions();
+    this.loadCategories();
   }
 
   async withdrawFromReview(q: Question) {
@@ -1610,6 +1705,95 @@ export class TeacherDashboardComponent implements OnInit {
       this.clearSelection();
       this.loadMyQuestions();
       this.loadCategories();
+    }
+  }
+
+  async bulkPurgeQuestions() {
+    const ids = Array.from(this.selectedIds());
+    if (ids.length === 0) return;
+
+    if (!confirm(`Are you sure you want to PERMANENTLY delete ${ids.length} selected questions and all their versions? This action cannot be undone.`)) return;
+
+    untracked(() => this.loading.set(true));
+
+    try {
+      let totalSucceeded = 0;
+      let totalFailed = 0;
+
+      for (const id of ids) {
+        // Fetch family versions
+        const { data: qData } = await this.supabaseService.db
+          .from('questions')
+          .select('id, parent_id')
+          .eq('id', id)
+          .maybeSingle();
+
+        const familyId = qData ? (qData.parent_id || qData.id) : id;
+
+        const { data: familyVersions } = await this.supabaseService.db
+          .from('questions')
+          .select('id, parent_id, version')
+          .or(`parent_id.eq.${familyId},id.eq.${familyId}`);
+
+        if (familyVersions && familyVersions.length > 0) {
+          const sortedVersions = [...familyVersions].sort((a, b) => b.version - a.version);
+          let familySucceeded = true;
+
+          for (const ver of sortedVersions) {
+            // Delete child associations
+            await this.supabaseService.db.from('answers').delete().eq('question_id', ver.id);
+            await this.supabaseService.db.from('assignments').delete().eq('question_id', ver.id);
+            await this.supabaseService.db.from('notifications').delete().eq('metadata->>question_id', ver.id);
+
+            // Delete version
+            const { data, error } = await this.supabaseService.db
+              .from('questions')
+              .delete()
+              .eq('id', ver.id)
+              .select();
+
+            if (error || !data || data.length === 0) {
+              familySucceeded = false;
+            }
+          }
+
+          if (familySucceeded) {
+            totalSucceeded++;
+          } else {
+            totalFailed++;
+          }
+        } else {
+          // If no versions found in family, try to delete the ID itself
+          const { data, error } = await this.supabaseService.db
+            .from('questions')
+            .delete()
+            .eq('id', id)
+            .select();
+          if (!error && data && data.length > 0) {
+            totalSucceeded++;
+          } else {
+            totalFailed++;
+          }
+        }
+      }
+
+      if (totalFailed > 0) {
+        if (totalSucceeded > 0) {
+          this.showToast(`Permanently deleted ${totalSucceeded} questions. ${totalFailed} questions could not be fully deleted due to permissions.`, 'info');
+        } else {
+          this.showToast(`Failed to permanently delete selected questions. You may not have permission to delete these questions or their versions.`, 'error');
+        }
+      } else {
+        this.showToast(`Permanently deleted ${totalSucceeded} questions and all their versions.`, 'success');
+      }
+
+      this.clearSelection();
+      this.loadMyQuestions();
+      this.loadCategories();
+    } catch (err: any) {
+      this.showToast(`Error during bulk purge: ${err.message || err}`, 'error');
+    } finally {
+      untracked(() => this.loading.set(false));
     }
   }
 }

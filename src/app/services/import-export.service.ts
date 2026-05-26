@@ -435,12 +435,12 @@ ${answersXml}
       // 1. Try Structured Export first (your custom format)
       let questions = this.parseStructuredExport(text);
       
-      // 2. If no structured questions found, try Aiken
+      // 2. If no structured questions found, use our robust smart layout-aware parser
       if (questions.length === 0) {
-        questions = this.parseAiken(text);
+        questions = this.parseSmart(text);
       }
       
-      // 3. If still nothing, try GIFT
+      // 3. If still nothing, try GIFT as a final fallback
       if (questions.length === 0) {
         questions = this.parseGIFT(text);
       }
@@ -450,6 +450,156 @@ ${answersXml}
       console.error('Error parsing DOCX:', error);
       throw new Error('Failed to extract text from Word document. Ensure it is a valid .docx file.');
     }
+  }
+
+  private parseSmart(text: string): ParsedQuestion[] {
+    const questions: ParsedQuestion[] = [];
+    const lines = text.split(/\n/).map(l => l.trim()).filter(l => l.length > 0);
+    
+    interface TempChoice {
+      key: string;
+      text: string;
+      isCorrect: boolean;
+    }
+
+    let currentQuestion = {
+      question_text: [] as string[],
+      choices: [] as TempChoice[],
+      correctKey: null as string | null
+    };
+
+    const flushCurrent = () => {
+      if (currentQuestion.question_text.length > 0 && currentQuestion.choices.length > 0) {
+        const qText = currentQuestion.question_text.join('\n').trim();
+        const choices = currentQuestion.choices;
+        const correctKey = currentQuestion.correctKey;
+
+        const answers: ParsedAnswer[] = choices.map(c => {
+          let isCorrect = false;
+          if (correctKey) {
+            isCorrect = c.key.toUpperCase() === correctKey.toUpperCase();
+          } else {
+            isCorrect = c.isCorrect;
+          }
+          return {
+            answer_text: c.text,
+            fraction: isCorrect ? 100 : 0,
+            feedback: ''
+          };
+        });
+
+        // Ensure at least one correct answer exists
+        if (!answers.some(a => a.fraction > 0) && answers.length > 0) {
+          answers[0].fraction = 100;
+        }
+
+        // True/False detection
+        let qtype = 'multichoice';
+        if (answers.length === 2) {
+          const t1 = answers[0].answer_text.toLowerCase();
+          const t2 = answers[1].answer_text.toLowerCase();
+          if ((t1 === 'true' && t2 === 'false') || (t1 === 'yes' && t2 === 'no')) {
+            qtype = 'truefalse';
+          }
+        }
+
+        questions.push({
+          name: qText.substring(0, 60),
+          question_text: qText,
+          qtype,
+          default_grade: 1,
+          penalty: qtype === 'truefalse' ? 0 : 0.3333333,
+          general_feedback: '',
+          metadata: {},
+          answers
+        });
+      }
+
+      currentQuestion = {
+        question_text: [] as string[],
+        choices: [] as TempChoice[],
+        correctKey: null
+      };
+    };
+
+    for (let idx = 0; idx < lines.length; idx++) {
+      const line = lines[idx];
+
+      // 1. Answer line check
+      const answerMatch = line.match(/^(ANSWER|Answer|ans|correct|key|correct\s+answer|correct\s+option|answer\s+key)[:\-=\s]+\s*([A-Za-z0-9])$/i);
+      if (answerMatch) {
+        currentQuestion.correctKey = answerMatch[2].toUpperCase();
+        continue;
+      }
+
+      // 2. Choice option check
+      let isChoice = false;
+      let choiceKey = '';
+      let choiceText = '';
+      let isCorrectInline = false;
+
+      // Bracket style check: [x] A. Text or [ ] B. Text
+      const bracketMatch = line.match(/^\[([xX✔*\s]?)\]\s*([A-Za-z])[.)\-]?\s*(.+)$/i);
+      if (bracketMatch) {
+        isChoice = true;
+        choiceKey = bracketMatch[2].toUpperCase();
+        choiceText = bracketMatch[3].trim();
+        isCorrectInline = ['x', 'X', '✔', '*'].includes(bracketMatch[1].trim());
+      } else {
+        // Option prefix check: *A. Text or A. *Text or A. Text
+        const prefixMatch = line.match(/^([*✔]?)\s*([A-Za-z])\s*[.)\-]\s*(.*)$/i);
+        if (prefixMatch) {
+          isChoice = true;
+          choiceKey = prefixMatch[2].toUpperCase();
+          let remainingText = prefixMatch[3].trim();
+
+          const inlineCorrectMatch = remainingText.match(/^([*✔]|\[[xX✔*]\])\s*(.*)$/);
+          if (prefixMatch[1] || inlineCorrectMatch) {
+            isCorrectInline = true;
+            if (inlineCorrectMatch) {
+              remainingText = inlineCorrectMatch[2].trim();
+            }
+          }
+
+          const suffixCorrectMatch = remainingText.match(/^(.*?)\s*([*✔]|\(Correct\)|\(correct\))$/);
+          if (suffixCorrectMatch) {
+            isCorrectInline = true;
+            remainingText = suffixCorrectMatch[1].trim();
+          }
+
+          choiceText = remainingText;
+        }
+      }
+
+      if (isChoice) {
+        currentQuestion.choices.push({
+          key: choiceKey,
+          text: choiceText,
+          isCorrect: isCorrectInline
+        });
+        if (isCorrectInline) {
+          currentQuestion.correctKey = choiceKey;
+        }
+        continue;
+      }
+
+      // 3. Question Header check
+      const qHeaderMatch = line.match(/^(Question|Q|No|Num)?\s*(\d+)[:.)\-]?\s+(.+)$/i);
+      if (qHeaderMatch) {
+        flushCurrent();
+        currentQuestion.question_text.push(qHeaderMatch[3].trim());
+      } else {
+        if (currentQuestion.choices.length > 0) {
+          flushCurrent();
+          currentQuestion.question_text.push(line);
+        } else {
+          currentQuestion.question_text.push(line);
+        }
+      }
+    }
+
+    flushCurrent();
+    return questions;
   }
 
   private normalizeWordText(text: string): string {
