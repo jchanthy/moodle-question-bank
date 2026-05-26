@@ -480,29 +480,23 @@ export class TeacherDashboardComponent implements OnInit {
     });
   }
 
-  myQuestionsCount = computed(() => {
+  myQuestionsCount = signal(0);
+
+  async loadMyQuestionsCount() {
     const user = this.supabaseService.currentUser();
-    if (!user) return 0;
-    // Use filteredQuestions but filter for 'my' view specifically for this badge
-    // Actually, we can just use the length of filteredQuestions if the current view is 'my'
-    // but to be safe and accurate for the badge regardless of view:
-    
-    const allQs = this.allQuestions();
-    const familyMap = new Map<string, Question>();
-    allQs.forEach(q => {
-      // Only count questions where I am author
-      if (q.created_by === user.id || q.metadata?.author_id === user.id) {
-        if (!q.deleted_at) { // Only count non-deleted
-          const familyId = q.parent_id || q.id;
-          const existing = familyMap.get(familyId);
-          if (!existing || q.version > existing.version) {
-            familyMap.set(familyId, q);
-          }
-        }
-      }
-    });
-    return familyMap.size;
-  });
+    if (!user) return;
+    try {
+      const { count } = await this.supabaseService.db
+        .from('questions')
+        .select('id', { count: 'exact', head: true })
+        .is('deleted_at', null)
+        .or(`created_by.eq.${user.id},metadata->>author_id.eq.${user.id}`);
+      
+      this.myQuestionsCount.set(count || 0);
+    } catch (err) {
+      console.error('Failed to load my questions count:', err);
+    }
+  }
 
   async loadMyQuestions() {
     const user = this.supabaseService.currentUser();
@@ -576,6 +570,7 @@ export class TeacherDashboardComponent implements OnInit {
         this.allQuestions.set(questions);
         this.myQuestions.set(questions); // Keep for legacy if needed, but computed uses allQuestions
         this.totalCount.set(count || 0);
+        this.loadMyQuestionsCount();
       });
 
       this.loadAssignedQuestions();
@@ -1518,6 +1513,34 @@ export class TeacherDashboardComponent implements OnInit {
     const user = this.supabaseService.currentUser();
     if (!user) return;
 
+    let targetCategoryId = this.importTargetCategoryId();
+
+    // Create a new category first if the user filled in the "Or Create New" input box
+    const newCatName = this.importNewCategoryName()?.trim();
+    if (newCatName) {
+      try {
+        const { data: newCat, error: catErr } = await this.supabaseService.db
+          .from('question_categories')
+          .insert({
+            name: newCatName,
+            created_by: user.id,
+            sort_order: this.categories().length
+          })
+          .select()
+          .single();
+
+        if (catErr) throw catErr;
+        
+        targetCategoryId = newCat.id;
+        console.log('Automatically created category during import:', newCatName, targetCategoryId);
+      } catch (err: any) {
+        console.error('Failed to create category during import:', err);
+        this.showToast('Failed to create new category: ' + (err.message || err), 'error');
+        this.importLoading.set(false);
+        return;
+      }
+    }
+
     for (const q of questions) {
       try {
         const { data: newQ, error: qErr } = await this.supabaseService.db
@@ -1528,7 +1551,7 @@ export class TeacherDashboardComponent implements OnInit {
             qtype: q.qtype,
             status: 'draft',
             created_by: user.id,
-            category_id: this.importTargetCategoryId(),
+            category_id: targetCategoryId,
             metadata: {
               author_name: this.supabaseService.currentUserName,
               author_email: user.email,
