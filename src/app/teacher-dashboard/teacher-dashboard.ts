@@ -161,6 +161,9 @@ export class TeacherDashboardComponent implements OnInit {
     ) {
       event.preventDefault();
       this.paletteQuery.set('');
+      // Release/clear any active keyword search filters so we search over all questions
+      this.filterKeyword.set('');
+      this.debouncedKeyword.set('');
       this.showCommandPalette.set(true);
       
       // Auto focus palette input
