@@ -34,7 +34,7 @@ import { SliderModule } from 'primeng/slider';
   styleUrl: './teacher-profile.css'
 })
 export class TeacherProfileComponent implements OnInit {
-  loading = signal(false);
+  loading = signal(true);
   saving = signal(false);
 
   // Profile Data
@@ -62,8 +62,17 @@ export class TeacherProfileComponent implements OnInit {
   ) {}
 
   async ngOnInit() {
-    await this.loadRootCategories();
-    await this.loadProfile();
+    this.loading.set(true);
+    try {
+      await Promise.all([
+        this.loadRootCategories(),
+        this.loadProfile()
+      ]);
+    } catch (e: any) {
+      console.error('Error initializing profile settings:', e);
+    } finally {
+      this.loading.set(false);
+    }
   }
 
   async loadRootCategories() {
@@ -93,7 +102,6 @@ export class TeacherProfileComponent implements OnInit {
       return;
     }
 
-    this.loading.set(true);
     try {
       const { data, error } = await this.supabase.db
         .from('profiles')
@@ -121,8 +129,6 @@ export class TeacherProfileComponent implements OnInit {
       }
     } catch (error: any) {
       this.showToast('Error loading profile', error.message, 'error');
-    } finally {
-      this.loading.set(false);
     }
   }
 
