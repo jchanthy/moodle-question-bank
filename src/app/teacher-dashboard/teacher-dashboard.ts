@@ -59,6 +59,8 @@ export interface Question {
   assignment_completed_at?: string | null;
   penalty?: number;
   default_grade?: number;
+  answers?: any[];
+  sequenceNumber?: number;
 }
 
 export interface Category {
@@ -141,6 +143,105 @@ export class TeacherDashboardComponent implements OnInit {
       }
     }
   }
+
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboardShortcut(event: KeyboardEvent) {
+    const activeEl = document.activeElement;
+    const isEditing = activeEl && (
+      activeEl.tagName === 'INPUT' || 
+      activeEl.tagName === 'TEXTAREA' || 
+      activeEl.tagName === 'SELECT' || 
+      activeEl.getAttribute('contenteditable') === 'true'
+    );
+
+    // Trigger on '/' key (when not editing) or Ctrl+K / Cmd+K
+    if (
+      (event.key === '/' && !isEditing) || 
+      ((event.ctrlKey || event.metaKey) && event.key?.toLowerCase() === 'k')
+    ) {
+      event.preventDefault();
+      this.paletteQuery.set('');
+      this.showCommandPalette.set(true);
+      
+      // Auto focus palette input
+      setTimeout(() => {
+        const el = document.getElementById('palette-search-input');
+        if (el) el.focus();
+      }, 50);
+    }
+
+    // Close on Escape
+    if (event.key === 'Escape' && this.showCommandPalette()) {
+      this.showCommandPalette.set(false);
+    }
+  }
+
+  executeCommand() {
+    const query = this.paletteQuery().trim().toLowerCase();
+    if (!query) return;
+
+    // 1. Check if it's a page navigation command, e.g. "p3", "page 3", "gopage 3"
+    const pageMatch = query.match(/^(?:p|page|go\s*page)\s*(\d+)$/i);
+    if (pageMatch) {
+      const pageNum = parseInt(pageMatch[1], 10);
+      const totalPages = Math.ceil(this.filteredQuestions().length / this.pageSize());
+      if (pageNum >= 1 && pageNum <= totalPages) {
+        this.currentPage.set(pageNum);
+        // Scroll smoothly to the top of the window so they see the top of the new page's list
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        this.showToast(`Invalid page. Max page is ${totalPages}`, 'error');
+      }
+      this.showCommandPalette.set(false);
+      return;
+    }
+
+    // 2. Check if it's a question number jump command, e.g. "45", "#45", "q45"
+    const qNumMatch = query.match(/^(?:#|q|no\s*|no\.\s*)?(\d+)$/i);
+    if (qNumMatch) {
+      const qNum = parseInt(qNumMatch[1], 10);
+      const list = this.filteredQuestions();
+      const matchingIndex = list.findIndex(q => q.sequenceNumber === qNum);
+      if (matchingIndex !== -1) {
+        this.filterKeyword.set(`#${qNum}`);
+        this.debouncedKeyword.set(`#${qNum}`);
+        this.currentPage.set(1);
+        this.showToast(`Found Question #${qNum}`, 'success');
+      } else {
+        this.showToast(`Question #${qNum} not found in this view`, 'error');
+      }
+      this.showCommandPalette.set(false);
+      return;
+    }
+
+    // 3. Otherwise, treat it as general keyword search
+    this.filterKeyword.set(this.paletteQuery());
+    this.debouncedKeyword.set(this.paletteQuery());
+    this.currentPage.set(1);
+    this.showToast(`Searching for "${this.paletteQuery()}"`, 'info');
+    this.showCommandPalette.set(false);
+  }
+
+  selectPaletteMatch(q: Question) {
+    this.showCommandPalette.set(false);
+    
+    // Resolve page
+    const list = this.filteredQuestions();
+    const idx = list.findIndex(item => item.id === q.id);
+    if (idx !== -1) {
+      this.currentPage.set(Math.floor(idx / this.pageSize()) + 1);
+      this.lastEditedId.set(q.id);
+      
+      setTimeout(() => {
+        const el = document.getElementById('question-card-' + q.id);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => this.lastEditedId.set(null), 3000);
+        }
+      }, 300);
+    }
+  }
+
   newCommentText = '';
   currentView = signal<'my' | 'assigned' | 'archive' | 'assistant_submissions'>('my');
   
@@ -244,6 +345,21 @@ export class TeacherDashboardComponent implements OnInit {
   selectedIds = signal<Set<string>>(new Set());
   currentPage = signal(1);
   pageSize = signal(10);
+  lastEditedId = signal<string | null>(null);
+  showCommandPalette = signal(false);
+  paletteQuery = signal('');
+  paletteMatches = computed(() => {
+    const query = this.paletteQuery().trim().toLowerCase();
+    if (!query || query.startsWith('p') || query.startsWith('page')) return [];
+
+    const list = this.filteredQuestions();
+    return list.filter(q => {
+      const nameMatch = q.name?.toLowerCase().includes(query);
+      const textMatch = q.question_text?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase().includes(query);
+      const seqMatch = q.sequenceNumber?.toString() === query.replace(/#|no\.|no/g, '');
+      return nameMatch || textMatch || seqMatch;
+    }).slice(0, 5);
+  });
   notification = signal<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
 
   // Categories
@@ -341,8 +457,21 @@ export class TeacherDashboardComponent implements OnInit {
       result = result.filter(q => q.created_by === user.id || q.metadata?.author_id === user.id);
     }
 
+    // Sort the view questions so their sequence number matches the visual sort order
+    result = [...result].sort((a, b) => {
+      const dateA = new Date(a.updated_at || a.created_at).getTime();
+      const dateB = new Date(b.updated_at || b.created_at).getTime();
+      return this.sortOrder() === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+
+    // Add sequence number (1-based index) to each question
+    result = result.map((q, idx) => ({
+      ...q,
+      sequenceNumber: idx + 1
+    }));
+
     // 4. Apply search and UI filters (since they might not be fully applied in DB for assigned questions)
-    const kw = this.debouncedKeyword()?.toLowerCase();
+    const kw = this.debouncedKeyword()?.toLowerCase()?.trim();
     const status = this.filterStatus();
     const type = this.filterType();
     const catId = this.selectedCategoryId();
@@ -353,12 +482,16 @@ export class TeacherDashboardComponent implements OnInit {
       // Keyword filter
       if (kw) {
         const nameMatch = q.name?.toLowerCase().includes(kw);
-        // Strip HTML tags from question_text before matching so plain-text searches
-        // work even when the stored value contains HTML markup (e.g. <p>...</p>)
+        // Strip HTML tags from question_text before matching so plain-text searches work
         const plainText = q.question_text?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
         const textMatch = plainText?.includes(kw);
         const idMatch = q.id_number?.toLowerCase().includes(kw);
-        if (!nameMatch && !textMatch && !idMatch) return false;
+        
+        // Sequence number match (e.g. if keyword is "45", "no. 45", "no45", or "#45")
+        const parsedSeq = parseInt(kw.replace(/no\.|no|#| /g, ''), 10);
+        const seqMatch = !isNaN(parsedSeq) && q.sequenceNumber === parsedSeq;
+
+        if (!nameMatch && !textMatch && !idMatch && !seqMatch) return false;
       }
 
       // Status filter
@@ -386,11 +519,7 @@ export class TeacherDashboardComponent implements OnInit {
     const from = (this.currentPage() - 1) * this.pageSize();
     const to = from + this.pageSize();
     
-    return [...questions].sort((a, b) => {
-      const dateA = new Date(a.updated_at || a.created_at).getTime();
-      const dateB = new Date(b.updated_at || b.created_at).getTime();
-      return this.sortOrder() === 'asc' ? dateA - dateB : dateB - dateA;
-    }).slice(from, to);
+    return questions.slice(from, to);
   });
   
   categoryOptions = computed(() => {
@@ -424,6 +553,9 @@ export class TeacherDashboardComponent implements OnInit {
   });
 
   constructor() {
+    // Restore dashboard state from sessionStorage before registering effects
+    this.loadDashboardState();
+
     // Setup debouncing for search keyword
     this.keywordSubject.pipe(
       debounceTime(400),
@@ -434,6 +566,25 @@ export class TeacherDashboardComponent implements OnInit {
         this.debouncedKeyword.set(val);
         this.currentPage.set(1);
       });
+    });
+
+    // Effect to auto-save filters and current page state to sessionStorage
+    effect(() => {
+      const state = {
+        currentView: this.currentView(),
+        currentPage: this.currentPage(),
+        pageSize: this.pageSize(),
+        filterHidden: this.filterHidden(),
+        filterType: this.filterType(),
+        filterDateFrom: this.filterDateFrom(),
+        filterDateTo: this.filterDateTo(),
+        filterStatus: this.filterStatus(),
+        filterKeyword: this.filterKeyword(),
+        selectedCategoryId: this.selectedCategoryId(),
+        sortField: this.sortField(),
+        sortOrder: this.sortOrder()
+      };
+      sessionStorage.setItem('teacher_dashboard_state', JSON.stringify(state));
     });
 
     // Main data loading effect
@@ -480,6 +631,32 @@ export class TeacherDashboardComponent implements OnInit {
         });
       }
     });
+  }
+
+  loadDashboardState() {
+    const saved = sessionStorage.getItem('teacher_dashboard_state');
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        if (state.currentView) this.currentView.set(state.currentView);
+        if (state.currentPage) this.currentPage.set(state.currentPage);
+        if (state.pageSize) this.pageSize.set(state.pageSize);
+        if (state.filterHidden !== undefined) this.filterHidden.set(state.filterHidden);
+        if (state.filterType !== undefined) this.filterType.set(state.filterType);
+        if (state.filterDateFrom !== undefined) this.filterDateFrom.set(state.filterDateFrom);
+        if (state.filterDateTo !== undefined) this.filterDateTo.set(state.filterDateTo);
+        if (state.filterStatus !== undefined) this.filterStatus.set(state.filterStatus);
+        if (state.filterKeyword !== undefined) {
+          this.filterKeyword.set(state.filterKeyword);
+          this.debouncedKeyword.set(state.filterKeyword);
+        }
+        if (state.selectedCategoryId !== undefined) this.selectedCategoryId.set(state.selectedCategoryId);
+        if (state.sortField) this.sortField.set(state.sortField);
+        if (state.sortOrder) this.sortOrder.set(state.sortOrder);
+      } catch (e) {
+        console.error('Error loading dashboard state', e);
+      }
+    }
   }
 
   ngOnInit() {
@@ -530,7 +707,7 @@ export class TeacherDashboardComponent implements OnInit {
 
       let query = this.supabaseService.db
         .from('questions')
-        .select('*', { count: 'exact' });
+        .select('*, answers(*)', { count: 'exact' });
 
       // If no category is selected, show only my questions
       // If a category is selected, we show questions in that category
@@ -598,6 +775,40 @@ export class TeacherDashboardComponent implements OnInit {
       this.loadAssignedQuestions();
       this.loadAssistantSubmissions();
 
+      // Wait for all loads to finish, then resolve the correct page and scroll to the last edited question
+      setTimeout(() => {
+        const lastId = sessionStorage.getItem('last_edited_question_id');
+        if (lastId) {
+          const list = this.filteredQuestions();
+          const matchingIndex = list.findIndex(q => {
+            if (q.id === lastId) return true;
+            if (q.allVersions?.some(v => v.id === lastId)) return true;
+            return false;
+          });
+
+          if (matchingIndex !== -1) {
+            untracked(() => {
+              const targetPage = Math.floor(matchingIndex / this.pageSize()) + 1;
+              this.currentPage.set(targetPage);
+              this.lastEditedId.set(lastId);
+            });
+            
+            // Wait for DOM to render the new page
+            setTimeout(() => {
+              const el = document.getElementById('question-card-' + lastId);
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Remove highlight after 3 seconds
+                setTimeout(() => {
+                  this.lastEditedId.set(null);
+                  sessionStorage.removeItem('last_edited_question_id');
+                }, 3000);
+              }
+            }, 300);
+          }
+        }
+      }, 600);
+
     } catch (err: any) {
       this.showToast(err.message, 'error');
     } finally {
@@ -618,7 +829,7 @@ export class TeacherDashboardComponent implements OnInit {
       const ids = assignments.map(a => a.question_id);
       const { data: qs } = await this.supabaseService.db
         .from('questions')
-        .select('*')
+        .select('*, answers(*)')
         .in('id', ids)
         .is('deleted_at', null);
       
@@ -646,7 +857,7 @@ export class TeacherDashboardComponent implements OnInit {
     try {
       let query = this.supabaseService.db
         .from('questions')
-        .select('*')
+        .select('*, answers(*)')
         .eq('status', 'pending_teacher_review')
         .is('deleted_at', null);
 

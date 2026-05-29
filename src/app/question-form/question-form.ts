@@ -1287,6 +1287,9 @@ export class QuestionFormComponent implements OnInit {
         }
       } else {
         // Navigate back to the dashboard
+        if (targetId) {
+          sessionStorage.setItem('last_edited_question_id', targetId);
+        }
         this.router.navigate([this.isAdmin ? '/admin' : '/teacher']);
       }
       return true;
@@ -1304,6 +1307,10 @@ export class QuestionFormComponent implements OnInit {
   }
 
   cancel() {
+    const id = this.questionId();
+    if (id) {
+      sessionStorage.setItem('last_edited_question_id', id);
+    }
     this.router.navigate([this.isAdmin ? '/admin' : '/teacher']);
   }
 

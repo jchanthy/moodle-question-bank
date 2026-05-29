@@ -2,7 +2,7 @@
 <p-toast position="top-center"></p-toast>
 
 <div class="min-h-screen bg-slate-100 p-6 md:p-12">
-  <div class="max-w-5xl mx-auto">
+  <div class="max-w-7xl mx-auto">
     
     <!-- Header Area -->
     <div class="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
@@ -702,397 +702,386 @@
       </div>
     </div>
 
-    <!-- Moodle Style Question Bank Table -->
-    <div class="bg-white rounded-none shadow-sm border border-gray-200 overflow-hidden relative min-h-[400px]">
-      <!-- Suble loading bar at top of table -->
+    <!-- Admin Style Question Bank Cards List -->
+    <div class="relative min-h-[400px]">
+      <!-- Subtle loading bar at top of cards -->
       <div class="absolute top-0 left-0 right-0 z-10 h-1 overflow-hidden" *ngIf="loading()">
         <div class="h-full animate-progress-bar"></div>
       </div>
-      
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-          <thead class="bg-gray-50 border-b border-gray-200">
-            <tr class="text-[11px] font-bold text-blue-600 uppercase tracking-wider">
-              <th class="px-4 py-3 w-10 align-top">
-                <input type="checkbox" 
-                       [checked]="isAllSelected()"
-                       (change)="toggleSelectAll($event)"
-                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-              </th>
-              <th class="px-2 py-3 w-8 align-top">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12" />
-                </svg>
-              </th>
-              <th class="px-4 py-3 align-top">Actions</th>
-              <th class="px-4 py-3 align-top uppercase">Question <div class="text-[11px] font-bold text-green-600/80 mt-0.5">Text / Name</div></th>
-              <th class="px-4 py-3 align-top uppercase">Status</th>
-              <th class="px-4 py-3 align-top uppercase">Version</th>
-              <th class="px-4 py-3 align-top uppercase">Author <div class="text-[11px] font-bold text-blue-400/80 mt-0.5">Name / Date</div></th>
-              <th class="px-4 py-3 text-center align-top uppercase">Comments</th>
-              <th class="px-4 py-3 align-top uppercase">Modified by <div class="text-[11px] font-bold text-green-600/80 mt-0.5">Name / Date</div></th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100">
-            <!-- Select All Across Pages Banner -->
-            <tr *ngIf="isAllSelected() && totalCount() > paginatedQuestions().length && selectedIds().size < totalCount() && currentView() !== 'assigned'" class="bg-blue-50/80 border-b border-blue-100">
-              <td colspan="9" class="px-4 py-3 text-center text-xs font-bold text-blue-800">
-                <span class="bg-blue-100 px-2 py-1 rounded mr-2">Tip</span>
-                All {{ paginatedQuestions().length }} questions on this page are selected.
-                <button (click)="selectAllQuestions()" class="ml-1 text-blue-600 underline hover:text-blue-900 transition-colors">
-                  Select all {{ filteredQuestions().length }} questions
-                </button>
-              </td>
-            </tr>
-            <tr *ngIf="selectedIds().size === filteredQuestions().length && filteredQuestions().length > paginatedQuestions().length && currentView() !== 'assigned'" class="bg-blue-600 border-b border-blue-500">
-              <td colspan="9" class="px-4 py-3 text-center text-xs font-bold text-white">
-                All {{ filteredQuestions().length }} questions are selected.
-                <button (click)="clearSelection()" class="ml-4 text-blue-100 underline hover:text-white transition-colors">
-                  Clear selection
-                </button>
-              </td>
-            </tr>
-            <ng-container *ngFor="let question of paginatedQuestions()">
-              <tr class="hover:bg-blue-50/30 transition-colors group" [class.bg-blue-50]="selectedIds().has(question.id)">
-                <td class="px-4 py-4">
+
+      <!-- Select All Across Pages Banner -->
+      <div *ngIf="isAllSelected() && totalCount() > paginatedQuestions().length && selectedIds().size < totalCount() && currentView() !== 'assigned'" class="bg-blue-50 border border-blue-200 p-4 mb-4 rounded-3xl flex items-center justify-center text-xs font-bold text-blue-800 animate-in fade-in duration-200">
+        <span class="bg-blue-100 px-2.5 py-1 rounded-full mr-2">Tip</span>
+        All {{ paginatedQuestions().length }} questions on this page are selected.
+        <button (click)="selectAllQuestions()" class="ml-1 text-blue-600 underline hover:text-blue-900 transition-colors">
+          Select all {{ filteredQuestions().length }} questions
+        </button>
+      </div>
+      <div *ngIf="selectedIds().size === filteredQuestions().length && filteredQuestions().length > paginatedQuestions().length && currentView() !== 'assigned'" class="bg-blue-600 p-4 mb-4 rounded-3xl flex items-center justify-center text-xs font-bold text-white shadow-lg animate-in fade-in duration-200">
+        All {{ filteredQuestions().length }} questions are selected.
+        <button (click)="clearSelection()" class="ml-4 text-blue-100 underline hover:text-white transition-colors">
+          Clear selection
+        </button>
+      </div>
+
+      <!-- Cards List -->
+      <div class="space-y-6 mb-6">
+        <div *ngFor="let question of paginatedQuestions()" 
+             [id]="'question-card-' + question.id"
+             [class.bg-blue-50/20]="selectedIds().has(question.id)"
+             [class.border-blue-200]="selectedIds().has(question.id)"
+             [class.ring-4]="lastEditedId() === question.id"
+             [class.ring-amber-400]="lastEditedId() === question.id"
+             [class.ring-opacity-50]="lastEditedId() === question.id"
+             [class.shadow-xl]="lastEditedId() === question.id"
+             class="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group relative animate-fade-in">
+          
+          <div class="flex flex-col gap-6">
+            
+            <!-- Left Side Details Area (Spacious & Full Width) -->
+            <div class="w-full space-y-4 min-w-0">
+              
+              <!-- Card Top Header -->
+              <div class="flex items-center justify-between flex-wrap gap-4 border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2.5 flex-wrap">
+                  <!-- Select Checkbox -->
                   <input type="checkbox" 
                          [checked]="selectedIds().has(question.id)"
                          (change)="toggleSelection(question.id)"
-                         class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                </td>
-                <td class="px-2 py-4">
-                  <span class="text-sm flex items-center justify-center w-6 h-6 rounded-none border border-gray-100 bg-gray-50/20" 
+                         class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4.5 h-4.5 cursor-pointer mr-1">
+                  
+                  <!-- Question Number Badge -->
+                  <span class="inline-flex items-center justify-center px-2 py-0.5 rounded bg-slate-800 text-white text-[10px] font-black tracking-wider uppercase shrink-0 shadow-sm border border-slate-700" title="Question Index Position">
+                    #{{ question.sequenceNumber }}
+                  </span>
+
+                  <!-- Type Badge -->
+                  <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-base shadow-sm shrink-0" 
                         [title]="typeLabels[question.qtype]?.label || question.qtype">
                     {{ typeLabels[question.qtype]?.icon || '❓' }}
                   </span>
-                </td>
-                <td class="px-4 py-4">
-                  <div class="flex items-center gap-2 text-sm font-medium whitespace-nowrap">
-                    <!-- If we are in Archive View, show RESTORE and PURGE actions -->
-                    <ng-container *ngIf="currentView() === 'archive'; else activeActions">
-                      <!-- RESTORE -->
-                      <button (click)="restoreQuestion(question.id, question.name)"
-                              class="flex items-center gap-1.5 px-2 py-1 rounded text-green-600 hover:bg-green-50 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 6.57" />
-                        </svg>
-                        Restore
-                      </button>
+                  <span class="px-2.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-wider rounded border border-blue-100/50">
+                    {{ typeLabels[question.qtype]?.label || question.qtype }}
+                  </span>
 
-                      <!-- PURGE (Permanent Delete) -->
-                      <button (click)="purgeQuestion(question)"
-                              class="flex items-center gap-1.5 px-2 py-1 rounded text-red-600 hover:bg-red-50 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Delete Permanently
-                      </button>
-                    </ng-container>
-
-                    <!-- Normal Active Actions -->
-                    <ng-template #activeActions>
-                      <!-- EDIT / VIEW -->
-                      <a [routerLink]="['/teacher/edit-question', question.id]" 
-                         class="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
-                         [ngClass]="(question.status === 'draft' || question.status === 'rejected') ? 'text-blue-600' : 'text-indigo-600'">
-                        <svg *ngIf="question.status === 'draft' || question.status === 'rejected'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        <svg *ngIf="question.status !== 'draft' && question.status !== 'rejected'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        {{ (question.status === 'draft' || question.status === 'rejected') ? 'Edit' : 'View' }}
-                      </a>
-
-                      <!-- WITHDRAW (Only for In-Review) -->
-                      <button *ngIf="question.status === 'pending_review' || question.status === 'assigned'"
-                              (click)="withdrawFromReview(question)"
-                              class="flex items-center gap-1.5 px-2 py-1 rounded text-orange-600 hover:bg-orange-50 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Withdraw
-                      </button>
-
-                      <!-- DELETE (Only for Draft/Rejected) -->
-                      <button *ngIf="question.status === 'draft' || question.status === 'rejected'"
-                              (click)="deleteQuestion(question.id, question.name)" 
-                              class="flex items-center gap-1.5 px-2 py-1 rounded text-red-500 hover:bg-red-50 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Delete
-                      </button>
-
-                      <!-- LOCKED ICON (For Approved) -->
-                      <span *ngIf="question.status === 'approved'" 
-                            class="flex items-center gap-1.5 px-2 py-1 rounded text-gray-400 bg-gray-50/50 cursor-not-allowed italic text-xs">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                        Locked
-                      </span>
-                    </ng-template>
-                  </div>
-                </td>
-                <!-- Question Text & Name (Inline Editable) -->
-                <td class="px-4 py-4">
-                  <div class="flex items-center gap-2 group/name">
-                    <ng-container *ngIf="!question.isEditingName">
-                      <div class="flex flex-col">
-                        <span class="text-sm font-semibold text-gray-800 line-clamp-2 max-w-lg mb-1" [title]="question.question_text">{{ question.question_text }}</span>
-                        <div class="flex items-center gap-2 flex-wrap">
-                          <span class="text-[11px] font-bold text-gray-400">{{ question.name }}</span>
-                          <!-- Display Tags -->
-                          <div *ngIf="question.metadata?.tags?.length" class="flex flex-wrap gap-1">
-                            <span *ngFor="let tag of (question.metadata?.tags || [])" 
-                                  class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                              {{ tag }}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <button (click)="question.isEditingName = true" class="opacity-0 group-hover/name:opacity-100 transition-opacity ml-auto" title="Edit Question Name">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                      </button>
-                    </ng-container>
-                    <input *ngIf="question.isEditingName" 
-                           #nameInput
-                           [value]="question.name"
-                           (blur)="updateQuestionName(question, nameInput.value)"
-                           (keyup.enter)="updateQuestionName(question, nameInput.value)"
-                           class="text-sm font-bold text-gray-800 bg-white border border-blue-400 rounded px-2 py-1 outline-none w-full"
-                           autoFocus>
-                  </div>
-                </td>
-
-                <!-- Status (Dropdown) -->
-                <td class="px-4 py-4">
-                  <div class="flex flex-col gap-1.5">
-                    <ng-container *ngIf="currentView() === 'archive'; else activeStatus">
-                      <!-- Archive Deleted Badge -->
-                      <span class="bg-red-50 text-red-600 px-2 py-0.5 rounded-none text-[10px] font-black uppercase tracking-wider w-fit border border-red-100">
-                        Archived
-                      </span>
-                      <span class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
-                        Was: {{ question.status }}
-                      </span>
-                    </ng-container>
-
-                    <ng-template #activeStatus>
-                      <!-- Assignment Progress Badge -->
-                      <div *ngIf="currentView() === 'assigned' && question.assignment_completed_at" 
-                           class="bg-green-100 text-green-700 px-2 py-0.5 rounded-none text-[10px] font-black uppercase w-fit border border-green-200">
-                        Finished Review
-                      </div>
-                      <div *ngIf="currentView() === 'assigned' && !question.assignment_completed_at" 
-                           class="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-none text-[10px] font-black uppercase w-fit border border-indigo-100">
-                        To Review
-                      </div>
-
-                      <!-- Display for Assistant Teacher -->
-                      <ng-container *ngIf="supabaseService.currentUserRole() === 'assistant_teacher'">
-                        <!-- If status is draft, they can change it or submit it -->
-                        <select *ngIf="question.status === 'draft'"
-                                [value]="question.status"
-                                (change)="updateQuestionStatus(question, $any($event.target).value)"
-                                class="bg-white border border-gray-200 rounded-none px-2 py-1 text-xs font-bold text-gray-600 shadow-sm outline-none focus:border-blue-400 transition-colors cursor-pointer w-full">
-                          <option value="draft">Draft</option>
-                          <option value="pending_teacher_review">Submit to Teacher</option>
-                        </select>
-
-                        <!-- If status is pending_teacher_review -->
-                        <span *ngIf="question.status === 'pending_teacher_review'"
-                              class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-none text-[10px] font-black uppercase tracking-wider w-fit border border-amber-200/50">
-                          Submitted
-                        </span>
-
-                        <!-- If status is approved / ready -->
-                        <span *ngIf="question.status === 'approved'"
-                              class="bg-green-50 text-green-700 px-2 py-0.5 rounded-none text-[10px] font-black uppercase tracking-wider w-fit border border-green-200/50">
-                          Ready
-                        </span>
-
-                        <!-- If status is rejected -->
-                        <span *ngIf="question.status === 'rejected'"
-                              class="bg-red-50 text-red-700 px-2 py-0.5 rounded-none text-[10px] font-black uppercase tracking-wider w-fit border border-red-200/50">
-                          Rejected
-                        </span>
-
-                        <!-- If status is pending admin review (pending_review) -->
-                        <span *ngIf="question.status === 'pending_review'"
-                              class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-none text-[10px] font-black uppercase tracking-wider w-fit border border-indigo-200/50">
-                          Pending Admin Review
-                        </span>
-
-                        <!-- If status is assigned -->
-                        <span *ngIf="question.status === 'assigned'"
-                              class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-none text-[10px] font-black uppercase tracking-wider w-fit border border-blue-200/50">
-                          Assigned
-                        </span>
-                      </ng-container>
-
-                      <!-- Display for Teacher -->
-                      <ng-container *ngIf="supabaseService.currentUserRole() === 'teacher'">
-                        <!-- If modifiable status, show dropdown -->
-                        <select *ngIf="question.status === 'draft' || question.status === 'pending_teacher_review' || (question.status === 'assigned' && isAssignedToMe(question))"
-                                [value]="question.status"
-                                (change)="updateQuestionStatus(question, $any($event.target).value)"
-                                class="bg-white border border-gray-200 rounded-none px-2 py-1 text-xs font-bold text-gray-600 shadow-sm outline-none focus:border-blue-400 transition-colors cursor-pointer w-full">
-                          <option value="draft" [hidden]="question.status !== 'draft' && question.status !== 'pending_teacher_review'">
-                            {{ question.status === 'draft' ? 'Draft' : 'Reject & Return to Assistant' }}
-                          </option>
-                          <option value="pending_teacher_review" [hidden]="question.status !== 'pending_teacher_review'">
-                            Pending Teacher Review
-                          </option>
-                          <option value="pending_review" [hidden]="question.status === 'assigned'">
-                            Approve & Submit to Admin
-                          </option>
-                          <option value="assigned" [hidden]="question.status !== 'assigned'">
-                            Assigned
-                          </option>
-                          <option value="approved" [hidden]="question.status !== 'assigned'">
-                            Approve / Ready
-                          </option>
-                          <option value="rejected" [hidden]="question.status !== 'assigned'">
-                            Reject
-                          </option>
-                        </select>
-
-                        <!-- If read-only status -->
-                        <span *ngIf="question.status === 'approved'"
-                              class="bg-green-50 text-green-700 px-2 py-0.5 rounded-none text-[10px] font-black uppercase tracking-wider w-fit border border-green-200/50">
-                          Ready
-                        </span>
-
-                        <span *ngIf="question.status === 'rejected'"
-                              class="bg-red-50 text-red-700 px-2 py-0.5 rounded-none text-[10px] font-black uppercase tracking-wider w-fit border border-red-200/50">
-                          Rejected
-                        </span>
-
-                        <span *ngIf="question.status === 'pending_review'"
-                              class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-none text-[10px] font-black uppercase tracking-wider w-fit border border-indigo-200/50">
-                          Pending Admin Review
-                        </span>
-
-                        <span *ngIf="question.status === 'assigned' && !isAssignedToMe(question)"
-                              class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-none text-[10px] font-black uppercase tracking-wider w-fit border border-blue-200/50">
-                          Assigned
-                        </span>
-                      </ng-container>
-
-                      <!-- Display for Admin or generic -->
-                      <ng-container *ngIf="supabaseService.currentUserRole() !== 'assistant_teacher' && supabaseService.currentUserRole() !== 'teacher'">
-                        <!-- If modifiable status, show dropdown -->
-                        <select *ngIf="question.status === 'draft' || question.status === 'pending_review' || question.status === 'assigned'"
-                                [value]="question.status"
-                                (change)="updateQuestionStatus(question, $any($event.target).value)"
-                                class="bg-white border border-gray-200 rounded-none px-2 py-1 text-xs font-bold text-gray-600 shadow-sm outline-none focus:border-blue-400 transition-colors cursor-pointer w-full">
-                          <option value="draft" [hidden]="question.status !== 'draft'">Draft</option>
-                          <option value="assigned" [hidden]="question.status !== 'assigned'">Assigned</option>
-                          <option value="pending_review">Review</option>
-                          <option value="approved">Approve / Ready</option>
-                          <option value="rejected" [hidden]="question.status !== 'pending_review' && question.status !== 'assigned'">Reject</option>
-                        </select>
-
-                        <!-- If read-only status -->
-                        <span *ngIf="question.status === 'approved'"
-                              class="bg-green-50 text-green-700 px-2 py-0.5 rounded-none text-[10px] font-black uppercase tracking-wider w-fit border border-green-200/50">
-                          Ready
-                        </span>
-
-                        <span *ngIf="question.status === 'rejected'"
-                              class="bg-red-50 text-red-700 px-2 py-0.5 rounded-none text-[10px] font-black uppercase tracking-wider w-fit border border-red-200/50">
-                          Rejected
-                        </span>
-
-                        <span *ngIf="question.status === 'pending_teacher_review'"
-                              class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-none text-[10px] font-black uppercase tracking-wider w-fit border border-amber-200/50">
-                          Pending Teacher Review
-                        </span>
-                      </ng-container>
-                    </ng-template>
-                  </div>
-                </td>
-
-                <!-- Version (Dropdown Selector) -->
-                <td class="px-4 py-4">
-                  <div class="flex items-center gap-2">
+                  <!-- Version Selector -->
+                  <div class="flex items-center gap-1">
+                    <span class="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Ver:</span>
                     <select [value]="question.id" 
                             (change)="switchVersion(question, $any($event.target).value)"
-                            class="bg-blue-50 border border-blue-100 rounded-none px-2 py-1 text-xs font-bold text-blue-700 outline-none hover:bg-blue-100 transition-colors cursor-pointer">
+                            class="bg-blue-50 border border-blue-100 rounded px-1.5 py-0.5 text-[10px] font-black text-blue-700 outline-none hover:bg-blue-100 transition-colors cursor-pointer shadow-sm">
                       <option *ngFor="let v of question.allVersions" [value]="v.id" [selected]="v.id === question.id">
                         v{{ v.version }} {{ v.status === 'approved' ? '(Ready)' : '' }}
                       </option>
                     </select>
                   </div>
-                </td>
-                <td class="px-4 py-4">
-                  <div class="text-[12px] flex flex-col">
-                    <div class="text-blue-600 font-black hover:underline cursor-pointer leading-tight">{{ question.metadata?.author_name || 'Me' }}</div>
-                    <div class="text-gray-400 text-[11px] font-medium leading-tight">{{ question.metadata?.author_email || '' }}</div>
-                    <div class="text-gray-300 mt-1 text-[11px] font-bold tracking-tight">{{ question.created_at | date:'d MMMM y, h:mm a' }}</div>
-                  </div>
-                </td>
-                <td class="px-4 py-4">
-                  <p-button [label]="((question.metadata?.comments || []).length).toString()" 
-                            icon="pi pi-comment" 
-                            [text]="true" 
-                            (onClick)="openComments(question)" 
-                            styleClass="p-button-sm p-button-rounded p-button-secondary">
-                  </p-button>
-                </td>
-                <td class="px-4 py-4">
-                  <div class="text-[12px] flex flex-col">
-                    <div class="text-gray-700 font-black leading-tight">{{ question.metadata?.modified_by || question.metadata?.author_name || 'Me' }}</div>
-                    <div class="text-gray-400 text-[11px] font-medium leading-tight">{{ question.metadata?.modified_by_email || (question.metadata?.modified_by ? '' : question.metadata?.author_email) || '' }}</div>
-                    <div class="text-gray-300 mt-1 text-[11px] font-bold tracking-tight">{{ question.metadata?.modified_at ? (question.metadata?.modified_at | date:'d MMM y, h:mm a') : (question.created_at | date:'d MMM y, h:mm a') }}</div>
-                  </div>
-                </td>
-              </tr>
 
-              <!-- Nested History (if expanded) -->
-              <tr *ngIf="question.showHistory" class="bg-gray-50/50">
-                <td colspan="9" class="px-12 py-3 border-l-4 border-blue-400">
-                  <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Previous Versions</div>
-                  <div *ngFor="let h of question.history" class="flex items-center gap-10 py-1.5 border-b border-gray-100 last:border-0">
-                    <span class="text-xs font-bold text-gray-600 w-8">v{{ h.version }}</span>
-                    <span class="text-[10px] px-2 py-0.5 rounded border font-bold"
-                      [ngClass]="{
-                        'bg-green-50 text-green-700': h.status === 'approved',
-                        'bg-yellow-50 text-yellow-700': h.status === 'pending_review',
-                        'bg-gray-50 text-gray-500': h.status === 'draft'
-                      }">
-                      {{ h.status === 'approved' ? 'Ready' : h.status.split('_')[0] }}
-                    </span>
-                    <span class="text-xs text-gray-400">{{ h.created_at | date:'medium' }}</span>
-                    <a [routerLink]="['/teacher/edit-question', h.id]" class="text-[11px] font-bold text-blue-600 hover:underline ml-auto">Restore/View</a>
-                  </div>
-                </td>
-              </tr>
-            </ng-container>
-
-            <!-- Empty State -->
-            <tr *ngIf="filteredQuestions().length === 0 && !loading()">
-              <td colspan="9" class="px-8 py-20 text-center border-none">
-                <div class="flex flex-col items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <p class="text-gray-400 font-medium">No questions found.</p>
-                  <a routerLink="/teacher/new-question" class="mt-4 text-blue-600 font-bold hover:underline" *ngIf="currentView() === 'my'">Create your first question</a>
+                  <!-- Comments Badge -->
+                  <button (click)="openComments(question)" 
+                          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-50 border border-slate-200/60 text-slate-500 hover:bg-slate-100 transition-all font-bold text-[10px]">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    <span>Comments ({{ (question.metadata?.comments || []).length }})</span>
+                  </button>
                 </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+
+                <!-- Status Badge -->
+                <div class="flex items-center gap-2">
+                  <ng-container *ngIf="currentView() === 'archive'; else activeStatus">
+                    <span class="bg-red-50 text-red-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-red-100">
+                      Archived (Was: {{ question.status }})
+                    </span>
+                  </ng-container>
+
+                  <ng-template #activeStatus>
+                    <div *ngIf="currentView() === 'assigned' && question.assignment_completed_at" 
+                         class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-green-200">
+                      Finished Review
+                    </div>
+                    <div *ngIf="currentView() === 'assigned' && !question.assignment_completed_at" 
+                         class="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-indigo-100">
+                      To Review
+                    </div>
+
+                    <!-- Display for Assistant Teacher -->
+                    <ng-container *ngIf="supabaseService.currentUserRole() === 'assistant_teacher'">
+                      <select *ngIf="question.status === 'draft'"
+                              [value]="question.status"
+                              (change)="updateQuestionStatus(question, $any($event.target).value)"
+                              class="bg-white border border-gray-200 rounded px-2.5 py-1 text-xs font-bold text-gray-600 shadow-sm outline-none focus:border-blue-400 transition-colors cursor-pointer">
+                        <option value="draft">Draft</option>
+                        <option value="pending_teacher_review">Submit to Teacher</option>
+                      </select>
+                      <span *ngIf="question.status === 'pending_teacher_review'"
+                            class="bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-amber-200/50">
+                        Submitted
+                      </span>
+                      <span *ngIf="question.status === 'approved'"
+                            class="bg-green-50 text-green-700 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-green-200/50">
+                        Ready
+                      </span>
+                      <span *ngIf="question.status === 'rejected'"
+                            class="bg-red-50 text-red-700 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-red-200/50">
+                        Rejected
+                      </span>
+                      <span *ngIf="question.status === 'pending_review'"
+                            class="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-indigo-200/50">
+                        Pending Admin Review
+                      </span>
+                      <span *ngIf="question.status === 'assigned'"
+                            class="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-blue-200/50">
+                        Assigned
+                      </span>
+                    </ng-container>
+
+                    <!-- Display for Teacher -->
+                    <ng-container *ngIf="supabaseService.currentUserRole() === 'teacher'">
+                      <select *ngIf="question.status === 'draft' || question.status === 'pending_teacher_review' || (question.status === 'assigned' && isAssignedToMe(question))"
+                              [value]="question.status"
+                              (change)="updateQuestionStatus(question, $any($event.target).value)"
+                              class="bg-white border border-gray-200 rounded px-2.5 py-1 text-xs font-bold text-gray-600 shadow-sm outline-none focus:border-blue-400 transition-colors cursor-pointer">
+                        <option value="draft" [hidden]="question.status !== 'draft' && question.status !== 'pending_teacher_review'">
+                          {{ question.status === 'draft' ? 'Draft' : 'Reject & Return to Assistant' }}
+                        </option>
+                        <option value="pending_teacher_review" [hidden]="question.status !== 'pending_teacher_review'">
+                          Pending Teacher Review
+                        </option>
+                        <option value="pending_review" [hidden]="question.status === 'assigned'">
+                          Approve & Submit to Admin
+                        </option>
+                        <option value="assigned" [hidden]="question.status !== 'assigned'">
+                          Assigned
+                        </option>
+                        <option value="approved" [hidden]="question.status !== 'assigned'">
+                          Approve / Ready
+                        </option>
+                        <option value="rejected" [hidden]="question.status !== 'assigned'">
+                          Reject
+                        </option>
+                      </select>
+                      <span *ngIf="question.status === 'approved'"
+                            class="bg-green-50 text-green-700 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-green-200/50">
+                        Ready
+                      </span>
+                      <span *ngIf="question.status === 'rejected'"
+                            class="bg-red-50 text-red-700 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-red-200/50">
+                        Rejected
+                      </span>
+                      <span *ngIf="question.status === 'pending_review'"
+                            class="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-indigo-200/50">
+                        Pending Admin Review
+                      </span>
+                      <span *ngIf="question.status === 'assigned' && !isAssignedToMe(question)"
+                            class="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-blue-200/50">
+                        Assigned
+                      </span>
+                    </ng-container>
+
+                    <!-- Display for Admin or generic -->
+                    <ng-container *ngIf="supabaseService.currentUserRole() !== 'assistant_teacher' && supabaseService.currentUserRole() !== 'teacher'">
+                      <select *ngIf="question.status === 'draft' || question.status === 'pending_review' || question.status === 'assigned'"
+                              [value]="question.status"
+                              (change)="updateQuestionStatus(question, $any($event.target).value)"
+                              class="bg-white border border-gray-200 rounded px-2.5 py-1 text-xs font-bold text-gray-600 shadow-sm outline-none focus:border-blue-400 transition-colors cursor-pointer">
+                        <option value="draft" [hidden]="question.status !== 'draft'">Draft</option>
+                        <option value="assigned" [hidden]="question.status !== 'assigned'">Assigned</option>
+                        <option value="pending_review">Review</option>
+                        <option value="approved">Approve / Ready</option>
+                        <option value="rejected" [hidden]="question.status !== 'pending_review' && question.status !== 'assigned'">Reject</option>
+                      </select>
+                      <span *ngIf="question.status === 'approved'"
+                            class="bg-green-50 text-green-700 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-green-200/50">
+                        Ready
+                      </span>
+                      <span *ngIf="question.status === 'rejected'"
+                            class="bg-red-50 text-red-700 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-red-200/50">
+                        Rejected
+                      </span>
+                      <span *ngIf="question.status === 'pending_teacher_review'"
+                            class="bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-amber-200/50">
+                        Pending Teacher Review
+                      </span>
+                    </ng-container>
+                  </ng-template>
+                </div>
+              </div>
+
+              <!-- Question Content Block -->
+              <div class="space-y-3 pt-2">
+                <!-- Large, bold Question Text -->
+                <div class="group/name relative w-full">
+                  <ng-container *ngIf="!question.isEditingName">
+                    <div class="text-xl md:text-2xl font-black text-slate-800 leading-relaxed hover:text-blue-600 transition-colors cursor-pointer flex items-start gap-2" [title]="question.question_text">
+                      <span>{{ question.question_text }}</span>
+                      <button (click)="question.isEditingName = true" class="opacity-0 group-hover/name:opacity-100 transition-opacity p-1 hover:bg-slate-100 rounded text-blue-500 mt-1.5 shrink-0" title="Edit Question Name">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </ng-container>
+                  <input *ngIf="question.isEditingName" 
+                         #nameInput
+                         [value]="question.name"
+                         (blur)="updateQuestionName(question, nameInput.value)"
+                         (keyup.enter)="updateQuestionName(question, nameInput.value)"
+                         class="text-lg font-bold text-slate-800 bg-white border border-blue-400 rounded-2xl px-4 py-2 outline-none w-full shadow-inner"
+                         autoFocus>
+                </div>
+
+                <!-- Name & Tags -->
+                <div class="flex items-center gap-3 flex-wrap">
+                  <span class="text-xs font-bold text-slate-400 tracking-wider font-mono">{{ question.name }}</span>
+                  <div *ngIf="question.metadata?.tags?.length" class="flex flex-wrap gap-1">
+                    <span *ngFor="let tag of (question.metadata?.tags || [])" 
+                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200/60 shadow-sm">
+                      #{{ tag }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Inline Choices Preview -->
+                <div *ngIf="question.answers && question.answers.length > 0" class="border-t border-slate-100 pt-4 mt-3">
+                  <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Choices Preview</div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div *ngFor="let ans of question.answers" 
+                         [class]="ans.fraction > 0 ? 'bg-emerald-50/50 text-emerald-800 border-emerald-200 font-bold' : 'bg-slate-50 text-slate-600 border-slate-200'"
+                         class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md">
+                      <span class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm" 
+                            [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-400'">
+                        {{ ans.fraction > 0 ? '✓' : '✗' }}
+                      </span>
+                      <div class="flex-1 min-w-0">
+                        <div class="break-words leading-relaxed">{{ ans.answer_text }}</div>
+                        <div *ngIf="ans.fraction > 0" class="text-[10px] text-emerald-600/80 font-bold mt-0.5">
+                          Correct option ({{ ans.fraction * 100 }}% weighting)
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- Bottom Card Footer (Author info on Left, Actions on Right) -->
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4 border-t border-slate-100 mt-6">
+            <!-- Author / Modifier Info -->
+            <div class="flex items-center gap-3 flex-wrap text-xs text-slate-400 font-medium">
+              <span>By <strong class="text-blue-600 font-black hover:underline cursor-pointer">{{ question.metadata?.author_name || 'Me' }}</strong></span>
+              <span>•</span>
+              <span>Created {{ question.created_at | date:'d MMM y, h:mm a' }}</span>
+              <span *ngIf="question.metadata?.modified_by">•</span>
+              <span *ngIf="question.metadata?.modified_by">Modified by <strong class="text-slate-700 font-bold">{{ question.metadata?.modified_by }}</strong> on {{ question.metadata?.modified_at ? (question.metadata?.modified_at | date:'d MMM y, h:mm a') : (question.created_at | date:'d MMM y, h:mm a') }}</span>
+            </div>
+
+            <!-- Action Buttons Row -->
+            <div class="flex items-center gap-3 flex-wrap justify-end">
+              <!-- If we are in Archive View, show RESTORE and PURGE actions -->
+              <ng-container *ngIf="currentView() === 'archive'; else activeActions">
+                <button (click)="restoreQuestion(question.id, question.name)"
+                        class="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-2xl bg-emerald-600 text-white font-black text-sm uppercase tracking-wider shadow-lg shadow-emerald-100 hover:bg-emerald-700 hover:-translate-y-0.5 transition-all">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 6.57" />
+                  </svg>
+                  Restore
+                </button>
+                <button (click)="purgeQuestion(question)"
+                        class="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-2xl bg-white border border-red-200 text-red-600 font-black text-sm uppercase tracking-wider hover:bg-red-50 hover:-translate-y-0.5 transition-all">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Purge
+                </button>
+              </ng-container>
+
+              <!-- Normal Active Actions -->
+              <ng-template #activeActions>
+                <!-- EDIT / VIEW -->
+                <a [routerLink]="['/teacher/edit-question', question.id]" 
+                   class="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-2xl font-black text-sm uppercase tracking-wider transition-all text-center shadow-md hover:-translate-y-0.5"
+                   [ngClass]="(question.status === 'draft' || question.status === 'rejected') ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100/50' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100/50'">
+                  <svg *ngIf="question.status === 'draft' || question.status === 'rejected'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <svg *ngIf="question.status !== 'draft' && question.status !== 'rejected'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  <span>{{ (question.status === 'draft' || question.status === 'rejected') ? 'Edit Question' : 'View Details' }}</span>
+                </a>
+
+                <!-- WITHDRAW (Only for In-Review) -->
+                <button *ngIf="question.status === 'pending_review' || question.status === 'assigned'"
+                        (click)="withdrawFromReview(question)"
+                        class="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-2xl bg-white border border-orange-200 text-orange-600 font-black text-sm uppercase tracking-wider hover:bg-orange-50 hover:-translate-y-0.5 transition-all shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Withdraw
+                </button>
+
+                <!-- DELETE (Only for Draft/Rejected) -->
+                <button *ngIf="question.status === 'draft' || question.status === 'rejected'"
+                        (click)="deleteQuestion(question.id, question.name)" 
+                        class="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-2xl bg-white border border-red-200 text-red-500 font-black text-sm uppercase tracking-wider hover:bg-red-50 hover:-translate-y-0.5 transition-all shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Delete
+                </button>
+
+                <!-- LOCKED INDICATOR (For Approved) -->
+                <span *ngIf="question.status === 'approved'" 
+                      class="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-2xl text-slate-400 bg-slate-50 border border-slate-200 cursor-not-allowed italic text-sm shadow-inner font-black uppercase tracking-wider">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  Locked
+                </span>
+              </ng-template>
+            </div>
+          </div>
+
+          <!-- Nested History (if expanded) -->
+          <div *ngIf="question.showHistory" class="bg-slate-50/50 rounded-3xl p-5 border-l-4 border-blue-400 mt-4 animate-in slide-in-from-top-2 duration-300">
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Previous Versions</div>
+            <div class="space-y-2">
+              <div *ngFor="let h of question.history" class="flex items-center gap-10 py-2 border-b border-slate-100 last:border-0">
+                <span class="text-xs font-bold text-slate-600 w-8">v{{ h.version }}</span>
+                <span class="text-[10px] px-2.5 py-0.5 rounded border font-bold"
+                  [ngClass]="{
+                    'bg-green-50 text-green-700 border-green-200': h.status === 'approved',
+                    'bg-yellow-50 text-yellow-700 border-yellow-200': h.status === 'pending_review',
+                    'bg-slate-50 text-slate-500 border-slate-200': h.status === 'draft'
+                  }">
+                  {{ h.status === 'approved' ? 'Ready' : h.status.split('_')[0] }}
+                </span>
+                <span class="text-xs text-slate-400">{{ h.created_at | date:'medium' }}</span>
+                <a [routerLink]="['/teacher/edit-question', h.id]" class="text-[11px] font-bold text-blue-600 hover:underline ml-auto">Restore/View</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div *ngIf="filteredQuestions().length === 0 && !loading()" class="bg-white rounded-3xl p-20 text-center border border-slate-100 shadow-sm animate-in fade-in duration-300">
+          <div class="flex flex-col items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-slate-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <h3 class="text-lg font-bold text-slate-800">No questions found</h3>
+            <p class="text-slate-400 font-medium text-sm mt-1">Try adjusting your filters or create a new question.</p>
+            <a routerLink="/teacher/new-question" class="mt-4 text-blue-600 font-bold hover:underline" *ngIf="currentView() === 'my'">Create your first question</a>
+          </div>
+        </div>
       </div>
 
       <!-- Pagination Controls -->
-      <div class="border-t border-gray-200">
+      <div class="bg-white rounded-3xl p-4 border border-slate-100 shadow-sm">
         <p-paginator 
           (onPageChange)="onPageChange($event)" 
           [first]="(currentPage() - 1) * pageSize()" 
@@ -1105,10 +1094,6 @@
         </p-paginator>
       </div>
     </div>
-  </div>
-
-
-</div>
 
 <!-- Slide-over Comments Modal -->
 <p-drawer [visible]="showComments()" (visibleChange)="showComments.set($event)" position="right" [showCloseIcon]="false" styleClass="w-full md:w-[28rem]">
@@ -1321,6 +1306,72 @@
       <button (click)="showAllNotifications.set(false)" class="px-6 py-2 bg-gray-200 hover:bg-gray-300 font-bold text-xs rounded-none transition">
         Close Archive
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- Spotlight Command Palette Search Modal -->
+<div *ngIf="showCommandPalette()" 
+     class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-start justify-center pt-[15vh] px-4 animate-in fade-in duration-200"
+     (click)="showCommandPalette.set(false)">
+  
+  <div class="bg-white rounded-3xl border border-slate-100 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"
+       (click)="$event.stopPropagation()">
+    
+    <!-- Palette Header & Input -->
+    <div class="p-5 border-b border-slate-100 flex items-center gap-4 relative">
+      <span class="text-2xl shrink-0 text-slate-400">🔍</span>
+      <input id="palette-search-input"
+             type="text"
+             [ngModel]="paletteQuery()"
+             (ngModelChange)="paletteQuery.set($event)"
+             (keyup.enter)="executeCommand()"
+             placeholder="Search query, 'p3' for Page 3, or '#45' for Question 45..."
+             class="w-full text-base font-medium text-slate-800 bg-transparent border-0 outline-none placeholder-slate-400">
+      
+      <button (click)="showCommandPalette.set(false)" 
+              class="px-2.5 py-1 text-[10px] font-black text-slate-400 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 transition-all uppercase tracking-wider">
+        Esc
+      </button>
+    </div>
+
+    <!-- Palette Suggestions / Explanations -->
+    <div class="px-6 py-3 bg-slate-50 border-b border-slate-100/60 flex items-center justify-between gap-4 flex-wrap text-[10px] font-black tracking-widest uppercase text-slate-400">
+      <div class="flex gap-4">
+        <span>💡 Type <strong class="text-blue-600">#45</strong> to filter Question #45</span>
+        <span>💡 Type <strong class="text-blue-600">p3</strong> to jump to Page 3</span>
+      </div>
+      <span class="text-slate-500 font-bold capitalize tracking-normal">Press Enter to Search</span>
+    </div>
+
+    <!-- Live Preview Matches -->
+    <div class="flex-1 max-h-[350px] overflow-y-auto">
+      <!-- If empty and query exists -->
+      <div *ngIf="paletteMatches().length === 0 && paletteQuery().trim().length > 0" 
+           class="p-10 text-center text-slate-400 text-xs font-bold leading-relaxed">
+        No direct quick matches found. <br>
+        <span class="text-[10px] text-slate-500 uppercase tracking-widest mt-1 block">Press <strong class="text-blue-600">Enter</strong> to perform a global deep search in the bank.</span>
+      </div>
+
+      <!-- Match results list -->
+      <div *ngIf="paletteMatches().length > 0" class="divide-y divide-slate-50">
+        <div class="px-5 py-2 text-[10px] font-black text-slate-400 uppercase tracking-wider bg-slate-50/50">Quick Matches (Top 5)</div>
+        <div *ngFor="let q of paletteMatches()" 
+             (click)="selectPaletteMatch(q)"
+             class="px-6 py-4 hover:bg-blue-50/50 transition cursor-pointer flex items-start gap-4 group">
+          <span class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-black text-xs flex items-center justify-center shrink-0 shadow-sm border border-slate-200 group-hover:bg-blue-100 group-hover:text-blue-600 group-hover:border-blue-200">
+            #{{ q.sequenceNumber }}
+          </span>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-xs font-black uppercase text-blue-600 tracking-wider font-mono">{{ q.qtype }}</span>
+              <span class="text-xs font-bold text-slate-800 truncate max-w-md">{{ q.name }}</span>
+            </div>
+            <p class="text-[11px] text-slate-400 truncate mt-1" [innerHTML]="q.question_text"></p>
+          </div>
+          <span class="text-[10px] font-bold text-blue-500 underline opacity-0 group-hover:opacity-100 transition-opacity">Jump to -></span>
+        </div>
+      </div>
     </div>
   </div>
 </div>
