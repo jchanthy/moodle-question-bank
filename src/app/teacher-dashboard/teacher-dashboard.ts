@@ -799,13 +799,8 @@ export class TeacherDashboardComponent implements OnInit {
         this.myQuestions.set(questions); // Keep for legacy if needed, but computed uses allQuestions
         this.totalCount.set(count || 0);
         this.loadMyQuestionsCount();
-      });
 
-      this.loadAssignedQuestions();
-      this.loadAssistantSubmissions();
-
-      // Wait for all loads to finish, then resolve the correct page and scroll to the last edited question
-      setTimeout(() => {
+        // Resolve page synchronously BEFORE loader hides to prevent page-jump flashing
         const lastId = sessionStorage.getItem('last_edited_question_id');
         if (lastId) {
           const list = this.filteredQuestions();
@@ -816,13 +811,11 @@ export class TeacherDashboardComponent implements OnInit {
           });
 
           if (matchingIndex !== -1) {
-            untracked(() => {
-              const targetPage = Math.floor(matchingIndex / this.pageSize()) + 1;
-              this.currentPage.set(targetPage);
-              this.lastEditedId.set(lastId);
-            });
+            const targetPage = Math.floor(matchingIndex / this.pageSize()) + 1;
+            this.currentPage.set(targetPage);
+            this.lastEditedId.set(lastId);
             
-            // Wait for DOM to render the new page
+            // Wait for DOM to finish rendering the page, then scroll directly to center
             setTimeout(() => {
               const el = document.getElementById('question-card-' + lastId);
               if (el) {
@@ -836,7 +829,10 @@ export class TeacherDashboardComponent implements OnInit {
             }, 300);
           }
         }
-      }, 600);
+      });
+
+      this.loadAssignedQuestions();
+      this.loadAssistantSubmissions();
 
     } catch (err: any) {
       this.showToast(err.message, 'error');
