@@ -51,4 +51,75 @@
       </p-button>
     </form>
   </div>
+
+  <!-- FIRST TIME PASSWORD SETUP & PENDING APPROVAL OVERLAY -->
+  <div *ngIf="isPendingSetup()" class="fixed inset-0 bg-gray-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 md:p-6 overflow-hidden overscroll-y-contain">
+    
+    <!-- Password Setup Form wrapping the whole card to make the button sticky -->
+    <form *ngIf="!setupSuccess()" (ngSubmit)="onSaveSetupPassword()" class="w-full max-w-md bg-white rounded-none shadow-2xl relative border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200 overscroll-y-contain">
+      
+      <!-- Scrollable body wrapper -->
+      <div class="flex-1 overflow-y-auto p-8 md:p-12 pb-4 overscroll-y-contain">
+        <!-- Icon/Illustration -->
+        <div class="text-center mb-6">
+          <h2 class="text-2xl font-black text-brand-dark tracking-tight mt-6 mb-2 uppercase">
+            {{ isResetMode() ? 'Reset Your Password' : 'Welcome, ' + pendingUserFullName() + '!' }}
+          </h2>
+          <p class="text-xs text-gray-400 font-bold uppercase tracking-widest">
+            {{ isResetMode() ? 'Configure New Credentials' : 'First-Time Account Setup' }}
+          </p>
+        </div>
+
+        <!-- Main Info Message -->
+        <div class="bg-amber-50/70 border border-amber-150 p-4 rounded-none text-xs text-amber-900 font-bold mb-6 space-y-2 leading-relaxed">
+          <span class="block uppercase tracking-wider text-[9px] text-amber-500 font-black">
+            {{ isResetMode() ? 'Password Reset Authorized' : 'Account Verification Confirmed' }}
+          </span>
+          <span *ngIf="!isResetMode()">Your email is verified! Your account registration is currently **pending administrator review**. Once approved, you will have full access.</span>
+          <span *ngIf="isResetMode()">You have successfully verified your identity via the secure email recovery link. Please choose a new password for your account below!</span>
+          <span class="block">Choose a strong, secure password containing at least 6 characters.</span>
+        </div>
+
+        <!-- Password Field -->
+        <div class="flex flex-col gap-2">
+          <label for="setup_password" class="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">
+            {{ isResetMode() ? 'New Password' : 'Create Password' }}
+          </label>
+          <p-iconfield iconPosition="left" class="w-full">
+            <p-inputicon styleClass="pi pi-lock text-gray-400"></p-inputicon>
+            <p-password [(ngModel)]="setupPassword" [toggleMask]="true" [feedback]="false" name="setup_password" id="setup_password"
+              styleClass="w-full" inputStyleClass="w-full rounded-none py-4 pl-10 text-sm" placeholder="At least 6 characters"
+              [required]="true"></p-password>
+          </p-iconfield>
+        </div>
+      </div>
+
+      <!-- Sticky bottom footer containing error message and button -->
+      <div class="p-6 md:p-8 pt-0 border-t border-gray-100 bg-white">
+        <div *ngIf="errorMessage()"
+          class="bg-red-50 text-red-500 p-4 rounded-none text-xs font-bold flex items-center gap-3 mb-4 animate-in fade-in slide-in-from-top-2">
+          <i class="pi pi-exclamation-circle text-lg"></i>
+          <span>{{ errorMessage() }}</span>
+        </div>
+
+        <p-button type="submit" [label]="isResetMode() ? 'Update Password & Save' : 'Set Password & Save'" [loading]="loading()" [disabled]="loading() || !setupPassword"
+          styleClass="w-full py-4 rounded-none shadow-lg shadow-blue-500/20 font-bold text-sm uppercase tracking-widest">
+        </p-button>
+      </div>
+    </form>
+
+    <!-- Success Screen (no form required) -->
+    <div *ngIf="setupSuccess()" class="w-full max-w-md bg-white rounded-none shadow-2xl relative border border-gray-100 flex flex-col max-h-[90vh] p-8 md:p-12 animate-in zoom-in-95 duration-200 overscroll-y-contain">
+      <div class="text-center py-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+        <div class="w-12 h-12 bg-green-50 border-2 border-green-150 text-green-600 rounded-full flex items-center justify-center text-2xl mx-auto shadow-md">
+          ✓
+        </div>
+        <div class="text-sm font-black text-green-700">Password Configured Successfully!</div>
+        <p class="text-xs text-gray-400 font-bold leading-relaxed px-4">
+          Your credentials have been securely stored. You will be redirected to the sign-in portal. Please wait for an administrator's approval notification before accessing the dashboard!
+        </p>
+      </div>
+    </div>
+
+  </div>
 </div>

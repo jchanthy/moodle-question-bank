@@ -1,7 +1,7 @@
 <!-- Toast Notification -->
 <p-toast position="top-center"></p-toast>
 
-<div class="min-h-screen bg-gray-50 p-6 md:p-12">
+<div class="min-h-screen bg-slate-100 p-6 md:p-12">
   <div class="max-w-5xl mx-auto">
     
     <!-- Header Area -->
@@ -300,6 +300,13 @@
               </tbody>
             </table>
           </div>
+        </div>
+
+        <!-- No questions found warning -->
+        <div *ngIf="importPreview().length === 0 && (importText || importFileBuffer) && !importLoading()" class="p-6 text-center bg-gray-50 border border-gray-100 rounded-none text-gray-400 animate-in fade-in duration-200">
+          <div class="text-2xl mb-1.5">📂</div>
+          <p class="font-black text-xs uppercase tracking-wider text-gray-700">0 questions detected</p>
+          <p class="text-[11px] text-gray-400 font-medium mt-1">Please verify that your file contents or pasted text matches the selected format standard (Moodle XML, GIFT, Aiken, or Word docx).</p>
         </div>
 
         <!-- Detailed Log -->

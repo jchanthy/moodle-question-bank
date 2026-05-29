@@ -62,13 +62,131 @@ export class ImportExportService {
     return xml;
   }
 
+  /**
+   * Moodle has a hardcoded list of allowed answer fraction values (0-100 percentage scale).
+   * Any fraction not exactly matching one of these values will cause an import error:
+   * "Grades (...) do not match grade options - question skipped."
+   *
+   * This function snaps any raw stored value (including old integer-rounded values like 33)
+   * to the nearest Moodle-allowed fraction.
+   */
+  private readonly MOODLE_ALLOWED_FRACTIONS = [
+    -100, -83.33333, -75, -66.66667, -60, -50,
+    -40, -33.33333, -25, -20, -16.66667, -10,
+    0,
+    10, 16.66667, 20, 25, 33.33333, 40, 50,
+    60, 66.66667, 75, 80, 83.33333, 90, 100
+  ];
+
+  private snapToMoodleFraction(raw: number): number {
+    // If it already exactly matches, return it
+    if (this.MOODLE_ALLOWED_FRACTIONS.includes(raw)) return raw;
+
+    // Find the nearest allowed fraction by absolute distance
+    let best = this.MOODLE_ALLOWED_FRACTIONS[0];
+    let bestDist = Math.abs(raw - best);
+    for (const allowed of this.MOODLE_ALLOWED_FRACTIONS) {
+      const dist = Math.abs(raw - allowed);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = allowed;
+      }
+    }
+    return best;
+  }
+
   private questionToMoodleXML(q: any, answers: any[]): string {
-    const correctCount = answers.filter(a => a.fraction >= 100).length;
-    const isSingle = correctCount <= 1 ? 1 : 0;
-    const answersXml = answers.map(a => `    <answer fraction="${a.fraction}" format="html">
+    // Dispatch to type-specific exporters for correct Moodle XML structure
+    if (q.qtype === 'truefalse') {
+      return this.trueFalseToMoodleXML(q, answers);
+    }
+    return this.genericToMoodleXML(q, answers);
+  }
+
+  /**
+   * True/False questions have a unique Moodle XML structure:
+   * - Answer text must be exactly "true" or "false" (lowercase plain text, no HTML)
+   * - format="moodle_auto_format" on each <answer>
+   * - No <single>, <shuffleanswers>, <answernumbering> tags
+   * - Penalty is 1 (Moodle default for TF – full penalty on retry)
+   */
+  private trueFalseToMoodleXML(q: any, answers: any[]): string {
+    // Determine which answer is correct by finding the one with fraction > 0
+    const correctAnswer = answers.find(a => Number(a.fraction) > 0);
+    const correctText = (correctAnswer?.answer_text || 'True')
+      .replace(/<[^>]*>/g, '').trim().toLowerCase(); // strip any HTML, lowercase
+
+    // Moodle TF needs exactly "true" and "false" with the right fractions
+    const trueIsCorrect = correctText === 'true';
+    const trueFraction  = trueIsCorrect ? 100 : 0;
+    const falseFraction = trueIsCorrect ? 0   : 100;
+
+    // Feedback for each side (strip HTML so it exports cleanly)
+    const trueFb  = answers.find(a => a.answer_text?.replace(/<[^>]*>/g,'').trim().toLowerCase() === 'true')?.feedback || '';
+    const falseFb = answers.find(a => a.answer_text?.replace(/<[^>]*>/g,'').trim().toLowerCase() === 'false')?.feedback || '';
+
+    const tags = (q.metadata?.tags || [])
+      .map((t: string) => `      <tag><text>${this.escapeXML(t)}</text></tag>`).join('\n');
+
+    return `  <question type="truefalse">
+    <name><text>${this.escapeXML(q.name)}</text></name>
+    <questiontext format="html">
+      <text><![CDATA[${q.question_text || ''}]]></text>
+    </questiontext>
+    <generalfeedback format="html">
+      <text><![CDATA[${q.general_feedback || ''}]]></text>
+    </generalfeedback>
+    <defaultgrade>${q.default_grade ?? 1}</defaultgrade>
+    <penalty>1</penalty>
+    <hidden>0</hidden>
+    <tags>
+      ${tags}
+    </tags>
+    <answer fraction="${trueFraction}" format="moodle_auto_format">
+      <text>true</text>
+      <feedback format="html"><text><![CDATA[${trueFb}]]></text></feedback>
+    </answer>
+    <answer fraction="${falseFraction}" format="moodle_auto_format">
+      <text>false</text>
+      <feedback format="html"><text><![CDATA[${falseFb}]]></text></feedback>
+    </answer>
+  </question>\n\n`;
+  }
+
+  /**
+   * Generic exporter for multichoice, shortanswer, numerical, essay, match, etc.
+   * MCQ-specific tags (single, shuffleanswers, answernumbering) are only emitted
+   * for question types that actually use them.
+   */
+  private genericToMoodleXML(q: any, answers: any[]): string {
+    const isMCQ = ['multichoice', 'multichoiceanswernone'].includes(q.qtype);
+
+    // For single-answer MCQ: determine from metadata first, fall back to answer count
+    const metaSingle = q.metadata?.single;
+    const correctCount = answers.filter(a => Number(a.fraction) > 0).length;
+    const isSingle = metaSingle !== undefined
+      ? (metaSingle ? 1 : 0)
+      : (correctCount <= 1 ? 1 : 0);
+
+    // Build answer XML – fractions are stored as 0-100 percentages.
+    // snapToMoodleFraction maps any value (including old integer-rounded ones like 33)
+    // to the nearest value in Moodle's hardcoded allowed list (e.g. 33 → 33.33333).
+    const answersXml = answers.map(a => {
+      const frac = this.snapToMoodleFraction(Number(a.fraction));
+      return `    <answer fraction="${frac}" format="html">
       <text><![CDATA[${a.answer_text || ''}]]></text>
       <feedback format="html"><text><![CDATA[${a.feedback || ''}]]></text></feedback>
-    </answer>`).join('\n');
+    </answer>`;
+    }).join('\n');
+
+    const tags = (q.metadata?.tags || [])
+      .map((t: string) => `      <tag><text>${this.escapeXML(t)}</text></tag>`).join('\n');
+
+    // MCQ-specific block (only output for multichoice types)
+    const mcqBlock = isMCQ ? `
+    <single>${isSingle}</single>
+    <shuffleanswers>${q.metadata?.shuffleanswers ? 1 : 0}</shuffleanswers>
+    <answernumbering>${q.metadata?.answernumbering || 'abc'}</answernumbering>` : '';
 
     return `  <question type="${q.qtype}">
     <name><text>${this.escapeXML(q.name)}</text></name>
@@ -80,12 +198,9 @@ export class ImportExportService {
     </generalfeedback>
     <defaultgrade>${q.default_grade ?? 1}</defaultgrade>
     <penalty>${q.penalty ?? 0.3333333}</penalty>
-    <hidden>0</hidden>
-    <single>${isSingle}</single>
-    <shuffleanswers>${q.metadata?.shuffleanswers ? 1 : 0}</shuffleanswers>
-    <answernumbering>${q.metadata?.answernumbering || 'abc'}</answernumbering>
+    <hidden>0</hidden>${mcqBlock}
     <tags>
-      ${(q.metadata?.tags || []).map((t: string) => `      <tag><text>${this.escapeXML(t)}</text></tag>`).join('\n')}
+      ${tags}
     </tags>
 ${answersXml}
   </question>\n\n`;
@@ -452,7 +567,7 @@ ${answersXml}
     }
   }
 
-  private parseSmart(text: string): ParsedQuestion[] {
+  parseSmart(text: string): ParsedQuestion[] {
     const questions: ParsedQuestion[] = [];
     const lines = text.split(/\n/).map(l => l.trim()).filter(l => l.length > 0);
     
@@ -585,15 +700,21 @@ ${answersXml}
 
       // 3. Question Header check
       const qHeaderMatch = line.match(/^(Question|Q|No|Num)?\s*(\d+)[:.)\-]?\s+(.+)$/i);
-      if (qHeaderMatch) {
+      const isNewQuestionHeader = !!qHeaderMatch || !!line.match(/^\s*\d+[\s.)\-]/);
+
+      if (isNewQuestionHeader) {
         flushCurrent();
-        currentQuestion.question_text.push(qHeaderMatch[3].trim());
+        if (qHeaderMatch) {
+          currentQuestion.question_text.push(qHeaderMatch[3].trim());
+        } else {
+          currentQuestion.question_text.push(line.trim());
+        }
       } else {
         if (currentQuestion.choices.length > 0) {
-          flushCurrent();
-          currentQuestion.question_text.push(line);
+          const lastChoice = currentQuestion.choices[currentQuestion.choices.length - 1];
+          lastChoice.text = (lastChoice.text + ' ' + line.trim()).trim();
         } else {
-          currentQuestion.question_text.push(line);
+          currentQuestion.question_text.push(line.trim());
         }
       }
     }

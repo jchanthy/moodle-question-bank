@@ -274,7 +274,7 @@ export class TeacherDashboardComponent implements OnInit {
   importError = signal<string | null>(null);
   importLoading = signal(false);
   importLogs = signal<string[]>([]);
-  private importFileBuffer: ArrayBuffer | null = null;
+  importFileBuffer: ArrayBuffer | null = null;
 
   // Computed properties for template
   filteredQuestions = computed(() => {
@@ -334,9 +334,8 @@ export class TeacherDashboardComponent implements OnInit {
       });
     } else if (view === 'archive') {
       // Archive is different - it shows deleted questions. 
-      // This is handled by loadMyQuestions already (it fetches deleted if view is archive)
-      // But we still want latest version of deleted items.
-      result = result.filter(q => q.deleted_at !== null);
+      // Only show soft-deleted questions owned by the current user to prevent other users' archived items from leaking.
+      result = result.filter(q => q.deleted_at !== null && (q.created_by === user.id || q.metadata?.author_id === user.id));
     } else {
       // 'my' view: Author is me
       result = result.filter(q => q.created_by === user.id || q.metadata?.author_id === user.id);
@@ -354,7 +353,10 @@ export class TeacherDashboardComponent implements OnInit {
       // Keyword filter
       if (kw) {
         const nameMatch = q.name?.toLowerCase().includes(kw);
-        const textMatch = q.question_text?.toLowerCase().includes(kw);
+        // Strip HTML tags from question_text before matching so plain-text searches
+        // work even when the stored value contains HTML markup (e.g. <p>...</p>)
+        const plainText = q.question_text?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+        const textMatch = plainText?.includes(kw);
         const idMatch = q.id_number?.toLowerCase().includes(kw);
         if (!nameMatch && !textMatch && !idMatch) return false;
       }
@@ -562,7 +564,9 @@ export class TeacherDashboardComponent implements OnInit {
       const kw = this.debouncedKeyword();
       if (kw) {
         const kwPattern = `%${kw}%`;
-        query = query.or(`name.ilike.${kwPattern},question_text.ilike.${kwPattern}`);
+        // Use separate .or() with properly quoted ilike filters so keywords with
+        // spaces or special characters are handled correctly by PostgREST
+        query = query.or(`name.ilike."${kwPattern}",question_text.ilike."${kwPattern}"`);
       }
 
       if (this.filterDateFrom()) {
@@ -584,7 +588,7 @@ export class TeacherDashboardComponent implements OnInit {
       if (error) throw error;
 
       untracked(() => {
-        const questions = data as Question[];
+        const questions = (data as Question[]).filter(q => q.name !== '__SYSTEM_USER_RECORDS__');
         this.allQuestions.set(questions);
         this.myQuestions.set(questions); // Keep for legacy if needed, but computed uses allQuestions
         this.totalCount.set(count || 0);
@@ -655,6 +659,8 @@ export class TeacherDashboardComponent implements OnInit {
           .eq('id', user.id)
           .maybeSingle();
 
+        console.log('[DEBUG loadAssistantSubmissions] teacher profile specialization:', profile?.specialization);
+
         if (profile && profile.specialization && profile.specialization.length > 0) {
           const specIds = profile.specialization;
           const allowedIds = new Set<string>();
@@ -668,20 +674,26 @@ export class TeacherDashboardComponent implements OnInit {
           };
           specIds.forEach((id: string) => collectIds(id));
 
+          console.log('[DEBUG loadAssistantSubmissions] allowedCategoryIds:', Array.from(allowedIds));
+
           if (allowedIds.size > 0) {
             query = query.in('category_id', Array.from(allowedIds));
           }
+        } else {
+          console.log('[DEBUG loadAssistantSubmissions] No specialization set — showing ALL subjects');
         }
       }
 
       const { data, error } = await query;
 
+      console.log('[DEBUG loadAssistantSubmissions] raw from DB:', data?.length, data?.map((q: any) => ({ id: q.id, name: q.name, status: q.status, category_id: q.category_id, version: q.version, parent_id: q.parent_id })));
+
       if (!error && data) {
         let filteredQuestions = data as Question[];
         
         if (data.length > 0) {
-          const questionIds = data.map(q => q.id);
-          const parentIds = data.map(q => q.parent_id).filter(Boolean);
+          const questionIds = data.map((q: any) => q.id);
+          const parentIds = data.map((q: any) => q.parent_id).filter(Boolean);
           const allFamilyIds = [...new Set([...questionIds, ...parentIds])];
 
           // Fetch any newer versions of these questions in the database
@@ -690,14 +702,18 @@ export class TeacherDashboardComponent implements OnInit {
             .select('parent_id, version')
             .in('parent_id', allFamilyIds);
 
-          filteredQuestions = (data as Question[]).filter(q => {
+          console.log('[DEBUG loadAssistantSubmissions] newerVersions:', newerVersions);
+
+          filteredQuestions = (data as Question[]).filter((q: any) => {
             const familyId = q.parent_id || q.id;
             // Filter out if there is a version in newerVersions with parent_id = familyId and version > q.version
-            const hasNewer = newerVersions?.some(nv => nv.parent_id === familyId && nv.version > q.version);
+            const hasNewer = newerVersions?.some((nv: any) => nv.parent_id === familyId && nv.version > q.version);
+            console.log(`[DEBUG] Q[${q.name}] v${q.version} family=${familyId} hasNewer=${hasNewer}`);
             return !hasNewer;
           });
         }
 
+        console.log('[DEBUG loadAssistantSubmissions] final shown count:', filteredQuestions.length);
         untracked(() => this.assistantSubmissions.set(filteredQuestions));
       }
     } catch (err) {
@@ -909,6 +925,46 @@ export class TeacherDashboardComponent implements OnInit {
   async deleteQuestion(id: string, name?: string) {
     if (!confirm(`Are you sure you want to delete "${name || 'this question'}"?`)) return;
 
+    // Check current status before attempting delete
+    const { data: qData } = await this.supabaseService.db
+      .from('questions')
+      .select('status, created_by')
+      .eq('id', id)
+      .maybeSingle();
+
+    const currentUser = this.supabaseService.currentUser();
+
+    // Block: question is not owned by this user at all
+    if (qData && qData.created_by !== currentUser?.id) {
+      this.showToast(
+        'Cannot delete this question',
+        'error',
+        'This question was created by another user. You can only delete questions you created yourself.'
+      );
+      return;
+    }
+
+    // If the question is in pending_teacher_review, we must recall it first (reset to draft)
+    // so that RLS allows the creator to update/delete it.
+    if (qData?.status === 'pending_teacher_review') {
+      const { data: recallData, error: recallErr } = await this.supabaseService.db
+        .from('questions')
+        .update({ status: 'draft' })
+        .eq('id', id)
+        .select();
+
+      if (recallErr || !recallData || recallData.length === 0) {
+        this.showToast(
+          'Cannot delete: question is under review',
+          'error',
+          'This question has been submitted for teacher review and could not be recalled. Ask your teacher to return it to draft, or wait for the review to complete.'
+        );
+        return;
+      }
+      // Retract notifications
+      await this.notificationService.retractReviewNotifications(id);
+    }
+
     const { data: uData, error } = await this.supabaseService.db
       .from('questions')
       .update({ deleted_at: new Date().toISOString() })
@@ -916,9 +972,13 @@ export class TeacherDashboardComponent implements OnInit {
       .select();
 
     if (error) {
-      this.showToast(error.message, 'error');
+      this.showToast('Delete failed', 'error', error.message);
     } else if (!uData || uData.length === 0) {
-      this.showToast('Delete failed. You may not have permission to delete this question.', 'error');
+      this.showToast(
+        'Delete failed',
+        'error',
+        'The system could not delete this question. It may be in a status that prevents deletion (e.g. approved or under admin review).'
+      );
     } else {
       this.showToast('Question moved to trash', 'success');
       this.loadMyQuestions();
@@ -979,7 +1039,7 @@ export class TeacherDashboardComponent implements OnInit {
     // Fetch all versions in this family from the database to delete them in correct order
     const { data: familyVersions, error: fetchErr } = await this.supabaseService.db
       .from('questions')
-      .select('id, parent_id, version')
+      .select('id, parent_id, version, status, created_by')
       .or(`parent_id.eq.${familyId},id.eq.${familyId}`);
 
     if (fetchErr) {
@@ -1003,13 +1063,33 @@ export class TeacherDashboardComponent implements OnInit {
       return;
     }
 
+    // Recall any versions in pending_teacher_review owned by the current user
+    // (RLS blocks DELETE on submitted questions — must reset to draft first)
+    const currentUser = this.supabaseService.currentUser();
+    for (const ver of familyVersions) {
+      if (ver.status === 'pending_teacher_review' && ver.created_by === currentUser?.id) {
+        await this.supabaseService.db
+          .from('questions')
+          .update({ status: 'draft' })
+          .eq('id', ver.id);
+        await this.notificationService.retractReviewNotifications(ver.id);
+      }
+    }
+
     // Sort descending by version (highest version first, parent version v1 last)
     const sortedVersions = [...familyVersions].sort((a, b) => b.version - a.version);
 
     let succeededCount = 0;
+    let skippedCount = 0;
     let failedErrors: string[] = [];
 
     for (const ver of sortedVersions) {
+      // Skip versions not owned by the current user — they belong to a reviewer who branched
+      if (ver.created_by !== currentUser?.id) {
+        skippedCount++;
+        continue;
+      }
+
       // 1. Delete associated answers
       await this.supabaseService.db
         .from('answers')
@@ -1046,12 +1126,26 @@ export class TeacherDashboardComponent implements OnInit {
 
     if (failedErrors.length > 0) {
       if (succeededCount > 0) {
-        this.showToast(`Partially deleted: ${succeededCount} versions removed. ${failedErrors.length} versions failed due to permissions.`, 'info');
+        this.showToast(
+          `Partially deleted (${succeededCount} of ${succeededCount + failedErrors.length} versions)`,
+          'info',
+          'Some versions were reviewed by another teacher and cannot be removed. Your original version has been deleted.'
+        );
       } else {
-        this.showToast(`Failed to delete question: ${failedErrors[0]}`, 'error');
+        this.showToast(
+          'Cannot permanently delete this question',
+          'error',
+          failedErrors[0] + ' The question may have been reviewed and a new version created by someone else. Try moving it to trash instead.'
+        );
       }
+    } else if (succeededCount === 0 && skippedCount > 0) {
+      this.showToast(
+        'Cannot delete: not your question',
+        'error',
+        'All versions of this question are owned by another user (e.g. a teacher who reviewed it). You do not have permission to permanently delete them.'
+      );
     } else {
-      this.showToast('Question and all its versions permanently deleted', 'success');
+      this.showToast('Question permanently deleted', 'success');
     }
 
     this.loadMyQuestions();
@@ -1631,6 +1725,14 @@ export class TeacherDashboardComponent implements OnInit {
         } finally {
           this.importLoading.set(false);
         }
+      } else {
+        if (file.name.endsWith('.gift')) {
+          this.importFormat.set('gift');
+        } else if (file.name.endsWith('.aiken')) {
+          this.importFormat.set('aiken');
+        }
+        this.importText = new TextDecoder().decode(this.importFileBuffer!);
+        this.parseImportPreview();
       }
     };
     reader.readAsArrayBuffer(file);
@@ -1643,9 +1745,13 @@ export class TeacherDashboardComponent implements OnInit {
       if (this.importFormat() === 'moodle_xml') {
         questions = this.importExportService.parseMoodleXML(this.importText);
       } else if (this.importFormat() === 'gift') {
-        questions = this.importExportService.parseGIFT(this.importText);
+        const giftQs = this.importExportService.parseGIFT(this.importText);
+        const smartQs = this.importExportService.parseSmart(this.importText);
+        questions = giftQs.length >= smartQs.length ? giftQs : smartQs;
       } else if (this.importFormat() === 'aiken') {
-        questions = this.importExportService.parseAiken(this.importText);
+        const aikenQs = this.importExportService.parseAiken(this.importText);
+        const smartQs = this.importExportService.parseSmart(this.importText);
+        questions = smartQs.length >= aikenQs.length ? smartQs : aikenQs;
       }
       this.importPreview.set(questions);
     } catch (err: any) {
@@ -1664,8 +1770,22 @@ export class TeacherDashboardComponent implements OnInit {
 
     let targetCategoryId = this.importTargetCategoryId();
 
+    // Default fallbacks to prevent RLS policy violation due to null category_id insertion
+    if (!targetCategoryId) {
+      targetCategoryId = this.selectedCategoryId();
+    }
+    if (!targetCategoryId && this.flatCategories().length > 0) {
+      targetCategoryId = this.flatCategories()[0].id;
+    }
+
     // Create a new category first if the user filled in the "Or Create New" input box
     const newCatName = this.importNewCategoryName()?.trim();
+    if (!targetCategoryId && !newCatName) {
+      this.showToast('No subject category selected or available. Please configure or select a category before importing.', 'error');
+      this.importLoading.set(false);
+      return;
+    }
+
     if (newCatName) {
       try {
         const { data: newCat, error: catErr } = await this.supabaseService.db
@@ -1702,6 +1822,7 @@ export class TeacherDashboardComponent implements OnInit {
             created_by: user.id,
             category_id: targetCategoryId,
             metadata: {
+              author_id: user.id,
               author_name: this.supabaseService.currentUserName,
               author_email: user.email,
               tags: q.metadata?.['tags'] || []
@@ -1722,6 +1843,12 @@ export class TeacherDashboardComponent implements OnInit {
           await this.supabaseService.db.from('answers').insert(answersToInsert);
         }
 
+        // Sync tags in the tags and question_tags relational tables
+        const importTags = q.metadata?.['tags'] || [];
+        if (importTags.length > 0) {
+          await this.supabaseService.syncQuestionTags(newQ.id, importTags);
+        }
+
         successCount++;
       } catch (err: any) {
         console.error('Import failed for', q.name, err);
@@ -1736,9 +1863,18 @@ export class TeacherDashboardComponent implements OnInit {
     this.loadCategories();
   }
 
-  showToast(message: string, type: 'success' | 'error' | 'info' = 'success') {
+  showToast(message: string, type: 'success' | 'error' | 'info' = 'success', detail?: string) {
+    // Use PrimeNG MessageService for rich toasts (supports summary + detail)
+    const severityMap = { success: 'success', error: 'error', info: 'info' };
+    this.messageService.add({
+      severity: severityMap[type],
+      summary: message,
+      detail: detail,
+      life: type === 'error' ? 6000 : 4000,
+    });
+    // Also keep the legacy signal for any template bindings
     this.notification.set({ message, type });
-    setTimeout(() => this.notification.set(null), 4000);
+    setTimeout(() => this.notification.set(null), type === 'error' ? 6000 : 4000);
   }
 
   toggleSelection(id: string) {
@@ -1750,14 +1886,14 @@ export class TeacherDashboardComponent implements OnInit {
 
   toggleSelectAll(event: any) {
     if (event.target.checked) {
-      this.selectedIds.set(new Set(this.myQuestions().map(q => q.id)));
+      this.selectedIds.set(new Set(this.filteredQuestions().map(q => q.id)));
     } else {
       this.selectedIds.set(new Set());
     }
   }
 
   isAllSelected() {
-    return this.myQuestions().length > 0 && this.selectedIds().size === this.myQuestions().length;
+    return this.filteredQuestions().length > 0 && this.selectedIds().size === this.filteredQuestions().length;
   }
 
   clearSelection() {
@@ -1811,40 +1947,11 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   async selectAllQuestions() {
-    const user = this.supabaseService.currentUser();
-    if (!user) return;
-
-    untracked(() => this.loading.set(true));
-    try {
-      let query = this.supabaseService.db
-        .from('questions')
-        .select('id')
-        .eq('created_by', user.id);
-
-      if (this.currentView() === 'archive') {
-        query = query.not('deleted_at', 'is', null);
-      } else {
-        query = query.is('deleted_at', null);
-      }
-
-      if (this.selectedCategoryId()) {
-        query = query.eq('category_id', this.selectedCategoryId()!);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      if (data) {
-        untracked(() => {
-          this.selectedIds.set(new Set(data.map(q => q.id)));
-          this.showToast(`Selected all ${data.length} questions`, 'success');
-        });
-      }
-    } catch (err: any) {
-      this.showToast(err.message, 'error');
-    } finally {
-      untracked(() => this.loading.set(false));
-    }
+    // Always select exactly what is visible on screen — no separate DB query
+    // This prevents count mismatches between visible rows and selected IDs
+    const visibleIds = this.filteredQuestions().map(q => q.id);
+    this.selectedIds.set(new Set(visibleIds));
+    this.showToast(`Selected all ${visibleIds.length} questions`, 'success');
   }
 
   async moveSelectedQuestions(categoryId: string) {
@@ -1867,33 +1974,88 @@ export class TeacherDashboardComponent implements OnInit {
     const ids = Array.from(this.selectedIds());
     if (!confirm(`Are you sure you want to delete ${ids.length} questions?`)) return;
 
-    const { error } = await this.supabaseService.db
-      .from('questions')
-      .update({ deleted_at: new Date().toISOString() })
-      .in('id', ids);
+    let succeeded = 0;
+    let failed = 0;
+    const reasons: string[] = [];
 
-    if (!error) {
-      this.showToast(`Deleted ${ids.length} questions`, 'success');
-      this.clearSelection();
-      this.loadMyQuestions();
-      this.loadCategories();
+    for (const id of ids) {
+      // If question is pending_teacher_review, recall it first so RLS allows the update
+      const { data: qData } = await this.supabaseService.db
+        .from('questions')
+        .select('status, created_by')
+        .eq('id', id)
+        .maybeSingle();
+
+      const currentUser = this.supabaseService.currentUser();
+      if (qData && qData.created_by !== currentUser?.id) {
+        failed++;
+        reasons.push('One or more questions were created by another user.');
+        continue;
+      }
+
+      if (qData?.status === 'pending_teacher_review') {
+        const { data: recallData } = await this.supabaseService.db
+          .from('questions')
+          .update({ status: 'draft' })
+          .eq('id', id)
+          .select();
+        if (recallData && recallData.length > 0) {
+          await this.notificationService.retractReviewNotifications(id);
+        } else {
+          failed++;
+          reasons.push('A question is under review and could not be recalled.');
+          continue;
+        }
+      }
+
+      const { data } = await this.supabaseService.db
+        .from('questions')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id)
+        .select();
+
+      if (data && data.length > 0) {
+        succeeded++;
+      } else {
+        failed++;
+        reasons.push('A question could not be moved to trash (permission denied).');
+      }
     }
+
+    if (succeeded > 0) {
+      this.showToast(`Moved ${succeeded} question(s) to trash`, 'success');
+    }
+    if (failed > 0) {
+      const uniqueReasons = [...new Set(reasons)];
+      this.showToast(
+        `${failed} question(s) could not be deleted`,
+        'error',
+        uniqueReasons.join(' ') || 'Check that you own all selected questions and none are under review.'
+      );
+    }
+    this.clearSelection();
+    this.loadMyQuestions();
+    this.loadCategories();
   }
 
   async bulkPurgeQuestions() {
     const ids = Array.from(this.selectedIds());
     if (ids.length === 0) return;
 
-    if (!confirm(`Are you sure you want to PERMANENTLY delete ${ids.length} selected questions and all their versions? This action cannot be undone.`)) return;
+    if (!confirm(`Are you sure you want to PERMANENTLY delete ${ids.length} selected questions? This action cannot be undone.`)) return;
 
     untracked(() => this.loading.set(true));
+
+    const currentUser = this.supabaseService.currentUser();
+    // Track which family IDs we've already processed to avoid double-deleting
+    const processedFamilies = new Set<string>();
 
     try {
       let totalSucceeded = 0;
       let totalFailed = 0;
 
       for (const id of ids) {
-        // Fetch family versions
+        // Fetch family versions (include status + created_by for permission checks)
         const { data: qData } = await this.supabaseService.db
           .from('questions')
           .select('id, parent_id')
@@ -1902,30 +2064,47 @@ export class TeacherDashboardComponent implements OnInit {
 
         const familyId = qData ? (qData.parent_id || qData.id) : id;
 
+        // Skip if we already processed this family
+        if (processedFamilies.has(familyId)) continue;
+        processedFamilies.add(familyId);
+
         const { data: familyVersions } = await this.supabaseService.db
           .from('questions')
-          .select('id, parent_id, version')
+          .select('id, parent_id, version, status, created_by')
           .or(`parent_id.eq.${familyId},id.eq.${familyId}`);
 
         if (familyVersions && familyVersions.length > 0) {
-          const sortedVersions = [...familyVersions].sort((a, b) => b.version - a.version);
-          let familySucceeded = true;
+          // First pass: recall any pending versions we own
+          for (const ver of familyVersions) {
+            if (ver.status === 'pending_teacher_review' && ver.created_by === currentUser?.id) {
+              await this.supabaseService.db
+                .from('questions')
+                .update({ status: 'draft' })
+                .eq('id', ver.id);
+              await this.notificationService.retractReviewNotifications(ver.id);
+            }
+          }
+
+          // Second pass: delete only versions we own (skip reviewer-branched copies)
+          const sortedVersions = [...familyVersions]
+            .filter(ver => ver.created_by === currentUser?.id)
+            .sort((a, b) => b.version - a.version);
+
+          let familySucceeded = false;
 
           for (const ver of sortedVersions) {
-            // Delete child associations
             await this.supabaseService.db.from('answers').delete().eq('question_id', ver.id);
             await this.supabaseService.db.from('assignments').delete().eq('question_id', ver.id);
             await this.supabaseService.db.from('notifications').delete().eq('metadata->>question_id', ver.id);
 
-            // Delete version
             const { data, error } = await this.supabaseService.db
               .from('questions')
               .delete()
               .eq('id', ver.id)
               .select();
 
-            if (error || !data || data.length === 0) {
-              familySucceeded = false;
+            if (!error && data && data.length > 0) {
+              familySucceeded = true;
             }
           }
 
@@ -1935,28 +2114,19 @@ export class TeacherDashboardComponent implements OnInit {
             totalFailed++;
           }
         } else {
-          // If no versions found in family, try to delete the ID itself
-          const { data, error } = await this.supabaseService.db
-            .from('questions')
-            .delete()
-            .eq('id', id)
-            .select();
-          if (!error && data && data.length > 0) {
-            totalSucceeded++;
-          } else {
-            totalFailed++;
-          }
+          totalFailed++;
         }
       }
 
+      if (totalSucceeded > 0) {
+        this.showToast(`Permanently deleted ${totalSucceeded} question(s)`, 'success');
+      }
       if (totalFailed > 0) {
-        if (totalSucceeded > 0) {
-          this.showToast(`Permanently deleted ${totalSucceeded} questions. ${totalFailed} questions could not be fully deleted due to permissions.`, 'info');
-        } else {
-          this.showToast(`Failed to permanently delete selected questions. You may not have permission to delete these questions or their versions.`, 'error');
-        }
-      } else {
-        this.showToast(`Permanently deleted ${totalSucceeded} questions and all their versions.`, 'success');
+        this.showToast(
+          `${totalFailed} question(s) could not be deleted`,
+          'error',
+          'Some questions belong to other users or all their versions are owned by a reviewer. Only your own question versions can be permanently removed.'
+        );
       }
 
       this.clearSelection();

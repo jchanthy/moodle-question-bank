@@ -49,19 +49,31 @@ export class NotificationService {
    */
   async notifyAdmins(type: string, title: string, message: string, metadata: any = {}) {
     console.log(`[NotificationService] Notifying all admins, type: ${type}`);
-    // 1. Fetch all admin user IDs
-    let { data: admins, error: fetchError } = await this.supabase.db
-      .from('user_roles')
-      .select('user_id')
-      .eq('role', 'admin');
+    // 1. Fetch all admin user IDs from registry
+    let admins: any[] = [];
+    try {
+      const registry = await this.supabase.getUserRegistry();
+      admins = Object.keys(registry)
+        .filter(id => registry[id].role === 'admin' && registry[id].approval_status === 'approved')
+        .map(id => ({ user_id: id }));
+    } catch (err) {
+      console.error('[NotificationService] Registry fetch for admins failed:', err);
+    }
 
-    if (fetchError) {
-      console.error('[NotificationService] Error fetching admins to notify:', fetchError);
-      return;
+    if (admins.length === 0) {
+      // DB table fallback
+      let { data: dbAdmins } = await this.supabase.db
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin');
+      
+      if (dbAdmins && dbAdmins.length > 0) {
+        admins = dbAdmins;
+      }
     }
 
     // Fallback if empty
-    if (!admins || admins.length === 0) {
+    if (admins.length === 0) {
       const { data: profiles, error: profileError } = await this.supabase.db
         .from('profiles')
         .select('id')
@@ -132,22 +144,36 @@ export class NotificationService {
           }
 
           // 3. Find teachers whose specialization contains rootCatId
-          const { data: specTeachers } = await this.supabase.db
-            .from('profiles')
-            .select('id')
-            .contains('specialization', [rootCatId]);
+          const registry = await this.supabase.getUserRegistry();
+          const specTeacherIds: string[] = [];
+          
+          for (const userId of Object.keys(registry)) {
+            const regUser = registry[userId];
+            if (regUser.role === 'teacher' && regUser.approval_status === 'approved' && regUser.specialization?.includes(rootCatId)) {
+              specTeacherIds.push(userId);
+            }
+          }
 
-          if (specTeachers && specTeachers.length > 0) {
-            const teacherIds = specTeachers.map(t => t.id);
-            // Filter user_roles by role='teacher' and user_id in teacherIds
-            const { data: filteredRoles } = await this.supabase.db
-              .from('user_roles')
-              .select('user_id')
-              .eq('role', 'teacher')
-              .in('user_id', teacherIds);
+          if (specTeacherIds.length > 0) {
+            teachers = specTeacherIds.map(id => ({ user_id: id }));
+          } else {
+            // DB fallback
+            const { data: specTeachers } = await this.supabase.db
+              .from('profiles')
+              .select('id')
+              .contains('specialization', [rootCatId]);
 
-            if (filteredRoles && filteredRoles.length > 0) {
-              teachers = filteredRoles.map(t => ({ user_id: t.user_id }));
+            if (specTeachers && specTeachers.length > 0) {
+              const teacherIds = specTeachers.map(t => t.id);
+              const { data: filteredRoles } = await this.supabase.db
+                .from('user_roles')
+                .select('user_id')
+                .eq('role', 'teacher')
+                .in('user_id', teacherIds);
+
+              if (filteredRoles && filteredRoles.length > 0) {
+                teachers = filteredRoles.map(t => ({ user_id: t.user_id }));
+              }
             }
           }
         }
@@ -158,13 +184,27 @@ export class NotificationService {
 
     // Fallback: If no specialized teachers found or not a teacher review submission, notify all teachers
     if (teachers.length === 0) {
-      const { data: allTeachers, error: fetchError } = await this.supabase.db
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'teacher');
+      try {
+        const registry = await this.supabase.getUserRegistry();
+        const allTeacherIds = Object.keys(registry)
+          .filter(id => registry[id].role === 'teacher' && registry[id].approval_status === 'approved');
+        
+        if (allTeacherIds.length > 0) {
+          teachers = allTeacherIds.map(id => ({ user_id: id }));
+        }
+      } catch (err) {
+        console.error('[NotificationService] Registry fetch for teachers failed:', err);
+      }
 
-      if (!fetchError && allTeachers && allTeachers.length > 0) {
-        teachers = allTeachers.map(t => ({ user_id: t.user_id }));
+      if (teachers.length === 0) {
+        const { data: allTeachers, error: fetchError } = await this.supabase.db
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'teacher');
+
+        if (!fetchError && allTeachers && allTeachers.length > 0) {
+          teachers = allTeachers.map(t => ({ user_id: t.user_id }));
+        }
       }
     }
 

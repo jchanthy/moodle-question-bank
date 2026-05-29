@@ -14,6 +14,8 @@ import { ButtonModule } from 'primeng/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatButton } from '@angular/material/button';
 import { MatTooltip } from '@angular/material/tooltip';
+import { createClient } from '@supabase/supabase-js';
+import { environment } from '../../environments/environment';
 
 interface Question {
   id: string;
@@ -144,8 +146,69 @@ export class AdminDashboardComponent implements OnInit {
   showTypeHelp = signal(false);
 
   // View state
-  currentView = signal<'questions' | 'team' | 'report' | 'categories'>('questions');
+  currentView = signal<'questions' | 'team' | 'report' | 'categories' | 'users' | 'tags'>('questions');
   selectedTeacherId = signal<string | null>(null);
+  tagsList = signal<any[]>([]);
+  loadingTags = signal(false);
+
+  // Tag View Filters & Sorting
+  filterTagsSearch = signal<string>('');
+  filterTagsStatus = signal<'all' | 'active' | 'unused'>('all');
+  sortTagsBy = signal<'count_desc' | 'count_asc' | 'name_asc' | 'name_desc'>('count_desc');
+
+  filteredTagsList = computed(() => {
+    const list = this.tagsList();
+    const search = this.filterTagsSearch().toLowerCase().trim();
+    const status = this.filterTagsStatus();
+    const sort = this.sortTagsBy();
+
+    let result = [...list];
+
+    if (search) {
+      result = result.filter(tag => tag.name.toLowerCase().includes(search));
+    }
+
+    if (status === 'active') {
+      result = result.filter(tag => tag.count > 0);
+    } else if (status === 'unused') {
+      result = result.filter(tag => tag.count === 0);
+    }
+
+    if (sort === 'count_desc') {
+      result.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    } else if (sort === 'count_asc') {
+      result.sort((a, b) => a.count - b.count || a.name.localeCompare(b.name));
+    } else if (sort === 'name_asc') {
+      result.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sort === 'name_desc') {
+      result.sort((a, b) => b.name.localeCompare(a.name));
+    }
+
+    return result;
+  });
+
+  // User Management State
+  allProfiles = signal<any[]>([]);
+  allUserRoles = signal<any[]>([]);
+  pendingUsersCount = computed(() => {
+    return this.allUserRoles().filter(r => r.role?.startsWith('pending_')).length;
+  });
+  loadingUsers = signal(false);
+  showAddUserModal = signal(false);
+  showEditUserModal = signal(false);
+
+  // User Forms State
+  userForm = {
+    email: '',
+    password: '',
+    fullName: '',
+    role: 'teacher' as 'admin' | 'teacher' | 'assistant_teacher',
+    specialization: [] as string[]
+  };
+
+  editingUser = signal<any | null>(null);
+  userSearchKeyword = signal('');
+  debouncedUserSearch = signal('');
 
   // Computed signal for Drawer visibility
   isDrawerVisible = computed(() => !!this.selectedTeacherId());
@@ -426,6 +489,10 @@ export class AdminDashboardComponent implements OnInit {
       untracked(() => {
         if (view === 'questions') {
           this.loadQuestionsForActiveTab();
+        } else if (view === 'users') {
+          this.loadUsersData();
+        } else if (view === 'tags') {
+          this.loadTagsData();
         }
       });
     });
@@ -445,6 +512,7 @@ export class AdminDashboardComponent implements OnInit {
         this.loadTeachers();
         this.notificationService.loadNotifications();
         this.loadAssignments();
+        this.loadTagsData();
       });
     });
 
@@ -460,7 +528,8 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   ngOnInit() {
-    // Initial load is handled by the effects above
+    // Initial load of users in the background to ensure the pending count badge is visible immediately
+    this.loadUsersData();
   }
 
   onSearchChange(value: string) {
@@ -483,7 +552,7 @@ export class AdminDashboardComponent implements OnInit {
 
       if (error) throw error;
       
-      const questions = data as Question[];
+      const questions = (data as Question[]).filter(q => q.name !== '__SYSTEM_USER_RECORDS__');
       this.allQuestions.set(questions);
 
       // Also sync total counts and type counts
@@ -556,6 +625,14 @@ export class AdminDashboardComponent implements OnInit {
       );
     }
 
+    const selectedTags = this.filterSelectedTags();
+    if (selectedTags && selectedTags.length > 0) {
+      result = result.filter(q => {
+        const qTags = (q.metadata?.tags || []).map((t: string) => t.toLowerCase());
+        return selectedTags.every(tag => qTags.includes(tag.toLowerCase()));
+      });
+    }
+
     return result;
   });
 
@@ -601,18 +678,72 @@ export class AdminDashboardComponent implements OnInit {
     return result;
   }
 
+  filterSelectedTags = signal<string[]>([]);
+  filteredTagsSuggestions = signal<string[]>([]);
+
+  searchTagFilters(event: any) {
+    const query = event.query.toLowerCase().trim();
+    const allTags = this.tagsList().map(t => t.name.toLowerCase());
+    this.filteredTagsSuggestions.set(
+      allTags.filter(tag => tag.includes(query))
+    );
+  }
+
   clearFilters() {
     this.filterTeacher.set('');
     this.filterQtype.set('');
     this.filterCategory.set('');
     this.filterSearch.set('');
+    this.filterSelectedTags.set([]);
     this.searchSubject.next('');
     this.currentPage.set(1);
   }
 
   hasActiveFilters = computed(() => {
-    return !!(this.filterTeacher() || this.filterQtype() || this.filterCategory() || this.filterSearch());
+    return !!(
+      this.filterTeacher() || 
+      this.filterQtype() || 
+      this.filterCategory() || 
+      this.filterSearch() || 
+      this.filterSelectedTags().length > 0
+    );
   });
+
+  async loadTagsData() {
+    this.loadingTags.set(true);
+    try {
+      const { data: tagsData, error: tagsErr } = await this.supabaseService.db
+        .from('tags')
+        .select('id, name');
+      
+      if (tagsErr) throw tagsErr;
+
+      const { data: linkData, error: linkErr } = await this.supabaseService.db
+        .from('question_tags')
+        .select('tag_id');
+
+      if (linkErr) throw linkErr;
+
+      const countMap = new Map<string, number>();
+      (linkData || []).forEach((item: any) => {
+        if (item.tag_id) {
+          countMap.set(item.tag_id, (countMap.get(item.tag_id) || 0) + 1);
+        }
+      });
+
+      const enrichedTags = (tagsData || []).map((tag: any) => ({
+        id: tag.id,
+        name: tag.name,
+        count: countMap.get(tag.id) || 0
+      })).sort((a: any, b: any) => b.count - a.count || a.name.localeCompare(b.name));
+
+      this.tagsList.set(enrichedTags);
+    } catch (e) {
+      console.error('Error loading tags data:', e);
+    } finally {
+      this.loadingTags.set(false);
+    }
+  }
 
   async loadCategories() {
     const { data, error } = await this.supabaseService.db
@@ -985,14 +1116,17 @@ export class AdminDashboardComponent implements OnInit {
   async loadQuestionTypeCounts() {
     const { data, error } = await this.supabaseService.db
       .from('questions')
-      .select('id, qtype, version, parent_id')
+      .select('id, qtype, version, parent_id, name')
       .is('deleted_at', null);
 
     if (error || !data) return;
 
+    // Filter out system records
+    const cleanData = (data as any[]).filter(q => q.name !== '__SYSTEM_USER_RECORDS__');
+
     // Filter to only include the LATEST version of each question family
     const familyMap = new Map<string, any>();
-    data.forEach((q: any) => {
+    cleanData.forEach((q: any) => {
       const familyId = q.parent_id || q.id;
       const existing = familyMap.get(familyId);
       if (!existing || q.version > existing.version) {
@@ -1240,6 +1374,515 @@ export class AdminDashboardComponent implements OnInit {
       this.messageService.add({ severity: 'success', summary: 'Export Success', detail: `Exported ${filtered.length} questions.` });
     } catch (err: any) {
       this.messageService.add({ severity: 'error', summary: 'Export Failed', detail: err.message });
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  // ====================================================
+  // USER MANAGEMENT METHODS & SIGNALS
+  // ====================================================
+  
+  // Load root categories (subjects)
+  rootCategories = computed(() => {
+    return this.categories().filter(c => c.parent_id === null);
+  });
+
+  // Filtered profiles for User Management
+  filteredProfiles = computed(() => {
+    const profiles = this.allProfiles();
+    const roles = this.allUserRoles();
+    const search = this.userSearchKeyword().toLowerCase();
+
+    return profiles.filter(p => {
+      const emailMatch = p.email?.toLowerCase().includes(search);
+      const nameMatch = p.full_name?.toLowerCase().includes(search);
+      if (search && !emailMatch && !nameMatch) return false;
+      return true;
+    }).map(p => {
+      const r = roles.find(role => role.user_id === p.id);
+      let userRole = r?.role || '';
+      
+      // Fallback defaults
+      if (!userRole) {
+        if (p.email === 'admin@mail.com') userRole = 'admin';
+        else if (p.email === 'teacher2@mail.com') userRole = 'assistant_teacher';
+        else userRole = 'teacher';
+      }
+
+      // Read status directly from profiles table bio column (Best Practice)
+      const isPending = p.bio === 'pending' || userRole.startsWith('pending_');
+      const baseRole = isPending ? (userRole.startsWith('pending_') ? userRole.substring(8) : userRole) : userRole;
+      const isSuspended = p.bio === 'suspended' || userRole === 'suspended';
+
+      return {
+        ...p,
+        role: baseRole,
+        isPending: isPending,
+        isSuspended: isSuspended,
+        rawRole: userRole
+      };
+    });
+  });
+
+  // Helper to resolve root category names for specialization
+  getSpecializationNames(specIds: string[]): string {
+    if (!specIds || specIds.length === 0) return 'None (All Subjects)';
+    const cats = this.categories();
+    return specIds
+      .map(id => cats.find(c => c.id === id)?.name || id)
+      .join(', ');
+  }
+
+  showToast(detail: string, severity: 'success' | 'error' | 'info' = 'success', summary = 'Notification') {
+    this.messageService.add({ severity, summary, detail });
+  }
+
+  async loadUsersData() {
+    this.loadingUsers.set(true);
+    try {
+      // 1. Load profiles from DB
+      const { data: dbProfiles, error: pErr } = await this.supabaseService.db
+        .from('profiles')
+        .select('*')
+        .order('full_name', { ascending: true });
+
+      if (pErr) throw pErr;
+
+      // 2. Load user roles from DB
+      const { data: dbRoles, error: rErr } = await this.supabaseService.db
+        .from('user_roles')
+        .select('*');
+
+      if (rErr) throw rErr;
+
+      // 3. Load master registry (Legacy fallback / source of migration)
+      const registry = await this.supabaseService.getUserRegistry();
+
+      // Self-healing check: Ensure any user in DB profiles table exists in the legacy registry
+      let registryModified = false;
+      for (const p of dbProfiles || []) {
+        if (!registry[p.id]) {
+          let baseRole = 'teacher';
+          if (p.email === 'admin@mail.com') baseRole = 'admin';
+          else if (p.email === 'teacher2@mail.com') baseRole = 'assistant_teacher';
+
+          registry[p.id] = {
+            id: p.id,
+            email: p.email,
+            full_name: p.full_name,
+            role: baseRole,
+            specialization: p.specialization || [],
+            approval_status: p.bio === 'suspended' ? 'suspended' : (p.bio || 'approved')
+          };
+          registryModified = true;
+        }
+      }
+      if (registryModified) {
+        try {
+          await this.supabaseService.saveUserRegistry(registry);
+        } catch (syncErr) {
+          console.warn('Silent save registry failed:', syncErr);
+        }
+      }
+
+      const profiles = [...(dbProfiles || [])];
+      const roles = (dbRoles || []).map(r => ({ user_id: r.user_id, role: r.role }));
+
+      // Live Migration: Reconcile DB profiles with registry roles and specializations
+      for (const userId of Object.keys(registry)) {
+        const regUser = registry[userId];
+        const dbProfile = profiles.find(p => p.id === userId);
+        const dbRole = roles.find(r => r.user_id === userId);
+
+        // If user doesn't exist in DB roles table, migrate them!
+        if (!dbRole) {
+          // Keep role in user_roles clean ('admin', 'teacher', 'assistant_teacher')
+          // to adhere to the database check constraint user_roles_role_check.
+          let cleanRole = regUser.role;
+          if (cleanRole !== 'admin' && cleanRole !== 'teacher' && cleanRole !== 'assistant_teacher') {
+            cleanRole = 'teacher';
+          }
+          await this.supabaseService.db
+            .from('user_roles')
+            .upsert({ user_id: userId, role: cleanRole }, { onConflict: 'user_id' });
+          
+          roles.push({ user_id: userId, role: cleanRole });
+        }
+
+        // If user doesn't exist in DB profiles table, migrate them!
+        if (!dbProfile) {
+          const virtualProfile = {
+            id: userId,
+            email: regUser.email,
+            full_name: regUser.full_name,
+            specialization: regUser.specialization || [],
+            bio: regUser.approval_status === 'suspended' ? 'suspended' : regUser.approval_status,
+            department: regUser.role,
+            avatar_scale: 1,
+            avatar_pos_x: 50,
+            avatar_pos_y: 50,
+            updated_at: new Date().toISOString()
+          };
+
+          await this.supabaseService.db
+            .from('profiles')
+            .upsert(virtualProfile, { onConflict: 'id' });
+
+          profiles.push(virtualProfile);
+        } else {
+          // If profile exists but needs updates from legacy registry
+          const needsSync = !dbProfile.specialization || dbProfile.specialization.length === 0;
+          if (needsSync && regUser.specialization?.length > 0) {
+            dbProfile.specialization = regUser.specialization;
+            await this.supabaseService.db
+              .from('profiles')
+              .update({ specialization: regUser.specialization })
+              .eq('id', userId);
+          }
+          
+          // Always align the in-memory profile status and department with the registry
+          const registryStatus = regUser.approval_status === 'suspended' ? 'suspended' : regUser.approval_status;
+          const oldBio = dbProfile.bio;
+          const oldDept = dbProfile.department;
+          
+          dbProfile.bio = registryStatus;
+          dbProfile.department = regUser.role;
+          
+          // Sync to the database profiles table if out of sync
+          if (oldBio !== registryStatus || oldDept !== regUser.role) {
+            await this.supabaseService.db
+              .from('profiles')
+              .update({ bio: registryStatus, department: regUser.role })
+              .eq('id', userId);
+          }
+        }
+      }
+
+      this.allProfiles.set(profiles);
+      this.allUserRoles.set(roles);
+    } catch (err: any) {
+      this.showToast('Failed to load users: ' + err.message, 'error');
+    } finally {
+      this.loadingUsers.set(false);
+    }
+  }
+
+  openAddUser() {
+    this.userForm = {
+      email: '',
+      password: '',
+      fullName: '',
+      role: 'teacher',
+      specialization: []
+    };
+    this.showAddUserModal.set(true);
+  }
+
+  toggleSpecialization(catId: string) {
+    const current = [...this.userForm.specialization];
+    const idx = current.indexOf(catId);
+    if (idx > -1) {
+      current.splice(idx, 1);
+    } else {
+      current.push(catId);
+    }
+    this.userForm.specialization = current;
+  }
+
+  async createUser() {
+    const f = this.userForm;
+    if (!f.email || !f.fullName || !f.password) {
+      this.showToast('Please fill in all required fields.', 'error');
+      return;
+    }
+
+    if (f.password.length < 6) {
+      this.showToast('Temporary password must be at least 6 characters.', 'error');
+      return;
+    }
+
+    this.loading.set(true);
+    try {
+      // 1. Instantiate secondary Supabase client with persistSession: false
+      const tempClient = createClient(environment.supabaseUrl, environment.supabaseKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false
+        }
+      });
+
+      // 2. Sign up the new user
+      const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({
+        email: f.email,
+        password: f.password,
+        options: {
+          data: {
+            full_name: f.fullName
+          }
+        }
+      });
+
+      if (signUpError) throw signUpError;
+      if (!signUpData.user) throw new Error('User creation returned empty payload.');
+
+      const newUserId = signUpData.user.id;
+
+      // 3. Database Table insert (user_roles & profiles)
+      // Standard RLS policies require clean roles to pass DB constraints
+      const { error: roleErr } = await this.supabaseService.db
+        .from('user_roles')
+        .upsert({ user_id: newUserId, role: f.role }, { onConflict: 'user_id' }); // Clean role!
+
+      if (roleErr) throw roleErr;
+
+      const { error: profileErr } = await this.supabaseService.db
+        .from('profiles')
+        .upsert({
+          id: newUserId,
+          email: f.email,
+          full_name: f.fullName,
+          specialization: f.specialization,
+          bio: 'pending', // Pending status is stored here
+          department: f.role,
+          avatar_scale: 1,
+          avatar_pos_x: 50,
+          avatar_pos_y: 50,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+
+      if (profileErr) throw profileErr;
+
+      // 4. Sync backward to legacy registry to maintain consistency
+      try {
+        const registry = await this.supabaseService.getUserRegistry();
+        registry[newUserId] = {
+          id: newUserId,
+          email: f.email,
+          full_name: f.fullName,
+          role: f.role,
+          specialization: f.specialization,
+          approval_status: 'pending'
+        };
+        await this.supabaseService.saveUserRegistry(registry);
+      } catch (legacyErr) {
+        console.warn('Legacy registry synchronization failed silently:', legacyErr);
+      }
+
+      this.showToast(`Pre-registered ${f.fullName}. Invitation email sent!`, 'success');
+      this.showAddUserModal.set(false);
+      
+      // Reset form
+      this.userForm = {
+        email: '',
+        password: '',
+        fullName: '',
+        role: 'teacher',
+        specialization: []
+      };
+
+      await this.loadUsersData();
+      await this.loadTeachers(); // Refresh team lists too
+    } catch (err: any) {
+      this.showToast('Failed to create user: ' + err.message, 'error');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  editUser(profile: any) {
+    this.editingUser.set(profile);
+    this.userForm = {
+      email: profile.email || '',
+      password: '', // Password is not editable
+      fullName: profile.full_name || '',
+      role: profile.role || 'teacher',
+      specialization: profile.specialization || []
+    };
+    this.showEditUserModal.set(true);
+  }
+
+  async updateUser() {
+    const target = this.editingUser();
+    if (!target) return;
+
+    const f = this.userForm;
+    if (!f.fullName) {
+      this.showToast('Full name is required.', 'error');
+      return;
+    }
+
+    this.loading.set(true);
+    try {
+      // 1. Relational database updates
+      const { error: roleErr } = await this.supabaseService.db
+        .from('user_roles')
+        .upsert({ user_id: target.id, role: f.role }, { onConflict: 'user_id' }); // Clean role!
+      if (roleErr) throw roleErr;
+
+      const { error: profErr } = await this.supabaseService.db
+        .from('profiles')
+        .upsert({
+          id: target.id,
+          full_name: f.fullName,
+          specialization: f.specialization,
+          department: f.role,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+      if (profErr) throw profErr;
+
+      // 2. Legacy registry sync
+      try {
+        const registry = await this.supabaseService.getUserRegistry();
+        if (registry[target.id]) {
+          registry[target.id].full_name = f.fullName;
+          registry[target.id].role = f.role;
+          registry[target.id].specialization = f.specialization;
+          await this.supabaseService.saveUserRegistry(registry);
+        }
+      } catch (legacyErr) {
+        console.warn('Legacy registry synchronization failed silently:', legacyErr);
+      }
+
+      this.showToast(`User ${f.fullName} updated successfully`, 'success');
+      this.showEditUserModal.set(false);
+      this.editingUser.set(null);
+
+      await this.loadUsersData();
+      await this.loadTeachers(); // Refresh team list
+    } catch (err: any) {
+      this.showToast('Failed to update user: ' + err.message, 'error');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  async approveUser(profile: any) {
+    this.loading.set(true);
+    try {
+      // 1. Relational database update (Approved status set purely in profiles.bio)
+      const { error: profErr } = await this.supabaseService.db
+        .from('profiles')
+        .update({ bio: 'approved' })
+        .eq('id', profile.id);
+      if (profErr) throw profErr;
+
+      // 2. Legacy registry sync
+      try {
+        const registry = await this.supabaseService.getUserRegistry();
+        const entry = registry[profile.id] || {
+          id: profile.id,
+          email: profile.email,
+          full_name: profile.full_name,
+          role: profile.role || 'teacher',
+          specialization: profile.specialization || []
+        };
+        entry.approval_status = 'approved';
+        registry[profile.id] = entry;
+        await this.supabaseService.saveUserRegistry(registry);
+      } catch (legacyErr) {
+        console.warn('Legacy registry synchronization failed silently:', legacyErr);
+      }
+
+      this.showToast(`User ${profile.full_name || profile.email} approved successfully!`, 'success');
+      await this.loadUsersData();
+      await this.loadTeachers();
+    } catch (err: any) {
+      this.showToast('Failed to approve user: ' + err.message, 'error');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  async revokeUserAccess(profile: any) {
+    if (!confirm(`Are you sure you want to revoke database dashboard access for "${profile.full_name || profile.email}"?`)) return;
+
+    this.loading.set(true);
+    try {
+      // 1. Relational database update (Suspended status is set purely in profiles.bio to avoid role constraint violation)
+      const { error: profErr } = await this.supabaseService.db
+        .from('profiles')
+        .update({ bio: 'suspended' })
+        .eq('id', profile.id);
+      if (profErr) throw profErr;
+
+      // 2. Legacy registry sync
+      try {
+        const registry = await this.supabaseService.getUserRegistry();
+        const entry = registry[profile.id] || {
+          id: profile.id,
+          email: profile.email,
+          full_name: profile.full_name,
+          role: profile.role || 'teacher',
+          specialization: profile.specialization || []
+        };
+        entry.approval_status = 'suspended';
+        registry[profile.id] = entry;
+        await this.supabaseService.saveUserRegistry(registry);
+      } catch (legacyErr) {
+        console.warn('Legacy registry synchronization failed silently:', legacyErr);
+      }
+
+      this.showToast(`Revoked access for ${profile.full_name || profile.email}`, 'success');
+      await this.loadUsersData();
+      await this.loadTeachers();
+    } catch (err: any) {
+      this.showToast('Failed to revoke access: ' + err.message, 'error');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  async reRegisterUser(profile: any) {
+    this.loading.set(true);
+    try {
+      // 1. Relational database update (Approval status restored back to 'approved')
+      const { error: profErr } = await this.supabaseService.db
+        .from('profiles')
+        .update({ bio: 'approved' })
+        .eq('id', profile.id);
+      if (profErr) throw profErr;
+
+      // 2. Legacy registry sync
+      try {
+        const registry = await this.supabaseService.getUserRegistry();
+        const entry = registry[profile.id] || {
+          id: profile.id,
+          email: profile.email,
+          full_name: profile.full_name,
+          role: profile.role || 'teacher',
+          specialization: profile.specialization || []
+        };
+        entry.approval_status = 'approved';
+        registry[profile.id] = entry;
+        await this.supabaseService.saveUserRegistry(registry);
+      } catch (legacyErr) {
+        console.warn('Legacy registry synchronization failed silently:', legacyErr);
+      }
+
+      this.showToast(`Restored active status for ${profile.full_name || profile.email}!`, 'success');
+      await this.loadUsersData();
+      await this.loadTeachers();
+    } catch (err: any) {
+      this.showToast('Failed to restore user: ' + err.message, 'error');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  async resendInviteMail(profile: any) {
+    this.loading.set(true);
+    try {
+      const { error } = await this.supabaseService.auth.resetPasswordForEmail(profile.email, {
+        redirectTo: window.location.origin + '/auth'
+      });
+
+      if (error) throw error;
+
+      this.showToast(`Setup invitation email resent to ${profile.email}!`, 'success');
+    } catch (err: any) {
+      this.showToast('Failed to resend invite email: ' + err.message, 'error');
     } finally {
       this.loading.set(false);
     }

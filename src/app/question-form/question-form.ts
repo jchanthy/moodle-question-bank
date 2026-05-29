@@ -151,6 +151,55 @@ export class QuestionFormComponent implements OnInit {
     multichoiceanswernone: 'Ensure all correct options are marked. Students get 0 if they miss even one correct choice or pick a wrong one.'
   };
 
+  // Standard Moodle penalty values
+  moodlePenaltyOptions = [
+    { label: '0%',       value: 0 },
+    { label: '10%',      value: 0.1 },
+    { label: '20%',      value: 0.2 },
+    { label: '25%',      value: 0.25 },
+    { label: '33.333%',  value: 0.3333333 },
+    { label: '50%',      value: 0.5 },
+    { label: '66.667%',  value: 0.6666667 },
+    { label: '100%',     value: 1 },
+  ];
+
+  // Standard Moodle fraction values for answer grading
+  moodleFractionOptions = [
+    { label: 'None (0%)',    value: 0 },
+    { label: '10%',          value: 10 },
+    { label: '16.667%',      value: 16.66667 },
+    { label: '20%',          value: 20 },
+    { label: '25%',          value: 25 },
+    { label: '33.333%',      value: 33.33333 },
+    { label: '40%',          value: 40 },
+    { label: '50%',          value: 50 },
+    { label: '60%',          value: 60 },
+    { label: '66.667%',      value: 66.66667 },
+    { label: '75%',          value: 75 },
+    { label: '80%',          value: 80 },
+    { label: '83.333%',      value: 83.33333 },
+    { label: '90%',          value: 90 },
+    { label: '100%',         value: 100 },
+    // Negative (penalty) fractions
+    { label: '-100%',        value: -100 },
+    { label: '-83.333%',     value: -83.33333 },
+    { label: '-75%',         value: -75 },
+    { label: '-66.667%',     value: -66.66667 },
+    { label: '-60%',         value: -60 },
+    { label: '-50%',         value: -50 },
+    { label: '-40%',         value: -40 },
+    { label: '-33.333%',     value: -33.33333 },
+    { label: '-25%',         value: -25 },
+    { label: '-20%',         value: -20 },
+    { label: '-16.667%',     value: -16.66667 },
+    { label: '-10%',         value: -10 },
+  ];
+
+  /** Whether the current question type is True/False */
+  get isTrueFalse(): boolean {
+    return this.questionForm.get('qtype')?.value === 'truefalse';
+  }
+
   // Tag Suggestions Logic
   allSuggestedTags = ['exam', 'quiz', 'final', 'homework', 'midterm', 'math', 'science', 'khmer', 'english', 'ict', 'urgent', 'revision'];
   filteredTags = signal<string[]>([]);
@@ -168,23 +217,35 @@ export class QuestionFormComponent implements OnInit {
     this.filteredTags.set(filtered);
   }
 
+  onTagInputKeydown(event: KeyboardEvent) {
+    const inputEl = event.target as HTMLInputElement;
+    if (event.key === 'Enter' || event.key === ',') {
+      const value = inputEl.value?.trim().toLowerCase();
+      if (value) {
+        event.preventDefault();
+        const currentTags = (this.questionForm.get('tags')?.value || []) as string[];
+        if (!currentTags.includes(value)) {
+          this.questionForm.patchValue({
+            tags: [...currentTags, value]
+          });
+        }
+        inputEl.value = ''; // clear input text
+        this.filteredTags.set([]); // clear suggestions
+      }
+    }
+  }
+
   async loadExistingTags() {
     try {
-      // Dynamically fetch tags already in use across the system
+      // Dynamically fetch tags already in use across the system from master table
       const { data } = await this.supabase.db
-        .from('questions')
-        .select('metadata')
-        .not('metadata', 'is', null)
-        .limit(200);
+        .from('tags')
+        .select('name');
 
       if (data) {
         const tagSet = new Set(this.allSuggestedTags);
-        data.forEach((q: any) => {
-          if (q.metadata?.tags && Array.isArray(q.metadata.tags)) {
-            q.metadata.tags.forEach((t: string) => {
-              if (t && typeof t === 'string') tagSet.add(t.toLowerCase());
-            });
-          }
+        data.forEach((t: any) => {
+          if (t.name) tagSet.add(t.name.toLowerCase());
         });
         this.allSuggestedTags = Array.from(tagSet).sort();
       }
@@ -206,6 +267,7 @@ export class QuestionFormComponent implements OnInit {
     question_text: ['', Validators.required],
     qtype: ['multichoice', Validators.required],
     default_grade: [1.0, [Validators.required, Validators.min(0)]],
+    // Penalty uses standard Moodle discrete values (stored as 0–1 decimal)
     penalty: [0.3333333, [Validators.required, Validators.min(0), Validators.max(1)]],
     general_feedback: [''],
     // Metadata
@@ -291,6 +353,30 @@ export class QuestionFormComponent implements OnInit {
 
       if (aError) throw aError;
 
+      // Fetch relational tags and merge with metadata.tags for dual-sync support
+      let dbTags: string[] = [];
+      try {
+        const { data: qTagsData } = await this.supabase.db
+          .from('question_tags')
+          .select('tags(name)')
+          .eq('question_id', id);
+        if (qTagsData) {
+          dbTags = qTagsData.map((qt: any) => {
+            const t = qt.tags;
+            return Array.isArray(t) ? t[0]?.name : t?.name;
+          }).filter(Boolean);
+        }
+      } catch (e) {
+        console.warn('Failed to query relational tags:', e);
+      }
+      // Normalize tags: split any comma-joined strings (e.g. saved with old separator="," bug)
+      const normalizeTagArray = (arr: string[]): string[] =>
+        arr.flatMap(t => typeof t === 'string' ? t.split(',').map(s => s.trim().toLowerCase()).filter(Boolean) : []);
+
+      const rawMetaTags = question.metadata?.tags || [];
+      const rawDbTags = dbTags;
+      const mergedTags = Array.from(new Set([...normalizeTagArray(rawMetaTags), ...normalizeTagArray(rawDbTags)]));
+
       this.questionForm.patchValue({
         name: question.name,
         question_text: this.importExport.cleanHtml(question.question_text),
@@ -305,7 +391,7 @@ export class QuestionFormComponent implements OnInit {
         single: question.metadata?.single !== undefined ? question.metadata.single : true,
         shuffleanswers: question.metadata?.shuffleanswers !== undefined ? question.metadata.shuffleanswers : true,
         answernumbering: question.metadata?.answernumbering || 'abc',
-        tags: question.metadata?.tags || []
+        tags: mergedTags
       }, { emitEvent: false });
 
       // History is already handled and synced above
@@ -370,6 +456,10 @@ export class QuestionFormComponent implements OnInit {
         answersArray.push(group);
       });
 
+      // Reload categories now that category_id is set, so any assigned (non-owned) category
+      // gets fetched and added to the dropdown (fixes imported question category visibility).
+      await this.loadFormCategories();
+
     } catch (err: any) {
       console.error('Load error:', err);
     } finally {
@@ -387,7 +477,7 @@ export class QuestionFormComponent implements OnInit {
       .select('*')
       .order('sort_order', { ascending: true });
 
-    // Best Practice: Teachers only see their own categories
+    // Best Practice: Teachers only see their own categories and global ones
     if (role !== 'admin') {
       query = query.or(`created_by.eq.${user.id},is_global.eq.true`);
     }
@@ -417,7 +507,28 @@ export class QuestionFormComponent implements OnInit {
       return result;
     };
 
-    this.formCategories.set(flatten(roots));
+    let flatList = flatten(roots);
+
+    // BUGFIX: If the question already has a category assigned (e.g. from import)
+    // that the teacher didn't create and isn't global, we still need to show it.
+    const currentCategoryId = this.questionForm.get('category_id')?.value;
+    if (currentCategoryId && !flatList.some(c => c.id === currentCategoryId)) {
+      try {
+        const { data: extraCat } = await this.supabase.db
+          .from('question_categories')
+          .select('id, name')
+          .eq('id', currentCategoryId)
+          .single();
+        if (extraCat) {
+          // Insert the missing category at the top of the list with a visual indicator
+          flatList = [{ id: extraCat.id, name: extraCat.name + ' (assigned)', depth: 0 }, ...flatList];
+        }
+      } catch (e) {
+        console.warn('Could not fetch assigned category:', e);
+      }
+    }
+
+    this.formCategories.set(flatList);
   }
 
   async createCategory() {
@@ -646,9 +757,6 @@ export class QuestionFormComponent implements OnInit {
     
     // For single choice, only one can be correct
     if (isSingle) {
-      // Find the last one marked as correct (the one just clicked)
-      // and reset others to 0 if they are positive
-      // Actually, for single choice, the user just picks one.
       return; 
     }
 
@@ -659,18 +767,40 @@ export class QuestionFormComponent implements OnInit {
       return;
     }
 
-    const share = 100 / correctAnswers.length;
-    const formattedShare = Number(share.toFixed(5));
+    const rawShare = 100 / correctAnswers.length;
+    // Snap to the nearest Moodle-allowed fraction so DB and XML are always compatible
+    const snappedShare = this.snapToMoodleFraction(rawShare);
 
     answers.forEach(a => {
       if (Number(a.get('fraction')?.value) > 0) {
-        a.get('fraction')?.setValue(formattedShare, { emitEvent: false });
+        a.get('fraction')?.setValue(snappedShare, { emitEvent: false });
       }
     });
 
     if (!silent) {
-      this.showToast(`Grades balanced! Each correct answer is now ${formattedShare}%.`);
+      this.showToast(`Grades balanced! Each correct answer is now ${snappedShare}%.`);
     }
+  }
+
+  /** Moodle allowed fractions (0-100 percentage scale) */
+  private readonly MOODLE_ALLOWED_FRACTIONS = [
+    -100, -83.33333, -75, -66.66667, -60, -50,
+    -40, -33.33333, -25, -20, -16.66667, -10,
+    0,
+    10, 16.66667, 20, 25, 33.33333, 40, 50,
+    60, 66.66667, 75, 80, 83.33333, 90, 100
+  ];
+
+  /** Snap any raw fraction value to the nearest Moodle-allowed fraction */
+  private snapToMoodleFraction(raw: number): number {
+    if (this.MOODLE_ALLOWED_FRACTIONS.includes(raw)) return raw;
+    let best = this.MOODLE_ALLOWED_FRACTIONS[0];
+    let bestDist = Math.abs(raw - best);
+    for (const allowed of this.MOODLE_ALLOWED_FRACTIONS) {
+      const dist = Math.abs(raw - allowed);
+      if (dist < bestDist) { bestDist = dist; best = allowed; }
+    }
+    return best;
   }
 
   // Start dragging a marker
@@ -933,17 +1063,16 @@ export class QuestionFormComponent implements OnInit {
         }
       }
 
-      const questionData = {
+      // Shared content fields used for both inserts and updates
+      const sharedData = {
         name: formValue.name,
         question_text: formValue.question_text,
         general_feedback: formValue.general_feedback,
-        default_grade: Math.round(Number(formValue.default_grade) || 1),
-        penalty: Number(formValue.penalty) || 0,
+        // Preserve decimal precision for Moodle XML compatibility
+        default_grade: Number(formValue.default_grade) || 1,
+        penalty: Number(formValue.penalty) ?? 0.3333333,
         qtype: formValue.qtype,
         category_id: formValue.category_id || null,
-        // PASS RLS: Always use current user's ID for the database 'created_by' field on inserts/updates
-        // We will rely on metadata.author_id for true ownership.
-        created_by: user.id, 
         metadata: {
           ...currentMetadata,
           ...extraMetadata,
@@ -961,6 +1090,12 @@ export class QuestionFormComponent implements OnInit {
           modified_at: new Date().toISOString()
         }
       };
+
+      // INSERT payloads include created_by so RLS INSERT policy is satisfied.
+      // UPDATE payloads must NOT include created_by — Supabase RLS WITH CHECK blocks
+      // any UPDATE that tries to write to the created_by column.
+      const insertData = { ...sharedData, created_by: user.id };
+      const updateData = { ...sharedData }; // no created_by
 
       // BRANCHING LOGIC:
       const forceNewVersion = !forceInPlace && this.editMode() && (
@@ -988,7 +1123,7 @@ export class QuestionFormComponent implements OnInit {
         const { data: newQ, error: nError } = await this.supabase.db
           .from('questions')
           .insert({
-            ...questionData,
+            ...insertData,
             status: status,
             version: nextVersion,
             parent_id: parentId
@@ -1006,10 +1141,11 @@ export class QuestionFormComponent implements OnInit {
           .eq('id', questionId!);
       } else if (this.editMode()) {
         console.log('Regular Update: Updating existing record ID:', questionId);
-        // Regular update for existing drafts, rejected, or pending questions
+        // Regular in-place update for drafts / pending questions.
+        // created_by is intentionally excluded from updateData to satisfy RLS WITH CHECK.
         const { data: uData, error: uError } = await this.supabase.db
           .from('questions')
-          .update({ ...questionData, status: status })
+          .update({ ...updateData, status: status })
           .eq('id', questionId)
           .select();
 
@@ -1022,11 +1158,11 @@ export class QuestionFormComponent implements OnInit {
         // Refresh answers
         await this.supabase.db.from('answers').delete().eq('question_id', targetId);
       } else {
-        // Brand new question
+        // Brand new question — use insertData which includes created_by
         const { data: newQ, error: iError } = await this.supabase.db
           .from('questions')
           .insert({
-            ...questionData,
+            ...insertData,
             status: status,
             version: 1
           })
@@ -1041,7 +1177,9 @@ export class QuestionFormComponent implements OnInit {
       const answersToInsert = (formValue.answers as any[])?.map(ans => ({
         question_id: targetId,
         answer_text: ans.answer_text,
-        fraction: Math.round(Number(ans.fraction) || 0),
+        // Preserve decimal fraction precision (e.g. 33.33333 for 3-answer questions)
+        // Use ?? to safely preserve explicit 0 fractions (e.g. False answer in TF)
+        fraction: Number(ans.fraction) != null ? parseFloat(Number(ans.fraction).toFixed(5)) : 0,
         feedback: ans.feedback,
         x: Math.round(Number(ans.x) || 0),
         y: Math.round(Number(ans.y) || 0)
@@ -1050,6 +1188,20 @@ export class QuestionFormComponent implements OnInit {
       if (answersToInsert?.length) {
         const { error: ansError } = await this.supabase.db.from('answers').insert(answersToInsert);
         if (ansError) throw ansError;
+      }
+
+      // Normalize tags before syncing: split comma-joined strings and deduplicate
+      const rawTags: string[] = formValue.tags || [];
+      const cleanedTags = Array.from(new Set(
+        rawTags.flatMap((t: string) =>
+          typeof t === 'string' ? t.split(',').map((s: string) => s.trim().toLowerCase()).filter(Boolean) : []
+        )
+      ));
+      // Sync tags in the tags and question_tags relational tables
+      await this.supabase.syncQuestionTags(targetId, cleanedTags);
+      // Also update metadata tags to match cleaned array
+      if (sharedData.metadata) {
+        sharedData.metadata.tags = cleanedTags;
       }
 
       // 3. Sync Assignments Table if this was a review action
@@ -1075,10 +1227,10 @@ export class QuestionFormComponent implements OnInit {
           const creatorName = this.supabase.currentUserName || user.email || 'A teacher';
           const title = forceNewVersion ? 'New Question Version' : 'Question Submitted for Review';
           
-          let message = `${creatorName} submitted "${questionData.name}" for review.`;
+          let message = `${creatorName} submitted "${formValue.name}" for review.`;
           if (forceNewVersion) {
             const nextVersionVal = (formValue.version ? Number(formValue.version) + 1 : 2);
-            message = `${creatorName} created a new version (v${nextVersionVal}) of "${questionData.name}"`;
+            message = `${creatorName} created a new version (v${nextVersionVal}) of "${formValue.name}"`;
           }
 
           await this.notificationService.notifyAdmins(
@@ -1098,10 +1250,10 @@ export class QuestionFormComponent implements OnInit {
           const creatorName = this.supabase.currentUserName || user.email || 'An assistant';
           const title = forceNewVersion ? 'New Assistant Submission' : 'Question Submitted for Teacher Review';
           
-          let message = `${creatorName} submitted "${questionData.name}" for peer review.`;
+          let message = `${creatorName} submitted "${formValue.name}" for peer review.`;
           if (forceNewVersion) {
             const nextVersionVal = (formValue.version ? Number(formValue.version) + 1 : 2);
-            message = `${creatorName} created a new version (v${nextVersionVal}) of "${questionData.name}"`;
+            message = `${creatorName} created a new version (v${nextVersionVal}) of "${formValue.name}"`;
           }
 
           await this.notificationService.notifyTeachers(

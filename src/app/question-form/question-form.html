@@ -458,18 +458,18 @@
             <div>
               <label class="block text-sm font-bold text-gray-700 flex items-center gap-2 mb-1">
                 Question Tags
-                <span class="text-[10px] font-normal text-gray-400 normal-case">(Press Enter after each tag)</span>
+                <span class="text-[10px] font-normal text-gray-400 normal-case">(Type a tag then press Enter to add)</span>
               </label>
               <p-autocomplete formControlName="tags" 
                                [multiple]="true"
                                [unique]="true"
                                [suggestions]="filteredTags()"
                                (completeMethod)="filterTags($event)"
+                               (keydown)="onTagInputKeydown($event)"
                                [delay]="0"
                                [autoHighlight]="true"
                                [completeOnFocus]="true"
-                               separator=","
-                               placeholder="exam, final, quiz..."
+                               placeholder="Type a tag and press Enter..."
                                styleClass="w-full"
                                inputStyleClass="w-full mt-1 block border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2 border bg-gray-50/50 font-medium transition-all rounded-none min-h-[44px]">
               </p-autocomplete>
@@ -643,6 +643,35 @@
           </h2>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Default Grade (Moodle: defaultgrade) -->
+            <div>
+              <label class="block text-sm font-bold text-gray-700">
+                Default Point Value
+                <span class="text-[10px] font-normal text-gray-400 ml-1">(Moodle: defaultgrade)</span>
+              </label>
+              <input type="number" formControlName="default_grade" min="0" step="0.5"
+                class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-bold transition-all"
+                placeholder="1">
+              <p class="text-[10px] text-gray-400 font-medium mt-1">
+                The maximum grade a student can achieve for this question. Typically 1.
+              </p>
+            </div>
+
+            <!-- Penalty (Moodle: penalty) - only applies to adaptive/interactive mode -->
+            <div>
+              <label class="block text-sm font-bold text-gray-700">
+                Penalty per Attempt
+                <span class="text-[10px] font-normal text-gray-400 ml-1">(Moodle: penalty)</span>
+              </label>
+              <select formControlName="penalty"
+                class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
+                <option *ngFor="let p of moodlePenaltyOptions" [ngValue]="p.value">{{ p.label }}</option>
+              </select>
+              <p class="text-[10px] text-gray-400 font-medium mt-1">
+                Fraction of grade deducted per wrong try in interactive/adaptive mode. 33.333% is standard.
+              </p>
+            </div>
+
             <div class="md:col-span-2">
               <label class="block text-sm font-bold text-gray-700">General Feedback</label>
               <textarea formControlName="general_feedback" rows="2"
@@ -714,6 +743,21 @@
                         {{ answers.at(i).get('fraction')?.value }}%
                       </span>
                     </button>
+
+                    <!-- Moodle-standard fraction dropdown — hidden for True/False (always binary) -->
+                    <select *ngIf="!isTrueFalse" formControlName="fraction"
+                      class="w-full text-xs border border-blue-100 bg-white px-2 py-1.5 font-bold focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all rounded-none"
+                      title="Set exact Moodle-standard grade fraction for this answer">
+                      <option *ngFor="let f of moodleFractionOptions" [ngValue]="f.value">{{ f.label }}</option>
+                    </select>
+
+                    <!-- True/False: show a simple read-only indicator instead -->
+                    <div *ngIf="isTrueFalse"
+                      class="text-[10px] font-black uppercase tracking-widest text-center py-1"
+                      [class.text-green-600]="isAnswerCorrect(i)"
+                      [class.text-gray-400]="!isAnswerCorrect(i)">
+                      {{ isAnswerCorrect(i) ? '✓ Correct side' : 'Wrong side' }}
+                    </div>
                   </div>
                 </div>
                 <!-- Coordinates only for Drag and Drop -->

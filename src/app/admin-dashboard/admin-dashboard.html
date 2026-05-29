@@ -1,5 +1,5 @@
 <p-toast />
-<div class="min-h-screen bg-gray-50 p-6 md:p-12">
+<div class="min-h-screen bg-slate-100 p-6 md:p-12">
   <div class="max-w-5xl mx-auto">
 
     <!-- Header -->
@@ -8,13 +8,17 @@
         <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">
           {{ currentView() === 'questions' ? 'Question Bank' :
           currentView() === 'team' ? 'Team Performance' :
-          currentView() === 'categories' ? 'Category Management' : 'Performance Report' }}
+          currentView() === 'categories' ? 'Category Management' :
+          currentView() === 'users' ? 'User Directory' :
+          currentView() === 'tags' ? 'Tag Management' : 'Performance Report' }}
         </h1>
         <p class="text-gray-500 mt-1">
           {{ currentView() === 'questions' ? 'Quality assurance and question management portal.' :
           currentView() === 'team' ? 'Track teacher tasks, reviews, and payment eligibility.' :
-          currentView() === 'categories' ? 'Organize questions into structures and global tags.' : 'Detailed teacher
-          performance and settlement log.' }}
+          currentView() === 'categories' ? 'Organize questions into structures and global tags.' :
+          currentView() === 'users' ? 'Administer user accounts, security roles, and subject specializations.' :
+          currentView() === 'tags' ? 'Manage and track system-wide question tags and their frequencies.' :
+          'Detailed teacher performance and settlement log.' }}
         </p>
       </div>
       <div class="flex items-center gap-4">
@@ -155,6 +159,30 @@
             d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
         </svg>
         Categories
+      </button>
+      <button (click)="currentView.set('tags')" [class.bg-white]="currentView() === 'tags'"
+        [class.shadow-md]="currentView() === 'tags'" [class.text-blue-600]="currentView() === 'tags'"
+        class="px-6 py-2.5 rounded-none font-bold text-sm transition-all flex items-center gap-2"
+        [class.text-gray-500]="currentView() !== 'tags'">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
+            d="M7 7h.01M6 20l6.5-6.5A2.5 2.5 0 0011 11a2.5 2.5 0 00-2.5-2.5L2 15v5h4z" />
+        </svg>
+        Tags
+      </button>
+      <button (click)="currentView.set('users')" [class.bg-white]="currentView() === 'users'"
+        [class.shadow-md]="currentView() === 'users'" [class.text-blue-600]="currentView() === 'users'"
+        class="px-6 py-2.5 rounded-none font-bold text-sm transition-all flex items-center gap-2 relative"
+        [class.text-gray-500]="currentView() !== 'users'">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
+            d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Users
+        <span *ngIf="pendingUsersCount() > 0"
+          class="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-pulse ml-1 shrink-0">
+          {{ pendingUsersCount() }}
+        </span>
       </button>
     </div>
 
@@ -297,7 +325,7 @@
               </button>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
               <!-- Teacher Filter -->
               <select [ngModel]="filterTeacher()" (ngModelChange)="onTeacherFilterChange($event)"
                 class="w-full px-3 py-2 border border-gray-100 rounded-none text-sm font-medium bg-gray-50 focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all">
@@ -320,6 +348,22 @@
                 <option value="">All Categories</option>
                 <option *ngFor="let cat of categories()" [value]="cat.id">{{ cat.name }}</option>
               </select>
+
+              <!-- Tags Multi-Filter -->
+              <div class="w-full relative">
+                <p-autocomplete [ngModel]="filterSelectedTags()" (ngModelChange)="filterSelectedTags.set($event); currentPage.set(1)"
+                  [multiple]="true" [suggestions]="filteredTagsSuggestions()" (completeMethod)="searchTagFilters($event)"
+                  placeholder="Filter tags (e.g. exam)..." appendTo="body"
+                  styleClass="w-full filter-autocomplete"
+                  inputStyleClass="w-full text-sm border border-gray-100 rounded-none px-3 py-2 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 bg-gray-50 focus:bg-white transition-all font-medium min-h-[38px]">
+                  <!-- Selected Item template -->
+                  <ng-template pTemplate="selectedItem" let-item>
+                    <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-black mr-1 uppercase">
+                      #{{ item }}
+                    </span>
+                  </ng-template>
+                </p-autocomplete>
+              </div>
             </div>
           </div>
         </div>
@@ -1265,6 +1309,449 @@
           </div>
         </div>
 
+      </div>
+    </div>
+
+    <!-- USERS VIEW -->
+    <div *ngIf="currentView() === 'users'" class="animate-in fade-in duration-500 space-y-6">
+      <!-- Users Top Header Bar -->
+      <div class="bg-white rounded-none border border-gray-100 shadow-sm px-8 py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-black text-gray-900 uppercase tracking-wide">User Account Directory</h2>
+          <p class="text-xs text-gray-400 font-bold mt-0.5">Add new users, assign roles (Admin/Teacher/Assistant), and manage subject specializations.</p>
+        </div>
+        <button (click)="openAddUser()"
+          class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-widest rounded-none shadow-lg shadow-blue-200 transition-all active:scale-[0.98] flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4" />
+          </svg>
+          Add New User
+        </button>
+      </div>
+
+      <!-- Search & Filter Bar -->
+      <div class="bg-white rounded-none border border-gray-100 shadow-sm px-8 py-4 flex items-center">
+        <div class="relative w-full max-w-md">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input type="text" [ngModel]="userSearchKeyword()" (ngModelChange)="userSearchKeyword.set($event)" placeholder="Search by name or email..."
+            class="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-sm">
+        </div>
+      </div>
+
+      <!-- Users Grid/Table -->
+      <div class="bg-white rounded-none border border-gray-100 shadow-sm overflow-hidden min-h-[300px] relative">
+        <!-- Suble loading bar at top of table -->
+        <div class="absolute top-0 left-0 right-0 z-10 h-1 overflow-hidden" *ngIf="loadingUsers() || loading()">
+          <div class="h-full animate-progress-bar"></div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-gray-50 border-b border-gray-100">
+              <tr class="text-[10px] font-black text-blue-600 uppercase tracking-widest">
+                <th class="px-6 py-4 w-12 text-center"></th>
+                <th class="px-6 py-4">User Details</th>
+                <th class="px-6 py-4">Email</th>
+                <th class="px-6 py-4">Assigned Role</th>
+                <th class="px-6 py-4">Subject Specialization</th>
+                <th class="px-6 py-4 w-72 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-150">
+              <tr *ngIf="filteredProfiles().length === 0" class="hover:bg-transparent">
+                <td colspan="6" class="px-6 py-20 text-center text-gray-400 font-bold">
+                  No registered users found matching your search.
+                </td>
+              </tr>
+              <tr *ngFor="let p of filteredProfiles()" class="hover:bg-blue-50/10 transition-colors">
+                <td class="px-6 py-4">
+                  <div class="w-10 h-10 bg-blue-50 border border-blue-100 text-blue-700 flex items-center justify-center font-black text-sm rounded-none shadow-sm mx-auto">
+                    {{ (p.full_name || p.email || 'U').substring(0, 2) | uppercase }}
+                  </div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm font-black text-gray-950">{{ p.full_name || 'Anonymous User' }}</div>
+                  <div class="text-[10px] text-gray-400 font-bold mt-0.5" *ngIf="p.department">{{ p.department }} &bull; {{ p.phone }}</div>
+                </td>
+                <td class="px-6 py-4 text-sm font-medium text-gray-600">
+                  {{ p.email }}
+                </td>
+                <td class="px-6 py-4">
+                  <ng-container *ngIf="p.isSuspended">
+                    <span class="px-2.5 py-1 bg-red-50 border border-red-200 text-red-600 text-[10px] font-black uppercase tracking-widest rounded-none inline-flex items-center gap-1.5 shadow-sm">
+                      <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                      Access Revoked
+                    </span>
+                  </ng-container>
+                  <ng-container *ngIf="!p.isSuspended && p.isPending">
+                    <span class="px-2.5 py-1 bg-amber-100 border border-amber-250 text-amber-800 text-[10px] font-black uppercase tracking-widest rounded-none inline-flex items-center gap-1.5 animate-pulse shadow-sm">
+                      <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
+                      Pending Review
+                    </span>
+                    <div class="text-[9px] text-gray-400 font-black mt-1.5 uppercase tracking-wider">
+                      Requested: {{ p.role === 'assistant_teacher' ? 'Assistant' : p.role }}
+                    </div>
+                  </ng-container>
+                  <ng-container *ngIf="!p.isSuspended && !p.isPending">
+                    <span *ngIf="p.role === 'admin'" class="px-2.5 py-1 bg-red-100 text-red-700 text-[10px] font-black uppercase tracking-widest rounded-none">Admin</span>
+                    <span *ngIf="p.role === 'teacher'" class="px-2.5 py-1 bg-blue-100 text-blue-700 text-[10px] font-black uppercase tracking-widest rounded-none">Teacher</span>
+                    <span *ngIf="p.role === 'assistant_teacher'" class="px-2.5 py-1 bg-purple-100 text-purple-700 text-[10px] font-black uppercase tracking-widest rounded-none">Assistant Teacher</span>
+                  </ng-container>
+                </td>
+                <td class="px-6 py-4 text-xs font-bold text-gray-700">
+                  <div class="flex flex-wrap gap-1.5 max-w-md">
+                    <ng-container *ngIf="p.specialization && p.specialization.length > 0; else noSpec">
+                      <span *ngFor="let specId of p.specialization" class="px-2.5 py-1 bg-gray-50 border border-gray-150 text-gray-500 rounded-none text-[10px] uppercase font-black tracking-wider">
+                        {{ getSpecializationNames([specId]) }}
+                      </span>
+                    </ng-container>
+                    <ng-template #noSpec>
+                      <span class="text-gray-400 font-bold italic text-[11px]">All Subjects / Categories</span>
+                    </ng-template>
+                  </div>
+                </td>
+                <td class="px-6 py-4 text-right whitespace-nowrap w-72">
+                  <div class="flex justify-end gap-2.5">
+                    <!-- Pending -> Approve -->
+                    <button *ngIf="!p.isSuspended && p.isPending" (click)="approveUser(p)" 
+                      class="px-3.5 py-2 bg-green-600 hover:bg-green-700 text-white font-black text-[10px] uppercase tracking-widest rounded-none shadow-md shadow-green-100 flex items-center gap-1.5 transition-all hover:scale-102" 
+                      title="Approve Registration">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5" d="M5 13l4 4L19 7" />
+                      </svg>
+                      Approve
+                    </button>
+
+                    <!-- Revoked -> Restore Access & Resend Mail -->
+                    <button *ngIf="p.isSuspended" (click)="reRegisterUser(p)" 
+                      class="px-3.5 py-2 bg-green-600 hover:bg-green-700 text-white font-black text-[10px] uppercase tracking-widest rounded-none shadow-md shadow-green-100 flex items-center gap-1.5 transition-all hover:scale-102" 
+                      title="Restore Access">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Restore Access
+                    </button>
+                     <button *ngIf="p.isSuspended" (click)="resendInviteMail(p)" 
+                      class="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase tracking-widest rounded-none shadow-md shadow-amber-100 flex items-center gap-1.5 transition-all hover:scale-102" 
+                      title="Send Password Reset Email">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      Reset Password
+                    </button>
+
+                    <!-- Always Edit -->
+                    <button (click)="editUser(p)" 
+                      class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase tracking-widest rounded-none shadow-md shadow-blue-100 flex items-center gap-1.5 transition-all hover:scale-102" 
+                      title="Edit User">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                      Edit
+                    </button>
+
+                    <!-- Active -> Revoke -->
+                    <button *ngIf="!p.isSuspended && !p.isPending" (click)="revokeUserAccess(p)" 
+                      class="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white font-black text-[10px] uppercase tracking-widest rounded-none shadow-md shadow-red-100 flex items-center gap-1.5 transition-all hover:scale-102 disabled:opacity-30 disabled:pointer-events-none" 
+                      title="Revoke access (Delete Role)" [disabled]="p.email === 'admin@mail.com'">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                      </svg>
+                      Revoke
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAGS VIEW -->
+    <div *ngIf="currentView() === 'tags'" class="animate-in fade-in duration-500 space-y-6">
+      <!-- Tags Top Header Bar -->
+      <div class="bg-white rounded-none border border-gray-100 shadow-sm px-8 py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-black text-gray-900 uppercase tracking-wide">Tag Management</h2>
+          <p class="text-xs text-gray-400 font-bold mt-0.5">View all tags created in the system and see the total number of questions associated with each tag.</p>
+        </div>
+      </div>
+
+      <!-- Stats Overview -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Card 1: Unique Tags -->
+        <div class="bg-white rounded-none border border-gray-100 shadow-sm p-6 flex items-center gap-5">
+          <div class="w-14 h-14 bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 rounded-none shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
+                d="M7 7h.01M6 20l6.5-6.5A2.5 2.5 0 0011 11a2.5 2.5 0 00-2.5-2.5L2 15v5h4z" />
+            </svg>
+          </div>
+          <div>
+            <div class="text-2xl font-black text-gray-950">{{ tagsList().length }}</div>
+            <div class="text-[10px] text-gray-400 uppercase tracking-wider font-black">Total Unique Tags</div>
+          </div>
+        </div>
+
+        <!-- Card 2: Most Used Tag -->
+        <div class="bg-white rounded-none border border-gray-100 shadow-sm p-6 flex items-center gap-5">
+          <div class="w-14 h-14 bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 rounded-none shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
+                d="M13 7h.01M9 20l9-9a2.5 2.5 0 10-3.5-3.5L5 16v4h4z" />
+            </svg>
+          </div>
+          <div>
+            <div class="text-2xl font-black text-gray-950">
+              {{ tagsList().length > 0 ? '#' + tagsList()[0].name : 'N/A' }}
+            </div>
+            <div class="text-[10px] text-gray-400 uppercase tracking-wider font-black">
+              Most Popular Tag {{ tagsList().length > 0 ? '(' + tagsList()[0].count + ' questions)' : '' }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search & Filter Bar for Tags -->
+      <div class="bg-white rounded-none border border-gray-100 shadow-sm p-4">
+        <div class="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+          <!-- Search Box -->
+          <div class="relative flex-1">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input type="text" [ngModel]="filterTagsSearch()" (ngModelChange)="filterTagsSearch.set($event)"
+              placeholder="Search tag name..."
+              class="w-full pl-10 pr-3 py-2 border border-gray-100 rounded-none text-sm font-medium bg-gray-50 focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all">
+          </div>
+
+          <!-- Status Dropdown Filter -->
+          <div class="w-full md:w-48">
+            <select [ngModel]="filterTagsStatus()" (ngModelChange)="filterTagsStatus.set($event)"
+              class="w-full px-3 py-2 border border-gray-100 rounded-none text-sm font-medium bg-gray-50 focus:bg-white focus:border-blue-400 outline-none transition-all cursor-pointer">
+              <option value="all">All Statuses</option>
+              <option value="active">Active Only</option>
+              <option value="unused">Unused Only</option>
+            </select>
+          </div>
+
+          <!-- Sorting Dropdown Filter -->
+          <div class="w-full md:w-56">
+            <select [ngModel]="sortTagsBy()" (ngModelChange)="sortTagsBy.set($event)"
+              class="w-full px-3 py-2 border border-gray-100 rounded-none text-sm font-medium bg-gray-50 focus:bg-white focus:border-blue-400 outline-none transition-all cursor-pointer">
+              <option value="count_desc">Popularity (High to Low)</option>
+              <option value="count_asc">Popularity (Low to High)</option>
+              <option value="name_asc">Name (A to Z)</option>
+              <option value="name_desc">Name (Z to A)</option>
+            </select>
+          </div>
+
+          <!-- Reset Filters -->
+          <button *ngIf="filterTagsSearch() || filterTagsStatus() !== 'all'"
+            (click)="filterTagsSearch.set(''); filterTagsStatus.set('all');"
+            class="text-xs font-black text-red-600 hover:text-red-700 flex items-center justify-center gap-2 whitespace-nowrap transition px-4 py-2 rounded-none bg-red-50/50 hover:bg-red-50 border border-red-100">
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <!-- Tags Table -->
+      <div class="bg-white rounded-none border border-gray-100 shadow-sm overflow-hidden min-h-[300px] relative">
+        <div class="absolute top-0 left-0 right-0 z-10 h-1 overflow-hidden" *ngIf="loadingTags()">
+          <div class="h-full bg-blue-600 animate-pulse"></div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-gray-50 border-b border-gray-100">
+              <tr class="text-[10px] font-black text-blue-600 uppercase tracking-widest">
+                <th class="px-8 py-4">Tag Name</th>
+                <th class="px-8 py-4">Total Questions Linked</th>
+                <th class="px-8 py-4 w-72 text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-150">
+              <tr *ngIf="filteredTagsList().length === 0 && !loadingTags()" class="hover:bg-transparent">
+                <td colspan="3" class="px-8 py-20 text-center text-gray-400 font-bold">
+                  No matching tags found.
+                </td>
+              </tr>
+              <tr *ngFor="let tag of filteredTagsList()" class="hover:bg-blue-50/10 transition-colors">
+                <td class="px-8 py-5">
+                  <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded bg-blue-50 text-blue-600 font-black text-sm border border-blue-100/50">
+                      #{{ tag.name }}
+                    </span>
+                  </div>
+                </td>
+                <td class="px-8 py-5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-base font-extrabold text-gray-900">{{ tag.count }}</span>
+                    <span class="text-xs text-gray-400 font-bold">question{{ tag.count !== 1 ? 's' : '' }}</span>
+                  </div>
+                </td>
+                <td class="px-8 py-5 text-right">
+                  <span [class]="tag.count > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
+                    class="px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-full">
+                    {{ tag.count > 0 ? 'Active' : 'Unused' }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD USER MODAL (Tailwind Overlay) -->
+    <div *ngIf="showAddUserModal()" class="fixed inset-0 bg-gray-950/40 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+      <div class="bg-white border border-gray-100 shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+        <!-- Header -->
+        <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+          <div>
+            <h3 class="text-base font-black text-gray-950 uppercase tracking-widest">Register New Account</h3>
+            <p class="text-xs text-gray-400 font-bold mt-0.5">Create a login profile and configure their system workspace.</p>
+          </div>
+          <button (click)="showAddUserModal.set(false)" class="p-1.5 text-gray-400 hover:text-gray-600 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Form Body -->
+        <div class="p-6 overflow-y-auto space-y-4 max-h-[60vh]">
+          <div>
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Full Name <span class="text-red-500">*</span></label>
+            <input type="text" [(ngModel)]="userForm.fullName" placeholder="e.g. John Doe"
+              class="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-sm">
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Email Address <span class="text-red-500">*</span></label>
+            <input type="email" [(ngModel)]="userForm.email" placeholder="e.g. johndoe@mail.com"
+              class="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-sm">
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Temporary Password <span class="text-red-500">*</span></label>
+            <input type="password" [(ngModel)]="userForm.password" placeholder="Choose a temporary password (min. 6 chars)"
+              class="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-sm">
+          </div>
+
+          <div class="p-3 bg-blue-50/50 border border-blue-100/50 rounded-none text-xs text-blue-700 font-bold flex flex-col gap-1">
+            <span class="uppercase tracking-widest text-[9px] font-black text-blue-500">Credential Delivery</span>
+            <span>Provide the temporary password to the user. When they confirm their email invite, they will be logged in and can update their password under their profile.</span>
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">System Access Role</label>
+            <select [(ngModel)]="userForm.role"
+              class="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-none focus:bg-white focus:border-blue-400 outline-none transition-all font-bold text-sm">
+              <option value="admin">System Administrator (Full Control)</option>
+              <option value="teacher">Senior Teacher (Auth questions & approve submissions)</option>
+              <option value="assistant_teacher">Assistant Teacher (Create questions & submit to teacher)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Subject Specializations</label>
+            <p class="text-[10px] text-gray-400 font-bold mb-3">Check the specific subjects this teacher/assistant is authorized to draft or review questions for.</p>
+            <div class="grid grid-cols-1 gap-2.5 border border-gray-100 bg-gray-50/50 p-4 max-h-40 overflow-y-auto">
+              <div *ngFor="let cat of rootCategories()" class="flex items-center gap-3">
+                <input type="checkbox" [id]="'cat-add-' + cat.id" [checked]="userForm.specialization.includes(cat.id)" (change)="toggleSpecialization(cat.id)"
+                  class="w-4 h-4 rounded-none border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+                <label [for]="'cat-add-' + cat.id" class="text-xs font-bold text-gray-700 cursor-pointer select-none">{{ cat.name }}</label>
+              </div>
+              <div *ngIf="rootCategories().length === 0" class="text-xs text-gray-400 italic">No subjects configured. Create root categories first.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex justify-end gap-3">
+          <button (click)="showAddUserModal.set(false)"
+            class="px-5 py-2.5 bg-white border border-gray-200 text-gray-500 font-black text-xs uppercase tracking-widest transition-all rounded-none hover:bg-gray-50">
+            Cancel
+          </button>
+          <button (click)="createUser()" [disabled]="loading()"
+            class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-widest transition-all rounded-none shadow-md shadow-blue-200 disabled:opacity-50">
+            {{ loading() ? 'Registering...' : 'Register User' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EDIT USER MODAL (Tailwind Overlay) -->
+    <div *ngIf="showEditUserModal()" class="fixed inset-0 bg-gray-950/40 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+      <div class="bg-white border border-gray-100 shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+        <!-- Header -->
+        <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+          <div>
+            <h3 class="text-base font-black text-gray-950 uppercase tracking-widest">Edit Account Settings</h3>
+            <p class="text-xs text-gray-400 font-bold mt-0.5">Modify profile name, role, and subject specializations.</p>
+          </div>
+          <button (click)="showEditUserModal.set(false)" class="p-1.5 text-gray-400 hover:text-gray-600 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Form Body -->
+        <div class="p-6 overflow-y-auto space-y-4 max-h-[60vh]">
+          <div>
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">User Email</label>
+            <input type="email" [ngModel]="userForm.email" disabled
+              class="w-full px-4 py-3 bg-gray-100 border border-gray-150 text-gray-400 rounded-none outline-none font-bold text-sm cursor-not-allowed">
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Full Name <span class="text-red-500">*</span></label>
+            <input type="text" [(ngModel)]="userForm.fullName" placeholder="e.g. John Doe"
+              class="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-sm">
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">System Access Role</label>
+            <select [(ngModel)]="userForm.role"
+              class="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-none focus:bg-white focus:border-blue-400 outline-none transition-all font-bold text-sm">
+              <option value="admin">System Administrator (Full Control)</option>
+              <option value="teacher">Senior Teacher (Auth questions & approve submissions)</option>
+              <option value="assistant_teacher">Assistant Teacher (Create questions & submit to teacher)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Subject Specializations</label>
+            <p class="text-[10px] text-gray-400 font-bold mb-3">Check the specific subjects this teacher/assistant is authorized to draft or review questions for.</p>
+            <div class="grid grid-cols-1 gap-2.5 border border-gray-100 bg-gray-50/50 p-4 max-h-40 overflow-y-auto">
+              <div *ngFor="let cat of rootCategories()" class="flex items-center gap-3">
+                <input type="checkbox" [id]="'cat-edit-' + cat.id" [checked]="userForm.specialization.includes(cat.id)" (change)="toggleSpecialization(cat.id)"
+                  class="w-4 h-4 rounded-none border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+                <label [for]="'cat-edit-' + cat.id" class="text-xs font-bold text-gray-700 cursor-pointer select-none">{{ cat.name }}</label>
+              </div>
+              <div *ngIf="rootCategories().length === 0" class="text-xs text-gray-400 italic">No subjects configured. Create root categories first.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex justify-end gap-3">
+          <button (click)="showEditUserModal.set(false)"
+            class="px-5 py-2.5 bg-white border border-gray-200 text-gray-500 font-black text-xs uppercase tracking-widest transition-all rounded-none hover:bg-gray-50">
+            Cancel
+          </button>
+          <button (click)="updateUser()" [disabled]="loading()"
+            class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-widest transition-all rounded-none shadow-md shadow-blue-200 disabled:opacity-50">
+            {{ loading() ? 'Saving...' : 'Save Changes' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
