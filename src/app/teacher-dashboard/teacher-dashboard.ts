@@ -636,7 +636,14 @@ export class TeacherDashboardComponent implements OnInit {
 
       // Execute side-effect untracked to prevent infinite loops
       untracked(() => {
-        this.loadMyQuestions();
+        const kw = this.debouncedKeyword();
+        const isSeqQuery = kw && /^(?:#|q|no\s*|no\.\s*)\d+$/i.test(kw.trim());
+        
+        // If it is a sequence number query, do NOT call loadMyQuestions
+        // because sequence number filtering is handled 100% locally in the computed filteredQuestions signal!
+        if (!isSeqQuery) {
+          this.loadMyQuestions();
+        }
       });
     });
 
