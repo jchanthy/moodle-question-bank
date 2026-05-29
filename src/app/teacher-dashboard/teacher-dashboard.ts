@@ -516,9 +516,21 @@ export class TeacherDashboardComponent implements OnInit {
 
   paginatedQuestions = computed(() => {
     const questions = this.filteredQuestions();
-    const from = (this.currentPage() - 1) * this.pageSize();
-    const to = from + this.pageSize();
+    const size = this.pageSize();
+    const totalPages = Math.ceil(questions.length / size) || 1;
     
+    // Automatically clamp current page to valid range
+    let page = this.currentPage();
+    if (page > totalPages) {
+      page = totalPages;
+      untracked(() => this.currentPage.set(totalPages));
+    } else if (page < 1) {
+      page = 1;
+      untracked(() => this.currentPage.set(1));
+    }
+
+    const from = (page - 1) * size;
+    const to = from + size;
     return questions.slice(from, to);
   });
   
