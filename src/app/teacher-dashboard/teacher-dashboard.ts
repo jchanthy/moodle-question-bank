@@ -751,7 +751,11 @@ export class TeacherDashboardComponent implements OnInit {
       }
 
       const kw = this.debouncedKeyword();
-      if (kw) {
+      // If it is a sequence number search (like #1, q1, no. 1), do NOT filter by keyword in DB,
+      // because sequence numbers are dynamic frontend indices and handled locally in computed filteredQuestions
+      const isSeqQuery = kw && /^(?:#|q|no\s*|no\.\s*)\d+$/i.test(kw.trim());
+      
+      if (kw && !isSeqQuery) {
         const kwPattern = `%${kw}%`;
         // Use separate .or() with properly quoted ilike filters so keywords with
         // spaces or special characters are handled correctly by PostgREST
