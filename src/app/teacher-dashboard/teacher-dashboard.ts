@@ -629,7 +629,6 @@ export class TeacherDashboardComponent implements OnInit {
       this.pageSize();
       this.filterType();
       this.filterStatus();
-      this.debouncedKeyword();
       this.filterHidden();
       this.selectedCategoryId();
       this.filterDateFrom();
@@ -775,17 +774,8 @@ export class TeacherDashboardComponent implements OnInit {
         query = query.eq('status', this.filterStatus());
       }
 
-      const kw = this.debouncedKeyword();
-      // If it is a sequence number search (like #1, q1, no. 1), do NOT filter by keyword in DB,
-      // because sequence numbers are dynamic frontend indices and handled locally in computed filteredQuestions
-      const isSeqQuery = kw && /^(?:#|q|no\s*|no\.\s*)\d+$/i.test(kw.trim());
-      
-      if (kw && !isSeqQuery) {
-        const kwPattern = `%${kw}%`;
-        // Use separate .or() with properly quoted ilike filters so keywords with
-        // spaces or special characters are handled correctly by PostgREST
-        query = query.or(`name.ilike."${kwPattern}",question_text.ilike."${kwPattern}"`);
-      }
+      // Keyword search is fully delegated to the computed filteredQuestions signal on the frontend,
+      // which allows instant, zero-latency searches with absolute zero double-flashing!
 
       if (this.filterDateFrom()) {
         query = query.gte('updated_at', this.filterDateFrom());
