@@ -161,8 +161,10 @@ export class TeacherDashboardComponent implements OnInit {
     ) {
       event.preventDefault();
       this.paletteQuery.set('');
-      // Release/clear any active keyword search filters so we search over all questions using onKeywordChange
-      this.onKeywordChange('');
+      // Release/clear any active keyword search filters instantly
+      this.filterKeyword.set('');
+      this.debouncedKeyword.set('');
+      this.keywordSubject.next(''); // Keep RxJS stream synchronized instantly
       this.showCommandPalette.set(true);
       
       // Auto focus palette input
@@ -206,7 +208,10 @@ export class TeacherDashboardComponent implements OnInit {
       const matchingIndex = list.findIndex(q => q.sequenceNumber === qNum);
       if (matchingIndex !== -1) {
         const targetQ = list[matchingIndex];
-        this.onKeywordChange(`#${qNum}`);
+        // Set values instantly for zero-delay scroll positioning
+        this.filterKeyword.set(`#${qNum}`);
+        this.debouncedKeyword.set(`#${qNum}`);
+        this.keywordSubject.next(`#${qNum}`); // Keep RxJS stream synchronized instantly
         this.currentPage.set(1);
         this.lastEditedId.set(targetQ.id);
         
@@ -227,8 +232,9 @@ export class TeacherDashboardComponent implements OnInit {
       return;
     }
 
-    // Otherwise, treat it as general keyword search
-    this.onKeywordChange(this.paletteQuery());
+    // Otherwise, treat it as general keyword search (this one can be debounced normally)
+    this.filterKeyword.set(this.paletteQuery());
+    this.keywordSubject.next(this.paletteQuery());
     this.currentPage.set(1);
     this.showToast(`Searching for "${this.paletteQuery()}"`, 'info');
     this.showCommandPalette.set(false);
@@ -2176,7 +2182,9 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   async clearFilters() {
-    this.onKeywordChange('');
+    this.filterKeyword.set('');
+    this.debouncedKeyword.set('');
+    this.keywordSubject.next('');
     this.filterType.set('');
     this.filterStatus.set('');
     this.filterDateFrom.set('');
