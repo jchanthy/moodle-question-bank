@@ -625,8 +625,6 @@ export class TeacherDashboardComponent implements OnInit {
 
       // Dependency tracking
       this.currentView();
-      this.currentPage();
-      this.pageSize();
       this.filterType();
       this.filterStatus();
       this.filterHidden();

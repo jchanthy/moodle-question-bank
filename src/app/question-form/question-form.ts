@@ -290,6 +290,9 @@ export class QuestionFormComponent implements OnInit {
   constructor() { }
 
   ngOnInit() {
+    // Instantly scroll window to top when opening the form page
+    window.scrollTo({ top: 0 });
+
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.editMode.set(true);
