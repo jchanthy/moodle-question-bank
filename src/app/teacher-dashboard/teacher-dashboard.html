@@ -1326,7 +1326,7 @@
              [ngModel]="paletteQuery()"
              (ngModelChange)="paletteQuery.set($event)"
              (keyup.enter)="executeCommand()"
-             placeholder="Search query, 'p3' or '#3' to show Question #3..."
+             placeholder="Type 'p3' for Page 3, 'q3' or '#3' for Question #3..."
              class="w-full text-base font-medium text-slate-800 bg-transparent border-0 outline-none placeholder-slate-400">
       
       <button (click)="showCommandPalette.set(false)" 
@@ -1338,7 +1338,8 @@
     <!-- Palette Suggestions / Explanations -->
     <div class="px-6 py-3 bg-slate-50 border-b border-slate-100/60 flex items-center justify-between gap-4 flex-wrap text-[10px] font-black tracking-widest uppercase text-slate-400">
       <div class="flex gap-4">
-        <span>💡 Type <strong class="text-blue-600">p3</strong> or <strong class="text-blue-600">#3</strong> to jump to Question #3</span>
+        <span>💡 Type <strong class="text-blue-600">p3</strong> to go to Page 3</span>
+        <span>💡 Type <strong class="text-blue-600">q3</strong> or <strong class="text-blue-600">#3</strong> to show Question #3</span>
       </div>
       <span class="text-slate-500 font-bold capitalize tracking-normal">Press Enter to Search</span>
     </div>

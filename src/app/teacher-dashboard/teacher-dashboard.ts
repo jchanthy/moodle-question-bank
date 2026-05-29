@@ -180,8 +180,24 @@ export class TeacherDashboardComponent implements OnInit {
     const query = this.paletteQuery().trim().toLowerCase();
     if (!query) return;
 
-    // Check if it's a question number jump command, e.g. "3", "#3", "q3", "p3", "page 3", "no. 3"
-    const qNumMatch = query.match(/^(?:#|q|p|page|no\s*|no\.\s*)?(\d+)$/i);
+    // 1. Check if it's a page navigation command (starts with 'p' or 'page' followed by a number)
+    const pageMatch = query.match(/^(?:p|page)\s*(\d+)$/i);
+    if (pageMatch) {
+      const pageNum = parseInt(pageMatch[1], 10);
+      const totalPages = Math.ceil(this.filteredQuestions().length / this.pageSize());
+      if (pageNum >= 1 && pageNum <= totalPages) {
+        this.currentPage.set(pageNum);
+        // Scroll smoothly to the top of the window so they see the top of the new page's list
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        this.showToast(`Invalid page. Max page is ${totalPages}`, 'error');
+      }
+      this.showCommandPalette.set(false);
+      return;
+    }
+
+    // 2. Check if it's a question number jump command (starts with 'q', '#', 'no', or just a raw number)
+    const qNumMatch = query.match(/^(?:q|#|no\s*|no\.\s*)?(\d+)$/i);
     if (qNumMatch) {
       const qNum = parseInt(qNumMatch[1], 10);
       const list = this.filteredQuestions();
