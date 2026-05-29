@@ -161,9 +161,8 @@ export class TeacherDashboardComponent implements OnInit {
     ) {
       event.preventDefault();
       this.paletteQuery.set('');
-      // Release/clear any active keyword search filters so we search over all questions
-      this.filterKeyword.set('');
-      this.debouncedKeyword.set('');
+      // Release/clear any active keyword search filters so we search over all questions using onKeywordChange
+      this.onKeywordChange('');
       this.showCommandPalette.set(true);
       
       // Auto focus palette input
@@ -207,8 +206,7 @@ export class TeacherDashboardComponent implements OnInit {
       const matchingIndex = list.findIndex(q => q.sequenceNumber === qNum);
       if (matchingIndex !== -1) {
         const targetQ = list[matchingIndex];
-        this.filterKeyword.set(`#${qNum}`);
-        this.debouncedKeyword.set(`#${qNum}`);
+        this.onKeywordChange(`#${qNum}`);
         this.currentPage.set(1);
         this.lastEditedId.set(targetQ.id);
         
@@ -230,8 +228,7 @@ export class TeacherDashboardComponent implements OnInit {
     }
 
     // Otherwise, treat it as general keyword search
-    this.filterKeyword.set(this.paletteQuery());
-    this.debouncedKeyword.set(this.paletteQuery());
+    this.onKeywordChange(this.paletteQuery());
     this.currentPage.set(1);
     this.showToast(`Searching for "${this.paletteQuery()}"`, 'info');
     this.showCommandPalette.set(false);
@@ -2179,14 +2176,13 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   async clearFilters() {
-    this.filterKeyword.set('');
+    this.onKeywordChange('');
     this.filterType.set('');
     this.filterStatus.set('');
     this.filterDateFrom.set('');
     this.filterDateTo.set('');
     this.filterHidden.set(false);
     this.selectedCategoryId.set(null);
-    this.keywordSubject.next('');
     this.currentPage.set(1);
   }
 
