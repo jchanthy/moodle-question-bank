@@ -505,14 +505,23 @@ export class AdminDashboardComponent implements OnInit {
       if (initDone) return;
       initDone = true;
 
-      untracked(() => {
-        this.loadAllQuestionsData();
-        this.loadQuestionTypeCounts();
-        this.loadCategories();
-        this.loadTeachers();
-        this.notificationService.loadNotifications();
-        this.loadAssignments();
-        this.loadTagsData();
+      untracked(async () => {
+        this.loading.set(true);
+        try {
+          await Promise.all([
+            this.loadAllQuestionsData(),
+            this.loadQuestionTypeCounts(),
+            this.loadCategories(),
+            this.loadTeachers(),
+            this.loadAssignments(),
+            this.loadTagsData()
+          ]);
+          this.notificationService.loadNotifications();
+        } catch (e) {
+          console.error('Error loading admin dashboard:', e);
+        } finally {
+          untracked(() => this.loading.set(false));
+        }
       });
     });
 

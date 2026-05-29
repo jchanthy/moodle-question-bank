@@ -42,3 +42,14 @@
     font-weight: 700;
     color: #374151;
 }
+
+/* Premium Shimmering Keyframe Animation */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.6s infinite;
+}
