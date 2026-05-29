@@ -206,9 +206,21 @@ export class TeacherDashboardComponent implements OnInit {
       const list = this.filteredQuestions();
       const matchingIndex = list.findIndex(q => q.sequenceNumber === qNum);
       if (matchingIndex !== -1) {
+        const targetQ = list[matchingIndex];
         this.filterKeyword.set(`#${qNum}`);
         this.debouncedKeyword.set(`#${qNum}`);
         this.currentPage.set(1);
+        this.lastEditedId.set(targetQ.id);
+        
+        // Wait for DOM to render the new page/filter, then scroll directly to center
+        setTimeout(() => {
+          const el = document.getElementById('question-card-' + targetQ.id);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => this.lastEditedId.set(null), 3000);
+          }
+        }, 300);
+        
         this.showToast(`Found Question #${qNum}`, 'success');
       } else {
         this.showToast(`Question #${qNum} not found in this view`, 'error');
