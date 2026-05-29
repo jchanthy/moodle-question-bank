@@ -793,10 +793,20 @@ export class TeacherDashboardComponent implements OnInit {
 
       if (error) throw error;
 
+      // Fetch the rest of the datasets concurrently BEFORE updating signals and resolving page
+      const [assignedQs, assistantQs] = await Promise.all([
+        this.fetchAssignedQuestionsData(),
+        this.fetchAssistantSubmissionsData()
+      ]);
+
       untracked(() => {
         const questions = (data as Question[]).filter(q => q.name !== '__SYSTEM_USER_RECORDS__');
+        
+        // Update all related signals in the exact same synchronous block to batch updates and prevent double flashing/renders!
         this.allQuestions.set(questions);
-        this.myQuestions.set(questions); // Keep for legacy if needed, but computed uses allQuestions
+        this.myQuestions.set(questions); // Keep for legacy if needed
+        this.assignedQuestions.set(assignedQs);
+        this.assistantSubmissions.set(assistantQs);
         this.totalCount.set(count || 0);
         this.loadMyQuestionsCount();
 
@@ -831,9 +841,6 @@ export class TeacherDashboardComponent implements OnInit {
         }
       });
 
-      this.loadAssignedQuestions();
-      this.loadAssistantSubmissions();
-
     } catch (err: any) {
       this.showToast(err.message, 'error');
     } finally {
@@ -842,8 +849,13 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   async loadAssignedQuestions() {
+    const data = await this.fetchAssignedQuestionsData();
+    untracked(() => this.assignedQuestions.set(data));
+  }
+
+  async fetchAssignedQuestionsData(): Promise<Question[]> {
     const user = this.supabaseService.currentUser();
-    if (!user) return;
+    if (!user) return [];
 
     const { data: assignments } = await this.supabaseService.db
       .from('assignments')
@@ -866,17 +878,21 @@ export class TeacherDashboardComponent implements OnInit {
         };
       });
 
-      untracked(() => this.assignedQuestions.set(questionsWithMeta));
+      return questionsWithMeta;
     } else {
-      untracked(() => this.assignedQuestions.set([]));
+      return [];
     }
   }
 
   async loadAssistantSubmissions() {
+    const data = await this.fetchAssistantSubmissionsData();
+    untracked(() => this.assistantSubmissions.set(data));
+  }
+
+  async fetchAssistantSubmissionsData(): Promise<Question[]> {
     const role = this.supabaseService.currentUserRole();
     if (role !== 'teacher') {
-      untracked(() => this.assistantSubmissions.set([]));
-      return;
+      return [];
     }
 
     try {
@@ -950,11 +966,12 @@ export class TeacherDashboardComponent implements OnInit {
         }
 
         console.log('[DEBUG loadAssistantSubmissions] final shown count:', filteredQuestions.length);
-        untracked(() => this.assistantSubmissions.set(filteredQuestions));
+        return filteredQuestions;
       }
     } catch (err) {
       console.error('Error loading assistant submissions:', err);
     }
+    return [];
   }
 
   async loadCategories() {

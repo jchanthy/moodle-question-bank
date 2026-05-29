@@ -724,8 +724,58 @@
         </button>
       </div>
 
+      <!-- Skeleton Loader (Shimmering Cards) -->
+      <div class="space-y-6 mb-6 animate-pulse" *ngIf="loading()">
+        <div *ngFor="let i of [1, 2]" class="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm relative overflow-hidden">
+          <!-- Shimmering overlay -->
+          <div class="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-slate-100/50 to-transparent animate-shimmer" style="z-index: 1;"></div>
+          
+          <div class="flex flex-col gap-6" style="opacity: 0.7;">
+            <div class="w-full space-y-4">
+              <!-- Header Shimmer -->
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-5 h-5 bg-slate-200 rounded-lg"></div>
+                  <div class="w-24 h-6 bg-slate-200 rounded-full"></div>
+                  <div class="w-16 h-6 bg-slate-200 rounded-full"></div>
+                </div>
+                <div class="w-32 h-9 bg-slate-200 rounded-2xl"></div>
+              </div>
+              
+              <!-- Title & Text Shimmer -->
+              <div class="space-y-2 pt-2">
+                <div class="w-3/4 h-8 bg-slate-200 rounded-xl"></div>
+                <div class="w-full h-4 bg-slate-100 rounded-lg"></div>
+                <div class="w-5/6 h-4 bg-slate-100 rounded-lg"></div>
+              </div>
+              
+              <!-- Choices Grid Shimmer -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-4">
+                <div class="h-12 bg-slate-50 border border-slate-100 rounded-2xl flex items-center px-4 gap-3">
+                  <div class="w-5 h-5 bg-slate-200 rounded-full"></div>
+                  <div class="w-1/2 h-4 bg-slate-200 rounded-lg"></div>
+                </div>
+                <div class="h-12 bg-slate-50 border border-slate-100 rounded-2xl flex items-center px-4 gap-3">
+                  <div class="w-5 h-5 bg-slate-200 rounded-full"></div>
+                  <div class="w-2/3 h-4 bg-slate-200 rounded-lg"></div>
+                </div>
+              </div>
+              
+              <!-- Footer Shimmer -->
+              <div class="flex items-center justify-between border-t border-slate-100 pt-4 mt-6 flex-wrap gap-4">
+                <div class="w-48 h-4 bg-slate-100 rounded-lg"></div>
+                <div class="flex gap-2">
+                  <div class="w-28 h-10 bg-slate-200 rounded-2xl"></div>
+                  <div class="w-28 h-10 bg-slate-200 rounded-2xl"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Cards List -->
-      <div class="space-y-6 mb-6">
+      <div class="space-y-6 mb-6" *ngIf="!loading()">
         <div *ngFor="let question of paginatedQuestions()" 
              [id]="'question-card-' + question.id"
              [class.bg-blue-50/20]="selectedIds().has(question.id)"

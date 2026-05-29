@@ -110,3 +110,14 @@ table tr:hover {
   animation: progress-bar-indeterminate 1.5s infinite linear;
   background: linear-gradient(to right, transparent, #3b82f6, transparent);
 }
+
+/* Premium Shimmering Keyframe Animation */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.6s infinite;
+}
