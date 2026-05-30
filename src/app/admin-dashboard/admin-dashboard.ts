@@ -46,6 +46,8 @@ interface Question {
   parent_id: string | null;
   deleted_at?: string | null;
   id_number?: string | null;
+  answers?: any[];
+  sequenceNumber?: number;
 }
 
 interface Teacher {
@@ -127,6 +129,125 @@ export class AdminDashboardComponent implements OnInit {
       }
     }
   }
+
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboardShortcut(event: KeyboardEvent) {
+    const activeEl = document.activeElement;
+    const isEditing = activeEl && (
+      activeEl.tagName === 'INPUT' || 
+      activeEl.tagName === 'TEXTAREA' || 
+      activeEl.tagName === 'SELECT' || 
+      activeEl.getAttribute('contenteditable') === 'true'
+    );
+
+    // Trigger on '/' key (when not editing) or Ctrl+K / Cmd+K
+    if (
+      (event.key === '/' && !isEditing) || 
+      ((event.ctrlKey || event.metaKey) && event.key?.toLowerCase() === 'k')
+    ) {
+      event.preventDefault();
+      this.paletteQuery.set('');
+      
+      // Clear standard search fields instantly
+      this.filterSearch.set('');
+      this.debouncedSearch.set('');
+      this.searchSubject.next('');
+      
+      this.showCommandPalette.set(true);
+      
+      // Auto focus palette input
+      setTimeout(() => {
+        const el = document.getElementById('palette-search-input');
+        if (el) el.focus();
+      }, 50);
+    }
+
+    // Close on Escape
+    if (event.key === 'Escape' && this.showCommandPalette()) {
+      this.showCommandPalette.set(false);
+    }
+  }
+
+  executeCommand() {
+    const query = this.paletteQuery().trim().toLowerCase();
+    if (!query) return;
+
+    // 1. Check if it's a page navigation command (starts with 'p' or 'page' followed by a number)
+    const pageMatch = query.match(/^(?:p|page)\s*(\d+)$/i);
+    if (pageMatch) {
+      const pageNum = parseInt(pageMatch[1], 10);
+      const totalPages = Math.ceil(this.filteredQuestions().length / this.pageSize());
+      if (pageNum >= 1 && pageNum <= totalPages) {
+        this.currentPage.set(pageNum);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        this.showToast(`Invalid page. Max page is ${totalPages}`, 'error');
+      }
+      this.showCommandPalette.set(false);
+      return;
+    }
+
+    // 2. Check if it's a question number jump command (starts with 'q', '#', 'no', or just a raw number)
+    const qNumMatch = query.match(/^(?:q|#|no\s*|no\.\s*)?(\d+)$/i);
+    if (qNumMatch) {
+      const qNum = parseInt(qNumMatch[1], 10);
+      const list = this.filteredQuestions();
+      const matchingIndex = list.findIndex(q => q.sequenceNumber === qNum);
+      if (matchingIndex !== -1) {
+        const targetQ = list[matchingIndex];
+        
+        // Apply filter keyword search specifically to that question number
+        this.filterSearch.set(`#${qNum}`);
+        this.debouncedSearch.set(`#${qNum}`);
+        this.searchSubject.next(`#${qNum}`);
+        this.currentPage.set(1);
+        this.lastEditedId.set(targetQ.id);
+        
+        setTimeout(() => {
+          const el = document.getElementById('question-card-' + targetQ.id);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => this.lastEditedId.set(null), 3000);
+          }
+        }, 300);
+        
+        this.showToast(`Found Question #${qNum}`, 'success');
+      } else {
+        this.showToast(`Question #${qNum} not found in this view`, 'error');
+      }
+      this.showCommandPalette.set(false);
+      return;
+    }
+
+    // Otherwise, treat it as general keyword search
+    this.filterSearch.set(this.paletteQuery());
+    this.debouncedSearch.set(this.paletteQuery());
+    this.searchSubject.next(this.paletteQuery());
+    this.currentPage.set(1);
+    this.showToast(`Searching for "${this.paletteQuery()}"`, 'info');
+    this.showCommandPalette.set(false);
+  }
+
+  selectPaletteMatch(q: Question) {
+    this.showCommandPalette.set(false);
+    
+    // Resolve page
+    const list = this.filteredQuestions();
+    const idx = list.findIndex(item => item.id === q.id);
+    if (idx !== -1) {
+      this.currentPage.set(Math.floor(idx / this.pageSize()) + 1);
+      this.lastEditedId.set(q.id);
+      
+      setTimeout(() => {
+        const el = document.getElementById('question-card-' + q.id);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => this.lastEditedId.set(null), 3000);
+        }
+      }, 300);
+    }
+  }
+
   importExportService = inject(ImportExportService);
   today = new Date();
 
@@ -225,6 +346,22 @@ export class AdminDashboardComponent implements OnInit {
   // Debounced filter states to prevent 503 errors
   debouncedSearch = signal('');
   private searchSubject = new Subject<string>();
+
+  showCommandPalette = signal(false);
+  paletteQuery = signal('');
+  lastEditedId = signal<string | null>(null);
+  paletteMatches = computed(() => {
+    const query = this.paletteQuery().trim().toLowerCase();
+    if (!query || query.startsWith('p') || query.startsWith('page')) return [];
+
+    const list = this.filteredQuestions();
+    return list.filter(q => {
+      const nameMatch = q.name?.toLowerCase().includes(query);
+      const textMatch = q.question_text?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase().includes(query);
+      const seqMatch = q.sequenceNumber?.toString() === query.replace(/#|no\.|no/g, '');
+      return nameMatch || textMatch || seqMatch;
+    }).slice(0, 5);
+  });
 
   protected readonly Math = Math;
 
@@ -616,7 +753,7 @@ export class AdminDashboardComponent implements OnInit {
       }
     });
     
-    // 2. Filter by status, qtype, category, teacher, search
+    // 2. Filter by status, qtype, category, teacher
     let result = Array.from(familyMap.values()).filter(q => q.status === status);
     
     if (this.filterQtype()) result = result.filter(q => q.qtype === this.filterQtype());
@@ -626,12 +763,30 @@ export class AdminDashboardComponent implements OnInit {
       result = result.filter(q => q.metadata?.author_name?.toLowerCase().includes(teacher));
     }
     
-    const search = this.debouncedSearch().toLowerCase();
+    // 3. Sort before sequence number mapping (Pending is oldest-first, others are newest-first)
+    const isPending = this.activeTab() === 'pending';
+    result.sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return isPending ? dateA - dateB : dateB - dateA;
+    });
+
+    // 4. Map sequence numbers
+    result = result.map((q, idx) => ({
+      ...q,
+      sequenceNumber: idx + 1
+    }));
+
+    // 5. Apply search filter (supporting sequence number "#45" or just "45")
+    const search = this.debouncedSearch().toLowerCase().trim();
     if (search) {
-      result = result.filter(q => 
-        q.name.toLowerCase().includes(search) || 
-        q.question_text.toLowerCase().includes(search)
-      );
+      result = result.filter(q => {
+        const nameMatch = q.name.toLowerCase().includes(search);
+        const textMatch = q.question_text.toLowerCase().includes(search);
+        const parsedSeq = parseInt(search.replace(/no\.|no|#| /g, ''), 10);
+        const seqMatch = !isNaN(parsedSeq) && q.sequenceNumber === parsedSeq;
+        return nameMatch || textMatch || seqMatch;
+      });
     }
 
     const selectedTags = this.filterSelectedTags();
@@ -649,13 +804,7 @@ export class AdminDashboardComponent implements OnInit {
     const questions = this.filteredQuestions();
     const from = (this.currentPage() - 1) * this.pageSize();
     const to = from + this.pageSize();
-    
-    const isPending = this.activeTab() === 'pending';
-    return [...questions].sort((a, b) => {
-      const dateA = new Date(a.created_at).getTime();
-      const dateB = new Date(b.created_at).getTime();
-      return isPending ? dateA - dateB : dateB - dateA;
-    }).slice(from, to);
+    return questions.slice(from, to);
   });
 
   private applyFilters(questions: Question[]): Question[] {
