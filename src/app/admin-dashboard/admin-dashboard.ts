@@ -556,7 +556,7 @@ export class AdminDashboardComponent implements OnInit {
     try {
       const { data, error } = await this.supabaseService.db
         .from('questions')
-        .select('*')
+        .select('*, answers(*)')
         .is('deleted_at', null);
 
       if (error) throw error;

@@ -483,6 +483,27 @@
               <div class="text-xl font-black text-gray-900 group-hover:text-blue-600 transition leading-relaxed">{{ q.question_text }}</div>
               <p class="text-sm font-semibold text-gray-500 mt-2">{{ q.name }}</p>
 
+              <!-- Inline Choices Preview -->
+              <div *ngIf="q.answers && q.answers.length > 0" class="border-t border-slate-100 pt-4 mt-3">
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Choices Preview</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div *ngFor="let ans of q.answers" 
+                       [class]="ans.fraction > 0 ? 'bg-emerald-50/50 text-emerald-800 border-emerald-200 font-bold' : 'bg-slate-50 text-slate-600 border-slate-200'"
+                       class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md">
+                    <span class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm" 
+                          [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-400'">
+                      {{ ans.fraction > 0 ? '✓' : '✗' }}
+                    </span>
+                    <div class="flex-1 min-w-0">
+                      <div class="break-words leading-relaxed">{{ ans.answer_text }}</div>
+                      <div *ngIf="ans.fraction > 0" class="text-[10px] text-emerald-600/80 font-bold mt-0.5">
+                        Correct option ({{ ans.fraction * 100 }}% weighting)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <!-- Assignment Section -->
               <div class="mt-4">
                 <!-- Display Mode: Assigned Teacher -->
@@ -739,6 +760,27 @@
               </div>
               <div class="text-xl font-black text-gray-900 group-hover:text-green-600 transition leading-relaxed">{{ q.question_text }}</div>
               <p class="text-sm font-semibold text-gray-500 mt-2">{{ q.name }}</p>
+
+              <!-- Inline Choices Preview -->
+              <div *ngIf="q.answers && q.answers.length > 0" class="border-t border-slate-100 pt-4 mt-3">
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Choices Preview</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div *ngFor="let ans of q.answers" 
+                       [class]="ans.fraction > 0 ? 'bg-emerald-50/50 text-emerald-800 border-emerald-200 font-bold' : 'bg-slate-50 text-slate-600 border-slate-200'"
+                       class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md">
+                    <span class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm" 
+                          [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-400'">
+                      {{ ans.fraction > 0 ? '✓' : '✗' }}
+                    </span>
+                    <div class="flex-1 min-w-0">
+                      <div class="break-words leading-relaxed">{{ ans.answer_text }}</div>
+                      <div *ngIf="ans.fraction > 0" class="text-[10px] text-emerald-600/80 font-bold mt-0.5">
+                        Correct option ({{ ans.fraction * 100 }}% weighting)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="flex flex-row md:flex-col justify-end gap-3">
@@ -865,6 +907,27 @@
               </div>
               <div class="text-xl font-black text-gray-900 group-hover:text-red-600 transition leading-relaxed">{{ q.question_text }}</div>
               <p class="text-sm font-semibold text-gray-500 mt-2">{{ q.name }}</p>
+
+              <!-- Inline Choices Preview -->
+              <div *ngIf="q.answers && q.answers.length > 0" class="border-t border-slate-100 pt-4 mt-3">
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Choices Preview</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div *ngFor="let ans of q.answers" 
+                       [class]="ans.fraction > 0 ? 'bg-emerald-50/50 text-emerald-800 border-emerald-200 font-bold' : 'bg-slate-50 text-slate-600 border-slate-200'"
+                       class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md">
+                    <span class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm" 
+                          [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-400'">
+                      {{ ans.fraction > 0 ? '✓' : '✗' }}
+                    </span>
+                    <div class="flex-1 min-w-0">
+                      <div class="break-words leading-relaxed">{{ ans.answer_text }}</div>
+                      <div *ngIf="ans.fraction > 0" class="text-[10px] text-emerald-600/80 font-bold mt-0.5">
+                        Correct option ({{ ans.fraction * 100 }}% weighting)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="flex flex-row md:flex-col justify-end gap-3">
@@ -980,6 +1043,27 @@
               </div>
               <div class="text-xl font-black text-gray-900 group-hover:text-gray-600 transition leading-relaxed">{{ q.question_text }}</div>
               <p class="text-sm font-semibold text-gray-500 mt-2">{{ q.name }}</p>
+
+              <!-- Inline Choices Preview -->
+              <div *ngIf="q.answers && q.answers.length > 0" class="border-t border-slate-100 pt-4 mt-3">
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Choices Preview</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div *ngFor="let ans of q.answers" 
+                       [class]="ans.fraction > 0 ? 'bg-emerald-50/50 text-emerald-800 border-emerald-200 font-bold' : 'bg-slate-50 text-slate-600 border-slate-200'"
+                       class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md">
+                    <span class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm" 
+                          [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-400'">
+                      {{ ans.fraction > 0 ? '✓' : '✗' }}
+                    </span>
+                    <div class="flex-1 min-w-0">
+                      <div class="break-words leading-relaxed">{{ ans.answer_text }}</div>
+                      <div *ngIf="ans.fraction > 0" class="text-[10px] text-emerald-600/80 font-bold mt-0.5">
+                        Correct option ({{ ans.fraction * 100 }}% weighting)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="flex flex-row md:flex-col justify-end gap-3">
