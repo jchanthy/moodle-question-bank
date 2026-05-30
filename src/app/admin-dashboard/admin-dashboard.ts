@@ -206,7 +206,7 @@ export class AdminDashboardComponent implements OnInit {
         setTimeout(() => {
           const el = document.getElementById('question-card-' + targetQ.id);
           if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.scrollIntoView({ behavior: 'auto', block: 'center' });
             setTimeout(() => this.lastEditedId.set(null), 3000);
           }
         }, 300);
@@ -241,7 +241,7 @@ export class AdminDashboardComponent implements OnInit {
       setTimeout(() => {
         const el = document.getElementById('question-card-' + q.id);
         if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.scrollIntoView({ behavior: 'auto', block: 'center' });
           setTimeout(() => this.lastEditedId.set(null), 3000);
         }
       }, 300);
@@ -728,7 +728,7 @@ export class AdminDashboardComponent implements OnInit {
               setTimeout(() => {
                 const el = document.getElementById('question-card-' + q.id);
                 if (el) {
-                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  el.scrollIntoView({ behavior: 'auto', block: 'center' });
                   setTimeout(() => {
                     this.lastEditedId.set(null);
                     sessionStorage.removeItem('last_edited_question_id');
