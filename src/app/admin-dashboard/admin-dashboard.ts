@@ -704,6 +704,41 @@ export class AdminDashboardComponent implements OnInit {
       // Also sync total counts and type counts
       this.syncTotalCounts(questions);
       this.loadQuestionTypeCounts();
+
+      // Restore focus & scroll to the active question card
+      const lastId = sessionStorage.getItem('last_edited_question_id');
+      if (lastId) {
+        const q = questions.find(item => item.id === lastId || item.parent_id === lastId);
+        if (q) {
+          const tab = q.status === 'pending_review' ? 'pending' : 
+                      q.status === 'approved' ? 'approved' :
+                      q.status === 'rejected' ? 'rejected' : 'draft';
+          
+          this.activeTab.set(tab);
+
+          setTimeout(() => {
+            const list = this.filteredQuestions();
+            const matchingIndex = list.findIndex(item => item.id === q.id || item.parent_id === q.id);
+            
+            if (matchingIndex !== -1) {
+              const targetPage = Math.floor(matchingIndex / this.pageSize()) + 1;
+              this.currentPage.set(targetPage);
+              this.lastEditedId.set(q.id);
+
+              setTimeout(() => {
+                const el = document.getElementById('question-card-' + q.id);
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  setTimeout(() => {
+                    this.lastEditedId.set(null);
+                    sessionStorage.removeItem('last_edited_question_id');
+                  }, 3000);
+                }
+              }, 300);
+            }
+          }, 100);
+        }
+      }
     } catch (e) {
       console.error('Error loading all questions:', e);
     } finally {
