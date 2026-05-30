@@ -601,13 +601,19 @@ export class TeacherDashboardComponent implements OnInit {
     });
 
     const latestList = Array.from(familyMap.values());
+    const role = this.supabaseService.currentUserRole();
+    const assignedPending = this.assignedQuestions().filter(q => !q.assignment_completed_at).length;
+    const assistantPending = this.assistantSubmissions().length;
 
     return {
       total: latestList.length,
       draft: latestList.filter(q => q.status === 'draft').length,
       review: latestList.filter(q => q.status === 'pending_teacher_review' || q.status === 'pending_review').length,
       ready: latestList.filter(q => q.status === 'approved').length,
-      rejected: latestList.filter(q => q.status === 'rejected').length
+      rejected: latestList.filter(q => q.status === 'rejected').length,
+      assignedPending,
+      assistantPending,
+      role
     };
   });
 
