@@ -213,16 +213,7 @@ export class TeacherDashboardComponent implements OnInit {
         this.debouncedKeyword.set(`#${qNum}`);
         this.keywordSubject.next(`#${qNum}`); // Keep RxJS stream synchronized instantly
         this.currentPage.set(1);
-        this.lastEditedId.set(targetQ.id);
-        
-        // Wait for DOM to render the new page/filter, then scroll directly to center
-        setTimeout(() => {
-          const el = document.getElementById('question-card-' + targetQ.id);
-          if (el) {
-            el.scrollIntoView({ behavior: 'auto', block: 'center' });
-            setTimeout(() => this.lastEditedId.set(null), 3000);
-          }
-        }, 300);
+        this.scrollToQuestion(targetQ.id);
         
         this.showToast(`Found Question #${qNum}`, 'success');
       } else {
@@ -240,6 +231,31 @@ export class TeacherDashboardComponent implements OnInit {
     this.showCommandPalette.set(false);
   }
 
+  scrollToQuestion(qId: string) {
+    this.lastEditedId.set(qId);
+    
+    // We execute scrolling twice to ensure perfect centering regardless of rendering or layout delays!
+    const performScroll = () => {
+      const el = document.getElementById('question-card-' + qId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'auto', block: 'center' });
+      }
+    };
+
+    // First snappy jump
+    setTimeout(performScroll, 100);
+    // Second deep centering check to account for asynchronous template reflows/choices loading
+    setTimeout(performScroll, 450);
+
+    // Clear highlight after 3 seconds
+    setTimeout(() => {
+      if (this.lastEditedId() === qId) {
+        this.lastEditedId.set(null);
+        sessionStorage.removeItem('last_edited_question_id');
+      }
+    }, 3000);
+  }
+
   selectPaletteMatch(q: Question) {
     this.showCommandPalette.set(false);
     
@@ -248,15 +264,7 @@ export class TeacherDashboardComponent implements OnInit {
     const idx = list.findIndex(item => item.id === q.id);
     if (idx !== -1) {
       this.currentPage.set(Math.floor(idx / this.pageSize()) + 1);
-      this.lastEditedId.set(q.id);
-      
-      setTimeout(() => {
-        const el = document.getElementById('question-card-' + q.id);
-        if (el) {
-          el.scrollIntoView({ behavior: 'auto', block: 'center' });
-          setTimeout(() => this.lastEditedId.set(null), 3000);
-        }
-      }, 300);
+      this.scrollToQuestion(q.id);
     }
   }
 
@@ -863,20 +871,7 @@ export class TeacherDashboardComponent implements OnInit {
           if (matchingIndex !== -1) {
             const targetPage = Math.floor(matchingIndex / this.pageSize()) + 1;
             this.currentPage.set(targetPage);
-            this.lastEditedId.set(lastId);
-            
-            // Wait for DOM to finish rendering the page, then scroll directly to center
-            setTimeout(() => {
-              const el = document.getElementById('question-card-' + lastId);
-              if (el) {
-                el.scrollIntoView({ behavior: 'auto', block: 'center' });
-                // Remove highlight after 3 seconds
-                setTimeout(() => {
-                  this.lastEditedId.set(null);
-                  sessionStorage.removeItem('last_edited_question_id');
-                }, 3000);
-              }
-            }, 300);
+            this.scrollToQuestion(lastId);
           }
         }
       });
