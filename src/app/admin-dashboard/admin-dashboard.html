@@ -492,7 +492,35 @@
                   </div>
                 </div>
               </div>
-              <div class="text-xl font-black text-gray-900 group-hover:text-blue-600 transition leading-relaxed">{{ q.question_text }}</div>
+              <!-- Editable Question Text -->
+              <div class="relative group/text mt-2">
+                <div *ngIf="editingTextQuestionId() !== q.id" 
+                     (click)="startEditingText(q)"
+                     class="text-xl font-black text-gray-900 cursor-pointer hover:bg-slate-50 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between">
+                  <div class="flex-1 leading-relaxed">{{ q.question_text }}</div>
+                  <span class="text-xs text-blue-500 opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-1.5 flex items-center gap-1">
+                    ✏️ Click to Edit
+                  </span>
+                </div>
+                <div *ngIf="editingTextQuestionId() === q.id" class="flex flex-col gap-2 mt-1">
+                  <textarea [ngModel]="editingTextValue"
+                            (ngModelChange)="editingTextValue = $event"
+                            rows="3"
+                            class="w-full text-base font-bold text-gray-900 border-2 border-blue-400 p-3 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white"
+                            placeholder="Edit question text..."></textarea>
+                  <div class="flex gap-2 justify-end">
+                    <button (click)="editingTextQuestionId.set(null)" 
+                            class="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition">
+                      Cancel
+                    </button>
+                    <button (click)="saveInlineText(q)" 
+                            [disabled]="savingInline()"
+                            class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
+                      {{ savingInline() ? 'Saving...' : 'Save' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
               <p class="text-sm font-semibold text-gray-500 mt-2">{{ q.name }}</p>
 
               <!-- Inline Choices Preview -->
@@ -501,13 +529,42 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div *ngFor="let ans of q.answers" 
                        [class]="ans.fraction > 0 ? 'bg-emerald-50/50 text-emerald-800 border-emerald-200 font-bold' : 'bg-slate-50 text-slate-600 border-slate-200'"
-                       class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md">
-                    <span class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm" 
-                          [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-400'">
+                       class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md relative group/choice">
+                    <!-- Toggle Correct Button -->
+                    <button (click)="toggleChoiceCorrect(ans, q)"
+                            [title]="ans.fraction > 0 ? 'Click to make Incorrect' : 'Click to make Correct'"
+                            class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm transition-all transform hover:scale-110 active:scale-95" 
+                            [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800 hover:bg-emerald-300' : 'bg-slate-200 text-slate-400 hover:bg-slate-300 hover:text-slate-600'">
                       {{ ans.fraction > 0 ? '✓' : '✗' }}
-                    </span>
+                    </button>
                     <div class="flex-1 min-w-0">
-                      <div class="break-words leading-relaxed">{{ ans.answer_text }}</div>
+                      <!-- Choice text display -->
+                      <div *ngIf="editingChoiceId() !== ans.id"
+                           (click)="startEditingChoice(ans)"
+                           class="break-words leading-relaxed cursor-pointer hover:bg-black/5 px-2 py-0.5 -mx-2 rounded transition flex items-start gap-1 justify-between">
+                        <span>{{ ans.answer_text }}</span>
+                        <span class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5">✏️ Edit</span>
+                      </div>
+                      
+                      <!-- Choice text edit input -->
+                      <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5">
+                        <input type="text" 
+                               [ngModel]="editingChoiceText"
+                               (ngModelChange)="editingChoiceText = $event"
+                               class="w-full text-xs font-medium text-slate-800 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white">
+                        <div class="flex gap-1 justify-end">
+                          <button (click)="editingChoiceId.set(null)" 
+                                  class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">
+                            Cancel
+                          </button>
+                          <button (click)="saveChoiceText(ans, q)" 
+                                  [disabled]="savingInline()"
+                                  class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded transition">
+                            Save
+                          </button>
+                        </div>
+                      </div>
+
                       <div *ngIf="ans.fraction > 0" class="text-[10px] text-emerald-600/80 font-bold mt-0.5">
                         Correct option ({{ ans.fraction * 100 }}% weighting)
                       </div>
@@ -779,7 +836,35 @@
                   </span>
                 </div>
               </div>
-              <div class="text-xl font-black text-gray-900 group-hover:text-green-600 transition leading-relaxed">{{ q.question_text }}</div>
+              <!-- Editable Question Text -->
+              <div class="relative group/text mt-2">
+                <div *ngIf="editingTextQuestionId() !== q.id" 
+                     (click)="startEditingText(q)"
+                     class="text-xl font-black text-gray-900 cursor-pointer hover:bg-slate-50 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between">
+                  <div class="flex-1 leading-relaxed">{{ q.question_text }}</div>
+                  <span class="text-xs text-blue-500 opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-1.5 flex items-center gap-1">
+                    ✏️ Click to Edit
+                  </span>
+                </div>
+                <div *ngIf="editingTextQuestionId() === q.id" class="flex flex-col gap-2 mt-1">
+                  <textarea [ngModel]="editingTextValue"
+                            (ngModelChange)="editingTextValue = $event"
+                            rows="3"
+                            class="w-full text-base font-bold text-gray-900 border-2 border-blue-400 p-3 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white"
+                            placeholder="Edit question text..."></textarea>
+                  <div class="flex gap-2 justify-end">
+                    <button (click)="editingTextQuestionId.set(null)" 
+                            class="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition">
+                      Cancel
+                    </button>
+                    <button (click)="saveInlineText(q)" 
+                            [disabled]="savingInline()"
+                            class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
+                      {{ savingInline() ? 'Saving...' : 'Save' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
               <p class="text-sm font-semibold text-gray-500 mt-2">{{ q.name }}</p>
 
               <!-- Inline Choices Preview -->
@@ -788,13 +873,42 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div *ngFor="let ans of q.answers" 
                        [class]="ans.fraction > 0 ? 'bg-emerald-50/50 text-emerald-800 border-emerald-200 font-bold' : 'bg-slate-50 text-slate-600 border-slate-200'"
-                       class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md">
-                    <span class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm" 
-                          [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-400'">
+                       class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md relative group/choice">
+                    <!-- Toggle Correct Button -->
+                    <button (click)="toggleChoiceCorrect(ans, q)"
+                            [title]="ans.fraction > 0 ? 'Click to make Incorrect' : 'Click to make Correct'"
+                            class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm transition-all transform hover:scale-110 active:scale-95" 
+                            [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800 hover:bg-emerald-300' : 'bg-slate-200 text-slate-400 hover:bg-slate-300 hover:text-slate-600'">
                       {{ ans.fraction > 0 ? '✓' : '✗' }}
-                    </span>
+                    </button>
                     <div class="flex-1 min-w-0">
-                      <div class="break-words leading-relaxed">{{ ans.answer_text }}</div>
+                      <!-- Choice text display -->
+                      <div *ngIf="editingChoiceId() !== ans.id"
+                           (click)="startEditingChoice(ans)"
+                           class="break-words leading-relaxed cursor-pointer hover:bg-black/5 px-2 py-0.5 -mx-2 rounded transition flex items-start gap-1 justify-between">
+                        <span>{{ ans.answer_text }}</span>
+                        <span class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5">✏️ Edit</span>
+                      </div>
+                      
+                      <!-- Choice text edit input -->
+                      <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5">
+                        <input type="text" 
+                               [ngModel]="editingChoiceText"
+                               (ngModelChange)="editingChoiceText = $event"
+                               class="w-full text-xs font-medium text-slate-800 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white">
+                        <div class="flex gap-1 justify-end">
+                          <button (click)="editingChoiceId.set(null)" 
+                                  class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">
+                            Cancel
+                          </button>
+                          <button (click)="saveChoiceText(ans, q)" 
+                                  [disabled]="savingInline()"
+                                  class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded transition">
+                            Save
+                          </button>
+                        </div>
+                      </div>
+
                       <div *ngIf="ans.fraction > 0" class="text-[10px] text-emerald-600/80 font-bold mt-0.5">
                         Correct option ({{ ans.fraction * 100 }}% weighting)
                       </div>
@@ -935,7 +1049,35 @@
                   </span>
                 </div>
               </div>
-              <div class="text-xl font-black text-gray-900 group-hover:text-red-600 transition leading-relaxed">{{ q.question_text }}</div>
+              <!-- Editable Question Text -->
+              <div class="relative group/text mt-2">
+                <div *ngIf="editingTextQuestionId() !== q.id" 
+                     (click)="startEditingText(q)"
+                     class="text-xl font-black text-gray-900 cursor-pointer hover:bg-slate-50 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between">
+                  <div class="flex-1 leading-relaxed">{{ q.question_text }}</div>
+                  <span class="text-xs text-blue-500 opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-1.5 flex items-center gap-1">
+                    ✏️ Click to Edit
+                  </span>
+                </div>
+                <div *ngIf="editingTextQuestionId() === q.id" class="flex flex-col gap-2 mt-1">
+                  <textarea [ngModel]="editingTextValue"
+                            (ngModelChange)="editingTextValue = $event"
+                            rows="3"
+                            class="w-full text-base font-bold text-gray-900 border-2 border-blue-400 p-3 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white"
+                            placeholder="Edit question text..."></textarea>
+                  <div class="flex gap-2 justify-end">
+                    <button (click)="editingTextQuestionId.set(null)" 
+                            class="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition">
+                      Cancel
+                    </button>
+                    <button (click)="saveInlineText(q)" 
+                            [disabled]="savingInline()"
+                            class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
+                      {{ savingInline() ? 'Saving...' : 'Save' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
               <p class="text-sm font-semibold text-gray-500 mt-2">{{ q.name }}</p>
 
               <!-- Inline Choices Preview -->
@@ -944,13 +1086,42 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div *ngFor="let ans of q.answers" 
                        [class]="ans.fraction > 0 ? 'bg-emerald-50/50 text-emerald-800 border-emerald-200 font-bold' : 'bg-slate-50 text-slate-600 border-slate-200'"
-                       class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md">
-                    <span class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm" 
-                          [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-400'">
+                       class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md relative group/choice">
+                    <!-- Toggle Correct Button -->
+                    <button (click)="toggleChoiceCorrect(ans, q)"
+                            [title]="ans.fraction > 0 ? 'Click to make Incorrect' : 'Click to make Correct'"
+                            class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm transition-all transform hover:scale-110 active:scale-95" 
+                            [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800 hover:bg-emerald-300' : 'bg-slate-200 text-slate-400 hover:bg-slate-300 hover:text-slate-600'">
                       {{ ans.fraction > 0 ? '✓' : '✗' }}
-                    </span>
+                    </button>
                     <div class="flex-1 min-w-0">
-                      <div class="break-words leading-relaxed">{{ ans.answer_text }}</div>
+                      <!-- Choice text display -->
+                      <div *ngIf="editingChoiceId() !== ans.id"
+                           (click)="startEditingChoice(ans)"
+                           class="break-words leading-relaxed cursor-pointer hover:bg-black/5 px-2 py-0.5 -mx-2 rounded transition flex items-start gap-1 justify-between">
+                        <span>{{ ans.answer_text }}</span>
+                        <span class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5">✏️ Edit</span>
+                      </div>
+                      
+                      <!-- Choice text edit input -->
+                      <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5">
+                        <input type="text" 
+                               [ngModel]="editingChoiceText"
+                               (ngModelChange)="editingChoiceText = $event"
+                               class="w-full text-xs font-medium text-slate-800 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white">
+                        <div class="flex gap-1 justify-end">
+                          <button (click)="editingChoiceId.set(null)" 
+                                  class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">
+                            Cancel
+                          </button>
+                          <button (click)="saveChoiceText(ans, q)" 
+                                  [disabled]="savingInline()"
+                                  class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded transition">
+                            Save
+                          </button>
+                        </div>
+                      </div>
+
                       <div *ngIf="ans.fraction > 0" class="text-[10px] text-emerald-600/80 font-bold mt-0.5">
                         Correct option ({{ ans.fraction * 100 }}% weighting)
                       </div>
@@ -1080,7 +1251,35 @@
                 <span class="text-[10px] text-gray-400 font-medium">By {{ q.metadata?.author_name || 'Author' }} • {{
                   (q.updated_at || q.created_at) | date:'medium' }}</span>
               </div>
-              <div class="text-xl font-black text-gray-900 group-hover:text-gray-600 transition leading-relaxed">{{ q.question_text }}</div>
+              <!-- Editable Question Text -->
+              <div class="relative group/text mt-2">
+                <div *ngIf="editingTextQuestionId() !== q.id" 
+                     (click)="startEditingText(q)"
+                     class="text-xl font-black text-gray-900 cursor-pointer hover:bg-slate-50 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between">
+                  <div class="flex-1 leading-relaxed">{{ q.question_text }}</div>
+                  <span class="text-xs text-blue-500 opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-1.5 flex items-center gap-1">
+                    ✏️ Click to Edit
+                  </span>
+                </div>
+                <div *ngIf="editingTextQuestionId() === q.id" class="flex flex-col gap-2 mt-1">
+                  <textarea [ngModel]="editingTextValue"
+                            (ngModelChange)="editingTextValue = $event"
+                            rows="3"
+                            class="w-full text-base font-bold text-gray-900 border-2 border-blue-400 p-3 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white"
+                            placeholder="Edit question text..."></textarea>
+                  <div class="flex gap-2 justify-end">
+                    <button (click)="editingTextQuestionId.set(null)" 
+                            class="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition">
+                      Cancel
+                    </button>
+                    <button (click)="saveInlineText(q)" 
+                            [disabled]="savingInline()"
+                            class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
+                      {{ savingInline() ? 'Saving...' : 'Save' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
               <p class="text-sm font-semibold text-gray-500 mt-2">{{ q.name }}</p>
 
               <!-- Inline Choices Preview -->
@@ -1089,13 +1288,42 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div *ngFor="let ans of q.answers" 
                        [class]="ans.fraction > 0 ? 'bg-emerald-50/50 text-emerald-800 border-emerald-200 font-bold' : 'bg-slate-50 text-slate-600 border-slate-200'"
-                       class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md">
-                    <span class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm" 
-                          [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-400'">
+                       class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md relative group/choice">
+                    <!-- Toggle Correct Button -->
+                    <button (click)="toggleChoiceCorrect(ans, q)"
+                            [title]="ans.fraction > 0 ? 'Click to make Incorrect' : 'Click to make Correct'"
+                            class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm transition-all transform hover:scale-110 active:scale-95" 
+                            [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800 hover:bg-emerald-300' : 'bg-slate-200 text-slate-400 hover:bg-slate-300 hover:text-slate-600'">
                       {{ ans.fraction > 0 ? '✓' : '✗' }}
-                    </span>
+                    </button>
                     <div class="flex-1 min-w-0">
-                      <div class="break-words leading-relaxed">{{ ans.answer_text }}</div>
+                      <!-- Choice text display -->
+                      <div *ngIf="editingChoiceId() !== ans.id"
+                           (click)="startEditingChoice(ans)"
+                           class="break-words leading-relaxed cursor-pointer hover:bg-black/5 px-2 py-0.5 -mx-2 rounded transition flex items-start gap-1 justify-between">
+                        <span>{{ ans.answer_text }}</span>
+                        <span class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5">✏️ Edit</span>
+                      </div>
+                      
+                      <!-- Choice text edit input -->
+                      <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5">
+                        <input type="text" 
+                               [ngModel]="editingChoiceText"
+                               (ngModelChange)="editingChoiceText = $event"
+                               class="w-full text-xs font-medium text-slate-800 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white">
+                        <div class="flex gap-1 justify-end">
+                          <button (click)="editingChoiceId.set(null)" 
+                                  class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">
+                            Cancel
+                          </button>
+                          <button (click)="saveChoiceText(ans, q)" 
+                                  [disabled]="savingInline()"
+                                  class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded transition">
+                            Save
+                          </button>
+                        </div>
+                      </div>
+
                       <div *ngIf="ans.fraction > 0" class="text-[10px] text-emerald-600/80 font-bold mt-0.5">
                         Correct option ({{ ans.fraction * 100 }}% weighting)
                       </div>

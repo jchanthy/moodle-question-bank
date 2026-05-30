@@ -266,6 +266,13 @@ export class AdminDashboardComponent implements OnInit {
   activeTab = signal<'pending' | 'approved' | 'rejected' | 'draft'>('pending');
   showTypeHelp = signal(false);
 
+  // Inline Editing variables
+  editingTextQuestionId = signal<string | null>(null);
+  editingTextValue = '';
+  editingChoiceId = signal<string | null>(null);
+  editingChoiceText = '';
+  savingInline = signal(false);
+
   // View state
   currentView = signal<'questions' | 'team' | 'report' | 'categories' | 'users' | 'tags'>('questions');
   selectedTeacherId = signal<string | null>(null);
@@ -671,6 +678,110 @@ export class AdminDashboardComponent implements OnInit {
         });
       }
     });
+  }
+
+  startEditingText(q: Question) {
+    this.editingTextQuestionId.set(q.id);
+    this.editingTextValue = q.question_text || '';
+  }
+
+  async saveInlineText(q: Question) {
+    if (!this.editingTextValue.trim()) return;
+    this.savingInline.set(true);
+    try {
+      const { error } = await this.supabaseService.db
+        .from('questions')
+        .update({ question_text: this.editingTextValue.trim(), updated_at: new Date().toISOString() })
+        .eq('id', q.id);
+
+      if (error) throw error;
+
+      // Update in memory state
+      const updated = this.allQuestions().map(item => {
+        if (item.id === q.id) {
+          return { ...item, question_text: this.editingTextValue.trim() };
+        }
+        return item;
+      });
+      this.allQuestions.set(updated);
+      this.showToast('Question text updated successfully', 'success');
+      this.editingTextQuestionId.set(null);
+    } catch (e: any) {
+      this.showToast(e.message, 'error');
+    } finally {
+      this.savingInline.set(false);
+    }
+  }
+
+  startEditingChoice(ans: any) {
+    this.editingChoiceId.set(ans.id);
+    this.editingChoiceText = ans.answer_text || '';
+  }
+
+  async saveChoiceText(ans: any, q: Question) {
+    if (!this.editingChoiceText.trim()) return;
+    this.savingInline.set(true);
+    try {
+      const { error } = await this.supabaseService.db
+        .from('answers')
+        .update({ answer_text: this.editingChoiceText.trim() })
+        .eq('id', ans.id);
+
+      if (error) throw error;
+
+      // Update in memory state
+      const updatedQuestions = this.allQuestions().map(item => {
+        if (item.id === q.id && item.answers) {
+          const updatedAnswers = item.answers.map((a: any) => {
+            if (a.id === ans.id) {
+              return { ...a, answer_text: this.editingChoiceText.trim() };
+            }
+            return a;
+          });
+          return { ...item, answers: updatedAnswers };
+        }
+        return item;
+      });
+      this.allQuestions.set(updatedQuestions);
+      this.showToast('Choice text updated successfully', 'success');
+      this.editingChoiceId.set(null);
+    } catch (e: any) {
+      this.showToast(e.message, 'error');
+    } finally {
+      this.savingInline.set(false);
+    }
+  }
+
+  async toggleChoiceCorrect(ans: any, q: Question) {
+    const isCurrentlyCorrect = ans.fraction > 0;
+    const newFraction = isCurrentlyCorrect ? 0.0 : 1.0;
+    
+    try {
+      const { error } = await this.supabaseService.db
+        .from('answers')
+        .update({ fraction: newFraction })
+        .eq('id', ans.id);
+
+      if (error) throw error;
+
+      // Update in memory state
+      const updatedQuestions = this.allQuestions().map(item => {
+        if (item.id === q.id && item.answers) {
+          const updatedAnswers = item.answers.map((a: any) => {
+            if (a.id === ans.id) {
+              return { ...a, fraction: newFraction };
+            }
+            return a;
+          });
+          return { ...item, answers: updatedAnswers };
+        }
+        return item;
+      });
+      this.allQuestions.set(updatedQuestions);
+      this.showToast(isCurrentlyCorrect ? 'Marked option as Incorrect' : 'Marked option as Correct', 'success');
+    } catch (e: any) {
+      this.showToast(e.message, 'error');
+    }
   }
 
   ngOnInit() {
