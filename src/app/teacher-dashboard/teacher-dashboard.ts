@@ -180,6 +180,23 @@ export class TeacherDashboardComponent implements OnInit {
     }
   }
 
+  @HostListener('window:scroll', [])
+  onWindowScroll() {
+    const threshold = 300; // px from bottom of the page
+    const position = window.scrollY + window.innerHeight;
+    const height = document.documentElement.scrollHeight;
+
+    if (position >= height - threshold) {
+      const totalMatching = this.filteredQuestions().length;
+      const currentlyLoaded = this.currentPage() * this.pageSize();
+      
+      if (currentlyLoaded < totalMatching) {
+        // Load the next page/chunk of questions dynamically!
+        this.currentPage.update(val => val + 1);
+      }
+    }
+  }
+
   executeCommand() {
     const query = this.paletteQuery().trim().toLowerCase();
     if (!query) return;
@@ -542,22 +559,8 @@ export class TeacherDashboardComponent implements OnInit {
 
   paginatedQuestions = computed(() => {
     const questions = this.filteredQuestions();
-    const size = this.pageSize();
-    const totalPages = Math.ceil(questions.length / size) || 1;
-    
-    // Automatically clamp current page to valid range
-    let page = this.currentPage();
-    if (page > totalPages) {
-      page = totalPages;
-      untracked(() => this.currentPage.set(totalPages));
-    } else if (page < 1) {
-      page = 1;
-      untracked(() => this.currentPage.set(1));
-    }
-
-    const from = (page - 1) * size;
-    const to = from + size;
-    return questions.slice(from, to);
+    const countToLoad = this.currentPage() * this.pageSize();
+    return questions.slice(0, countToLoad);
   });
   
   categoryOptions = computed(() => {

@@ -168,6 +168,26 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
+  @HostListener('window:scroll', [])
+  onWindowScroll() {
+    // Only trigger infinite scroll if we are looking at the questions tab view
+    if (this.currentView() !== 'questions') return;
+
+    const threshold = 300; // px from bottom of the page
+    const position = window.scrollY + window.innerHeight;
+    const height = document.documentElement.scrollHeight;
+
+    if (position >= height - threshold) {
+      const totalMatching = this.filteredQuestions().length;
+      const currentlyLoaded = this.currentPage() * this.pageSize();
+      
+      if (currentlyLoaded < totalMatching) {
+        // Load the next page/chunk of questions dynamically!
+        this.currentPage.update(val => val + 1);
+      }
+    }
+  }
+
   executeCommand() {
     const query = this.paletteQuery().trim().toLowerCase();
     if (!query) return;
@@ -946,9 +966,8 @@ export class AdminDashboardComponent implements OnInit {
 
   paginatedQuestions = computed(() => {
     const questions = this.filteredQuestions();
-    const from = (this.currentPage() - 1) * this.pageSize();
-    const to = from + this.pageSize();
-    return questions.slice(from, to);
+    const countToLoad = this.currentPage() * this.pageSize();
+    return questions.slice(0, countToLoad);
   });
 
   private applyFilters(questions: Question[]): Question[] {
