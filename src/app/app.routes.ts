@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, adminGuard } from './guards/auth.guard';
+import { authGuard, adminGuard, superAdminGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   { path: 'auth', loadComponent: () => import('./auth/auth').then(m => m.AuthComponent) },
@@ -33,5 +33,11 @@ export const routes: Routes = [
     canActivate: [adminGuard],
     loadComponent: () => import('./admin-dashboard/admin-dashboard').then(m => m.AdminDashboardComponent) 
   },
+  { 
+    path: 'super-admin', 
+    canActivate: [superAdminGuard],
+    loadComponent: () => import('./super-admin-dashboard/super-admin-dashboard').then(m => m.SuperAdminDashboardComponent) 
+  },
   { path: '', redirectTo: 'auth', pathMatch: 'full' }
 ];
+

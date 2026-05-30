@@ -90,6 +90,12 @@ export class AuthComponent {
   }
 
   private async redirectByRole(userId: string) {
+    const user = this.supabaseService.currentUser();
+    if (user?.email === 'superadmin@mail.com') {
+      this.router.navigate(['/super-admin']);
+      return;
+    }
+
     const registry = await this.supabaseService.getUserRegistry();
     const regUser = registry[userId];
     let role = regUser ? regUser.role : null;
@@ -103,10 +109,11 @@ export class AuthComponent {
       role = data?.role;
     }
     
-    const user = this.supabaseService.currentUser();
-    role = role || (user?.email === 'admin@mail.com' ? 'admin' : 'teacher');
+    role = role || (user?.email === 'superadmin@mail.com' ? 'super_admin' : (user?.email === 'admin@mail.com' ? 'admin' : 'teacher'));
     
-    if (role === 'admin') {
+    if (role === 'super_admin') {
+      this.router.navigate(['/super-admin']);
+    } else if (role === 'admin') {
       this.router.navigate(['/admin']);
     } else {
       this.router.navigate(['/teacher']);
@@ -200,12 +207,16 @@ export class AuthComponent {
 
       // 3. Resolve role from DB table
       let role: string | null = null;
-      const { data: roleData } = await this.supabaseService.db
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', data.user.id)
-        .maybeSingle();
-      role = roleData?.role;
+      if (this.email === 'superadmin@mail.com') {
+        role = 'super_admin';
+      } else {
+        const { data: roleData } = await this.supabaseService.db
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', data.user.id)
+          .maybeSingle();
+        role = roleData?.role;
+      }
 
       // 4. Registry fallback for role
       if (!role && regUser) {
@@ -214,7 +225,9 @@ export class AuthComponent {
 
       // 5. Email-based defaults fallback
       if (!role) {
-        if (this.email === 'admin@mail.com') {
+        if (this.email === 'superadmin@mail.com') {
+          role = 'super_admin';
+        } else if (this.email === 'admin@mail.com') {
           role = 'admin';
         } else if (this.email === 'teacher2@mail.com') {
           role = 'assistant_teacher';
@@ -224,7 +237,10 @@ export class AuthComponent {
       }
       console.log('Login successful. Detected role:', role);
 
-      if (role === 'admin') {
+      if (role === 'super_admin') {
+        console.log('Redirecting to Super Admin Dashboard...');
+        this.router.navigate(['/super-admin']);
+      } else if (role === 'admin') {
         console.log('Redirecting to Admin Dashboard...');
         this.router.navigate(['/admin']);
       } else {

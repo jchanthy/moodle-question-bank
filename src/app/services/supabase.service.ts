@@ -11,7 +11,7 @@ export class SupabaseService {
 
   // State management with Signals
   currentUser = signal<User | null>(null);
-  currentUserRole = signal<'teacher' | 'admin' | 'assistant_teacher' | null>(null);
+  currentUserRole = signal<'teacher' | 'admin' | 'assistant_teacher' | 'super_admin' | null>(null);
   currentUserProfile = signal<any | null>(null);
   isRecoveryMode = signal(false);
 
@@ -198,6 +198,14 @@ export class SupabaseService {
 
   private getDefaultRegistry() {
     return {
+      'c86aee06-c2d8-40ab-9919-001441c3efae': {
+        id: 'c86aee06-c2d8-40ab-9919-001441c3efae',
+        email: 'superadmin@mail.com',
+        full_name: 'superadmin',
+        role: 'super_admin',
+        specialization: [],
+        approval_status: 'approved'
+      },
       'facb49a1-dffc-4497-bea0-15cc57d9f0f7': {
         id: 'facb49a1-dffc-4497-bea0-15cc57d9f0f7',
         email: 'admin@mail.com',
@@ -234,6 +242,36 @@ export class SupabaseService {
   }
 
   async saveUserRegistry(users: any): Promise<void> {
+    try {
+      const config = await this.getSystemMetadata();
+      config.users = users;
+      await this.saveSystemMetadata(config);
+    } catch (err) {
+      console.error('saveUserRegistry failed:', err);
+    }
+  }
+
+  async getSystemMetadata(): Promise<any> {
+    try {
+      const { data: rows, error } = await this.supabase
+        .from('questions')
+        .select('*')
+        .eq('name', '__SYSTEM_USER_RECORDS__')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const data = rows && rows.length > 0 ? rows[0] : null;
+
+      if (data && !error && data.metadata) {
+        return data.metadata;
+      }
+      return { users: this.getDefaultRegistry(), rolePermissions: {}, customPermissions: [] };
+    } catch (e) {
+      return { users: this.getDefaultRegistry(), rolePermissions: {}, customPermissions: [] };
+    }
+  }
+
+  async saveSystemMetadata(metadata: any): Promise<void> {
     try {
       // 1. Fetch the existing registry row to get its category_id (must preserve foreign key!)
       const { data: rows, error: fetchErr } = await this.supabase
@@ -274,13 +312,13 @@ export class SupabaseService {
         status: 'approved',
         category_id: categoryId,
         created_by: 'facb49a1-dffc-4497-bea0-15cc57d9f0f7', // MUST set Admin as creator!
-        metadata: { users }
+        metadata: metadata
       });
 
       if (insertErr) throw insertErr;
-      console.log('Successfully saved user registry via delete-then-insert!');
+      console.log('Successfully saved system metadata via delete-then-insert!');
     } catch (err) {
-      console.error('saveUserRegistry failed:', err);
+      console.error('saveSystemMetadata failed:', err);
     }
   }
 
@@ -289,7 +327,23 @@ export class SupabaseService {
       const user = this.currentUser();
       if (!user) return;
 
-      // 1. Database table first (Best Practice)
+      // 0. Force superadmin@mail.com to super_admin immediately
+      if (user.email === 'superadmin@mail.com') {
+        this.currentUserRole.set('super_admin');
+        return;
+      }
+
+      // 1. Fallback to System User Registry first (to capture super_admin override!)
+      const registry = await this.getUserRegistry();
+      const regUser = registry[userId];
+
+      if (regUser) {
+        const finalRole = regUser.approval_status === 'pending' ? ('pending_' + regUser.role) : regUser.role;
+        this.currentUserRole.set(finalRole as any);
+        return;
+      }
+
+      // 2. Database table second
       const { data, error } = await this.supabase
         .from('user_roles')
         .select('role')
@@ -301,18 +355,10 @@ export class SupabaseService {
         return;
       }
 
-      // 2. Fallback to System User Registry
-      const registry = await this.getUserRegistry();
-      const regUser = registry[userId];
-
-      if (regUser) {
-        const finalRole = regUser.approval_status === 'pending' ? ('pending_' + regUser.role) : regUser.role;
-        this.currentUserRole.set(finalRole as any);
-        return;
-      }
-
       // 3. Email defaults fallback
-      if (user.email === 'teacher2@mail.com') {
+      if (user.email === 'superadmin@mail.com') {
+        this.currentUserRole.set('super_admin');
+      } else if (user.email === 'teacher2@mail.com') {
         this.currentUserRole.set('assistant_teacher');
       } else if (user.email === 'teacher@mail.com' || user.email === 'user1@mail.com') {
         this.currentUserRole.set('teacher');
