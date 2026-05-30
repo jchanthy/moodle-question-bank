@@ -578,6 +578,39 @@ export class TeacherDashboardComponent implements OnInit {
     return this.assignedQuestions().filter(q => !q.assignment_completed_at).length;
   });
 
+  dashboardStats = computed(() => {
+    const authored = this.allQuestions();
+    const assigned = this.assignedQuestions();
+    const assistant = this.assistantSubmissions();
+    
+    // Combine and deduplicate
+    const combinedMap = new Map<string, Question>();
+    authored.forEach(q => combinedMap.set(q.id, q));
+    assigned.forEach(q => combinedMap.set(q.id, q));
+    assistant.forEach(q => combinedMap.set(q.id, q));
+    const list = Array.from(combinedMap.values());
+
+    // Filter for latest versions in family just like filteredQuestions() does
+    const familyMap = new Map<string, Question>();
+    list.forEach(q => {
+      const familyId = q.parent_id || q.id;
+      const existing = familyMap.get(familyId);
+      if (!existing || q.version > existing.version) {
+        familyMap.set(familyId, q);
+      }
+    });
+
+    const latestList = Array.from(familyMap.values());
+
+    return {
+      total: latestList.length,
+      draft: latestList.filter(q => q.status === 'draft').length,
+      review: latestList.filter(q => q.status === 'pending_teacher_review' || q.status === 'pending_review').length,
+      ready: latestList.filter(q => q.status === 'approved').length,
+      rejected: latestList.filter(q => q.status === 'rejected').length
+    };
+  });
+
   pendingAssistantSubmissionsCount = computed(() => {
     return this.assistantSubmissions().length;
   });
