@@ -608,7 +608,8 @@ export class TeacherDashboardComponent implements OnInit {
     return {
       total: latestList.length,
       draft: latestList.filter(q => q.status === 'draft').length,
-      review: latestList.filter(q => q.status === 'pending_teacher_review' || q.status === 'pending_review').length,
+      pendingTeacher: latestList.filter(q => q.status === 'pending_teacher_review').length,
+      pendingAdmin: latestList.filter(q => q.status === 'pending_review').length,
       ready: latestList.filter(q => q.status === 'approved').length,
       rejected: latestList.filter(q => q.status === 'rejected').length,
       assignedPending,
