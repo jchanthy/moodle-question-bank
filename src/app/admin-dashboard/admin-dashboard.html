@@ -481,7 +481,7 @@
                 <div *ngIf="editingTextQuestionId() !== q.id" 
                      (click)="startEditingText(q)"
                      class="text-xl font-black text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between">
-                  <div class="flex-1 leading-relaxed">{{ q.question_text }}</div>
+                  <div class="flex-1 leading-relaxed" [innerHTML]="q.question_text"></div>
                   <span class="text-xs text-blue-500 opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-1.5 flex items-center gap-1">
                     ✏️ Click to Edit
                   </span>
@@ -507,6 +507,11 @@
               </div>
               <p class="text-sm font-semibold text-gray-500 mt-2">{{ q.name }}</p>
 
+              <div *ngIf="q.metadata?.image_url" class="mt-4 rounded-xl overflow-hidden border border-slate-200 bg-slate-50/50 p-2.5 max-w-md">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Background Image / Illustration</span>
+                <img [src]="q.metadata?.image_url" class="max-h-[180px] object-contain rounded-lg block mx-auto shadow-sm">
+              </div>
+
               <!-- Inline Choices Preview -->
               <div *ngIf="q.answers && q.answers.length > 0" class="border-t border-slate-100 pt-4 mt-3">
                 <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Choices Preview</div>
@@ -526,7 +531,7 @@
                       <div *ngIf="editingChoiceId() !== ans.id"
                            (click)="startEditingChoice(ans)"
                            class="break-words leading-relaxed cursor-pointer hover:bg-black/5 px-2 py-0.5 -mx-2 rounded transition flex items-start gap-1 justify-between">
-                        <span>{{ ans.answer_text }}</span>
+                        <span class="dashboard-choice-text" [innerHTML]="ans.answer_text"></span>
                         <span class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5">✏️ Edit</span>
                       </div>
                       
@@ -550,7 +555,10 @@
                       </div>
 
                       <div *ngIf="ans.fraction > 0" class="text-[10px] text-emerald-600/80 font-bold mt-0.5">
-                        Correct option ({{ ans.fraction * 100 }}% weighting)
+                        Correct option ({{ ans.fraction }}% weighting)
+                      </div>
+                      <div *ngIf="ans.fraction < 0" class="text-[10px] text-red-500/80 font-bold mt-0.5">
+                        Penalty option ({{ ans.fraction }}% weighting)
                       </div>
                     </div>
                   </div>
@@ -831,7 +839,7 @@
                 <div *ngIf="editingTextQuestionId() !== q.id" 
                      (click)="startEditingText(q)"
                      class="text-xl font-black text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between">
-                  <div class="flex-1 leading-relaxed">{{ q.question_text }}</div>
+                  <div class="flex-1 leading-relaxed" [innerHTML]="q.question_text"></div>
                   <span class="text-xs text-blue-500 opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-1.5 flex items-center gap-1">
                     ✏️ Click to Edit
                   </span>
@@ -857,6 +865,11 @@
               </div>
               <p class="text-sm font-semibold text-gray-500 mt-2">{{ q.name }}</p>
 
+              <div *ngIf="q.metadata?.image_url" class="mt-4 rounded-xl overflow-hidden border border-slate-200 bg-slate-50/50 p-2.5 max-w-md">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Background Image / Illustration</span>
+                <img [src]="q.metadata?.image_url" class="max-h-[180px] object-contain rounded-lg block mx-auto shadow-sm">
+              </div>
+
               <!-- Inline Choices Preview -->
               <div *ngIf="q.answers && q.answers.length > 0" class="border-t border-slate-100 pt-4 mt-3">
                 <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Choices Preview</div>
@@ -876,7 +889,7 @@
                       <div *ngIf="editingChoiceId() !== ans.id"
                            (click)="startEditingChoice(ans)"
                            class="break-words leading-relaxed cursor-pointer hover:bg-black/5 px-2 py-0.5 -mx-2 rounded transition flex items-start gap-1 justify-between">
-                        <span>{{ ans.answer_text }}</span>
+                        <span class="dashboard-choice-text" [innerHTML]="ans.answer_text"></span>
                         <span class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5">✏️ Edit</span>
                       </div>
                       
@@ -900,7 +913,10 @@
                       </div>
 
                       <div *ngIf="ans.fraction > 0" class="text-[10px] text-emerald-600/80 font-bold mt-0.5">
-                        Correct option ({{ ans.fraction * 100 }}% weighting)
+                        Correct option ({{ ans.fraction }}% weighting)
+                      </div>
+                      <div *ngIf="ans.fraction < 0" class="text-[10px] text-red-500/80 font-bold mt-0.5">
+                        Penalty option ({{ ans.fraction }}% weighting)
                       </div>
                     </div>
                   </div>
@@ -1050,7 +1066,7 @@
                 <div *ngIf="editingTextQuestionId() !== q.id" 
                      (click)="startEditingText(q)"
                      class="text-xl font-black text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between">
-                  <div class="flex-1 leading-relaxed">{{ q.question_text }}</div>
+                  <div class="flex-1 leading-relaxed" [innerHTML]="q.question_text"></div>
                   <span class="text-xs text-blue-500 opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-1.5 flex items-center gap-1">
                     ✏️ Click to Edit
                   </span>
@@ -1076,6 +1092,11 @@
               </div>
               <p class="text-sm font-semibold text-gray-500 mt-2">{{ q.name }}</p>
 
+              <div *ngIf="q.metadata?.image_url" class="mt-4 rounded-xl overflow-hidden border border-slate-200 bg-slate-50/50 p-2.5 max-w-md">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Background Image / Illustration</span>
+                <img [src]="q.metadata?.image_url" class="max-h-[180px] object-contain rounded-lg block mx-auto shadow-sm">
+              </div>
+
               <!-- Inline Choices Preview -->
               <div *ngIf="q.answers && q.answers.length > 0" class="border-t border-slate-100 pt-4 mt-3">
                 <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Choices Preview</div>
@@ -1095,7 +1116,7 @@
                       <div *ngIf="editingChoiceId() !== ans.id"
                            (click)="startEditingChoice(ans)"
                            class="break-words leading-relaxed cursor-pointer hover:bg-black/5 px-2 py-0.5 -mx-2 rounded transition flex items-start gap-1 justify-between">
-                        <span>{{ ans.answer_text }}</span>
+                        <span class="dashboard-choice-text" [innerHTML]="ans.answer_text"></span>
                         <span class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5">✏️ Edit</span>
                       </div>
                       
@@ -1119,7 +1140,10 @@
                       </div>
 
                       <div *ngIf="ans.fraction > 0" class="text-[10px] text-emerald-600/80 font-bold mt-0.5">
-                        Correct option ({{ ans.fraction * 100 }}% weighting)
+                        Correct option ({{ ans.fraction }}% weighting)
+                      </div>
+                      <div *ngIf="ans.fraction < 0" class="text-[10px] text-red-500/80 font-bold mt-0.5">
+                        Penalty option ({{ ans.fraction }}% weighting)
                       </div>
                     </div>
                   </div>
@@ -1258,7 +1282,7 @@
                 <div *ngIf="editingTextQuestionId() !== q.id" 
                      (click)="startEditingText(q)"
                      class="text-xl font-black text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between">
-                  <div class="flex-1 leading-relaxed">{{ q.question_text }}</div>
+                  <div class="flex-1 leading-relaxed" [innerHTML]="q.question_text"></div>
                   <span class="text-xs text-blue-500 opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-1.5 flex items-center gap-1">
                     ✏️ Click to Edit
                   </span>
@@ -1284,6 +1308,11 @@
               </div>
               <p class="text-sm font-semibold text-gray-500 mt-2">{{ q.name }}</p>
 
+              <div *ngIf="q.metadata?.image_url" class="mt-4 rounded-xl overflow-hidden border border-slate-200 bg-slate-50/50 p-2.5 max-w-md">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Background Image / Illustration</span>
+                <img [src]="q.metadata?.image_url" class="max-h-[180px] object-contain rounded-lg block mx-auto shadow-sm">
+              </div>
+
               <!-- Inline Choices Preview -->
               <div *ngIf="q.answers && q.answers.length > 0" class="border-t border-slate-100 pt-4 mt-3">
                 <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Choices Preview</div>
@@ -1303,7 +1332,7 @@
                       <div *ngIf="editingChoiceId() !== ans.id"
                            (click)="startEditingChoice(ans)"
                            class="break-words leading-relaxed cursor-pointer hover:bg-black/5 px-2 py-0.5 -mx-2 rounded transition flex items-start gap-1 justify-between">
-                        <span>{{ ans.answer_text }}</span>
+                        <span class="dashboard-choice-text" [innerHTML]="ans.answer_text"></span>
                         <span class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5">✏️ Edit</span>
                       </div>
                       
@@ -1327,7 +1356,10 @@
                       </div>
 
                       <div *ngIf="ans.fraction > 0" class="text-[10px] text-emerald-600/80 font-bold mt-0.5">
-                        Correct option ({{ ans.fraction * 100 }}% weighting)
+                        Correct option ({{ ans.fraction }}% weighting)
+                      </div>
+                      <div *ngIf="ans.fraction < 0" class="text-[10px] text-red-500/80 font-bold mt-0.5">
+                        Penalty option ({{ ans.fraction }}% weighting)
                       </div>
                     </div>
                   </div>
@@ -1616,8 +1648,7 @@
                   </div>
                 </td>
                 <td class="px-6 py-5">
-                  <div class="text-sm font-black text-gray-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-2 max-w-sm" [title]="q.question_text">{{
-                    q.question_text }}</div>
+                  <div class="text-sm font-black text-gray-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-2 max-w-sm" [title]="q.question_text" [innerHTML]="q.question_text"></div>
                   <div *ngIf="getCategoryName(q.category_id)"
                     class="text-[9px] font-bold text-blue-500 uppercase flex items-center gap-1 mb-1">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24"

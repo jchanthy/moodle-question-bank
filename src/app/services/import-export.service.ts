@@ -95,10 +95,25 @@ export class ImportExportService {
     return best;
   }
 
+  private getQuestionTextWithIllustration(q: any): string {
+    let qtext = q.question_text || '';
+    const imageUrl = q.metadata?.image_url || q.image_url;
+    if (imageUrl) {
+      qtext += `<p><img src="${imageUrl}" style="max-height: 300px; display: block; margin-top: 12px;" /></p>`;
+    }
+    return qtext;
+  }
+
   private questionToMoodleXML(q: any, answers: any[]): string {
     // Dispatch to type-specific exporters for correct Moodle XML structure
     if (q.qtype === 'truefalse') {
       return this.trueFalseToMoodleXML(q, answers);
+    }
+    if (q.qtype === 'match') {
+      return this.matchToMoodleXML(q, answers);
+    }
+    if (q.qtype === 'ddmarker') {
+      return this.ddMarkerToMoodleXML(q, answers);
     }
     return this.genericToMoodleXML(q, answers);
   }
@@ -131,7 +146,7 @@ export class ImportExportService {
     return `  <question type="truefalse">
     <name><text>${this.escapeXML(q.name)}</text></name>
     <questiontext format="html">
-      <text><![CDATA[${q.question_text || ''}]]></text>
+      <text><![CDATA[${this.getQuestionTextWithIllustration(q)}]]></text>
     </questiontext>
     <generalfeedback format="html">
       <text><![CDATA[${q.general_feedback || ''}]]></text>
@@ -183,15 +198,32 @@ export class ImportExportService {
       .map((t: string) => `      <tag><text>${this.escapeXML(t)}</text></tag>`).join('\n');
 
     // MCQ-specific block (only output for multichoice types)
-    const mcqBlock = isMCQ ? `
+    let mcqBlock = '';
+    if (isMCQ) {
+      const correctFeedback = q.metadata?.correct_feedback || 'Your answer is correct.';
+      const partiallyCorrectFeedback = q.metadata?.partially_correct_feedback || 'Your answer is partially correct.';
+      const incorrectFeedback = q.metadata?.incorrect_feedback || 'Your answer is incorrect.';
+      const showNumCorrect = q.metadata?.show_num_correct !== false ? '\n    <shownumcorrect/>' : '';
+
+      mcqBlock = `
     <single>${isSingle}</single>
     <shuffleanswers>${q.metadata?.shuffleanswers ? 1 : 0}</shuffleanswers>
-    <answernumbering>${q.metadata?.answernumbering || 'abc'}</answernumbering>` : '';
+    <answernumbering>${q.metadata?.answernumbering || 'abc'}</answernumbering>
+    <correctfeedback format="html">
+      <text><![CDATA[${correctFeedback}]]></text>
+    </correctfeedback>
+    <partiallycorrectfeedback format="html">
+      <text><![CDATA[${partiallyCorrectFeedback}]]></text>
+    </partiallycorrectfeedback>
+    <incorrectfeedback format="html">
+      <text><![CDATA[${incorrectFeedback}]]></text>
+    </incorrectfeedback>${showNumCorrect}`;
+    }
 
     return `  <question type="${q.qtype}">
     <name><text>${this.escapeXML(q.name)}</text></name>
     <questiontext format="html">
-      <text><![CDATA[${q.question_text || ''}]]></text>
+      <text><![CDATA[${this.getQuestionTextWithIllustration(q)}]]></text>
     </questiontext>
     <generalfeedback format="html">
       <text><![CDATA[${q.general_feedback || ''}]]></text>
@@ -203,6 +235,113 @@ export class ImportExportService {
       ${tags}
     </tags>
 ${answersXml}
+  </question>\n\n`;
+  }
+
+  private matchToMoodleXML(q: any, answers: any[]): string {
+    const shuffleAnswers = q.metadata?.shuffleanswers ? 1 : 0;
+    const subquestionsXml = answers.map(a => {
+      const { text } = this.parseAnswerTextAndImage(a.answer_text);
+      let subQ = '';
+      let matchA = '';
+      const parts = text.split(' | ');
+      if (parts.length > 1) {
+        subQ = parts[0];
+        matchA = parts.slice(1).join(' | ');
+      } else {
+        subQ = '';
+        matchA = text;
+      }
+      return `    <subquestion format="html">
+      <text><![CDATA[${subQ}]]></text>
+      <answer><text><![CDATA[${matchA}]]></text></answer>
+    </subquestion>`;
+    }).join('\n');
+
+    const tags = (q.metadata?.tags || [])
+      .map((t: string) => `      <tag><text>${this.escapeXML(t)}</text></tag>`).join('\n');
+
+    return `  <question type="match">
+    <name><text>${this.escapeXML(q.name)}</text></name>
+    <questiontext format="html">
+      <text><![CDATA[${this.getQuestionTextWithIllustration(q)}]]></text>
+    </questiontext>
+    <generalfeedback format="html">
+      <text><![CDATA[${q.general_feedback || ''}]]></text>
+    </generalfeedback>
+    <defaultgrade>${q.default_grade ?? 1}</defaultgrade>
+    <penalty>${q.penalty ?? 0.3333333}</penalty>
+    <hidden>0</hidden>
+    <shuffleanswers>${shuffleAnswers}</shuffleanswers>
+    <tags>
+      ${tags}
+    </tags>
+${subquestionsXml}
+  </question>\n\n`;
+  }
+
+  private parseAnswerTextAndImage(html: string): { text: string, imageUrl: string } {
+    if (!html) return { text: '', imageUrl: '' };
+    const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/i;
+    const match = html.match(imgRegex);
+    if (match && match[1]) {
+      const imageUrl = match[1];
+      const text = html.replace(imgRegex, '').trim();
+      return { text, imageUrl };
+    }
+    return { text: html, imageUrl: '' };
+  }
+
+  private ddMarkerToMoodleXML(q: any, answers: any[]): string {
+    const shuffleAnswers = q.metadata?.shuffleanswers ? 1 : 0;
+    let dragsXml = '';
+    let dropsXml = '';
+
+    answers.forEach((ans: any, idx: number) => {
+      const markerNo = idx + 1;
+      const markerText = ans.answer_text || '';
+      const feedbackText = ans.feedback || '';
+      const parts = feedbackText.split(' | ');
+      const shape = parts[0] || 'circle';
+      const coords = parts[1] || '';
+      const infinite = parts[2] !== 'false';
+
+      dragsXml += `    <drag>
+      <no>${markerNo}</no>
+      <text>${this.escapeXML(markerText)}</text>
+      <value>${infinite ? 1 : 0}</value>
+    </drag>\n`;
+
+      if (coords) {
+        dropsXml += `    <drop>
+      <no>${markerNo}</no>
+      <shape>${shape}</shape>
+      <coords>${coords}</coords>
+      <choice>${markerNo}</choice>
+    </drop>\n`;
+      }
+    });
+
+    const tags = (q.metadata?.tags || [])
+      .map((t: string) => `      <tag><text>${this.escapeXML(t)}</text></tag>`).join('\n');
+
+    return `  <question type="ddmarker">
+    <name><text>${this.escapeXML(q.name)}</text></name>
+    <questiontext format="html">
+      <text><![CDATA[${this.getQuestionTextWithIllustration(q)}]]></text>
+    </questiontext>
+    <generalfeedback format="html">
+      <text><![CDATA[${q.general_feedback || ''}]]></text>
+    </generalfeedback>
+    <defaultgrade>${q.default_grade ?? 1}</defaultgrade>
+    <penalty>${q.penalty ?? 0.3333333}</penalty>
+    <hidden>0</hidden>
+    <shuffleanswers>${shuffleAnswers}</shuffleanswers>
+    <tags>
+      ${tags}
+    </tags>
+${dragsXml}
+${dropsXml}
   </question>\n\n`;
   }
 
@@ -269,12 +408,71 @@ ${answersXml}
       };
 
       const answers: ParsedAnswer[] = [];
-      qEl.querySelectorAll('answer').forEach(aEl => {
-        const text = this.cleanHtml(aEl.querySelector('text')?.textContent?.trim() || '');
-        const feedback = this.cleanHtml(aEl.querySelector('feedback > text')?.textContent?.trim() || '');
-        const fraction = parseFloat(aEl.getAttribute('fraction') || '0');
-        answers.push({ answer_text: text, fraction, feedback });
-      });
+      if (type === 'match') {
+        qEl.querySelectorAll('subquestion').forEach(subEl => {
+          const rawSubText = subEl.querySelector('text')?.textContent?.trim() || '';
+          const ansText = this.cleanHtml(subEl.querySelector('answer > text')?.textContent?.trim() || '');
+          
+          // Extract image tag if any
+          const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/i;
+          const match = rawSubText.match(imgRegex);
+          const imageUrl = match ? match[1] : '';
+          
+          const cleanSubText = this.cleanHtml(rawSubText);
+          let combinedText = cleanSubText;
+          if (imageUrl) {
+            combinedText = `${cleanSubText} <img src="${imageUrl}" style="max-height: 120px; display: block; margin-top: 8px;" />`;
+          }
+          combinedText = `${combinedText} | ${ansText}`;
+          
+          answers.push({
+            answer_text: combinedText,
+            fraction: 0,
+            feedback: ''
+          });
+        });
+      } else if (type === 'ddmarker') {
+        const markerMap = new Map<string, { text: string; infinite: boolean }>();
+        qEl.querySelectorAll('drag').forEach(dEl => {
+          const no = dEl.querySelector('no')?.textContent?.trim() || '';
+          const text = dEl.querySelector('text')?.textContent?.trim() || '';
+          const value = dEl.querySelector('value')?.textContent?.trim() || '0';
+          const infinite = value === '1';
+          markerMap.set(no, { text, infinite });
+        });
+
+        qEl.querySelectorAll('drop').forEach(drEl => {
+          const no = drEl.querySelector('no')?.textContent?.trim() || '';
+          const shape = drEl.querySelector('shape')?.textContent?.trim() || 'circle';
+          const coords = drEl.querySelector('coords')?.textContent?.trim() || '';
+          const choice = drEl.querySelector('choice')?.textContent?.trim() || '';
+
+          const marker = markerMap.get(choice);
+          if (marker) {
+            answers.push({
+              answer_text: marker.text,
+              fraction: 0,
+              feedback: `${shape} | ${coords} | ${marker.infinite}`
+            });
+            markerMap.delete(choice);
+          }
+        });
+
+        markerMap.forEach((marker) => {
+          answers.push({
+            answer_text: marker.text,
+            fraction: 0,
+            feedback: `circle |  | ${marker.infinite}`
+          });
+        });
+      } else {
+        qEl.querySelectorAll('answer').forEach(aEl => {
+          const text = this.cleanHtml(aEl.querySelector('text')?.textContent?.trim() || '');
+          const feedback = this.cleanHtml(aEl.querySelector('feedback > text')?.textContent?.trim() || '');
+          const fraction = parseFloat(aEl.getAttribute('fraction') || '0');
+          answers.push({ answer_text: text, fraction, feedback });
+        });
+      }
 
       questions.push({
         name: this.cleanHtml(getText('name')),
@@ -286,6 +484,10 @@ ${answersXml}
         metadata: {
           shuffleanswers: qEl.querySelector('shuffleanswers')?.textContent === '1',
           answernumbering: qEl.querySelector('answernumbering')?.textContent || 'abc',
+          correct_feedback: this.cleanHtml(qEl.querySelector('correctfeedback > text')?.textContent || ''),
+          partially_correct_feedback: this.cleanHtml(qEl.querySelector('partiallycorrectfeedback > text')?.textContent || ''),
+          incorrect_feedback: this.cleanHtml(qEl.querySelector('incorrectfeedback > text')?.textContent || ''),
+          show_num_correct: qEl.querySelector('shownumcorrect') !== null,
           tags: Array.from(qEl.querySelectorAll('tags > tag > text')).map(t => t.textContent?.trim() || '').filter(Boolean)
         },
         answers,

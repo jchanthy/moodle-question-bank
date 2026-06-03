@@ -125,9 +125,8 @@
       </div>
     </div>
 
-    <!-- Tabs Navigation -->
     <div class="flex gap-2 mb-8 bg-gray-100 p-1.5 rounded-none w-fit border border-gray-200 shadow-sm">
-      <button (click)="currentView.set('my'); currentPage.set(1)"
+      <button (click)="currentView.set('my'); currentPage.set(1); filterStatus.set('')"
               [class.bg-white]="currentView() === 'my'"
               [class.shadow-sm]="currentView() === 'my'"
               [class.text-blue-600]="currentView() === 'my'"
@@ -347,37 +346,14 @@
             Show All
           </button>
           
-          <!-- Import / Export Dropdown -->
-          <div class="relative group">
-            <button class="flex items-center gap-2 border border-gray-200 text-gray-600 px-4 py-2 rounded-none font-bold text-sm hover:bg-gray-50 transition h-[42px] min-w-[140px] justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-              </svg>
-              Import / Export
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            <div class="absolute right-0 top-full mt-1 bg-white border border-gray-100 rounded-none shadow-xl py-2 w-56 z-50 hidden group-hover:block animate-in fade-in slide-in-from-top-2 duration-200">
-              <div class="px-4 py-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">Import Options</div>
-              <button (click)="showImportModal.set(true); resetImport()" 
-                      class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-bold flex items-center gap-2 transition-colors">
-                <span class="text-base">📥</span> Upload Questions
-              </button>
-              
-              <div class="border-t border-gray-50 my-2"></div>
-              
-              <div class="px-4 py-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">Export Selection</div>
-              <button (click)="exportXML()" 
-                      class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-bold flex items-center gap-2 transition-colors">
-                <span class="text-base">📄</span> Moodle XML (.xml)
-              </button>
-              <button (click)="exportGIFT()" 
-                      class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-bold flex items-center gap-2 transition-colors">
-                <span class="text-base">🎁</span> GIFT Format (.txt)
-              </button>
-            </div>
-          </div>
+          <!-- Import Questions Button -->
+          <button (click)="showImportModal.set(true); resetImport()" 
+                  class="flex items-center gap-2 border border-gray-200 text-gray-600 px-4 py-2 rounded-none font-bold text-sm hover:bg-gray-50 transition h-[42px] min-w-[140px] justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M12 12V4m0 0L8 8m4-4l4 4" />
+            </svg>
+            Import Questions
+          </button>
 
           <p-button label="Add New Question" icon="pi pi-plus" [routerLink]="['/teacher/new-question']" 
                     [queryParams]="{ category_id: selectedCategoryId() }"
@@ -1046,7 +1022,7 @@
                 <div class="group/name relative w-full">
                   <ng-container *ngIf="!question.isEditingName">
                     <div class="text-xl md:text-2xl font-black text-slate-800 leading-relaxed hover:text-blue-600 transition-colors cursor-pointer flex items-start gap-2" [title]="question.question_text">
-                      <span>{{ question.question_text }}</span>
+                      <span [innerHTML]="question.question_text"></span>
                       <button (click)="question.isEditingName = true" class="opacity-0 group-hover/name:opacity-100 transition-opacity p-1 hover:bg-slate-100 rounded text-blue-500 mt-1.5 shrink-0" title="Edit Question Name">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -1074,6 +1050,12 @@
                   </div>
                 </div>
 
+                <!-- Background Image Preview (for drag and drop / illustrated questions) -->
+                <div *ngIf="question.metadata?.image_url" class="mt-4 rounded-xl overflow-hidden border border-slate-200 bg-slate-50/50 p-2.5 max-w-md">
+                  <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Background Image / Illustration</span>
+                  <img [src]="question.metadata?.image_url" class="max-h-[180px] object-contain rounded-lg block mx-auto shadow-sm">
+                </div>
+
                 <!-- Inline Choices Preview -->
                 <div *ngIf="question.answers && question.answers.length > 0" class="border-t border-slate-100 pt-4 mt-3">
                   <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Choices Preview</div>
@@ -1086,9 +1068,12 @@
                         {{ ans.fraction > 0 ? '✓' : '✗' }}
                       </span>
                       <div class="flex-1 min-w-0">
-                        <div class="break-words leading-relaxed">{{ ans.answer_text }}</div>
+                        <div class="break-words leading-relaxed dashboard-choice-text" [innerHTML]="ans.answer_text"></div>
                         <div *ngIf="ans.fraction > 0" class="text-[10px] text-emerald-600/80 font-bold mt-0.5">
-                          Correct option ({{ ans.fraction * 100 }}% weighting)
+                          Correct option ({{ ans.fraction }}% weighting)
+                        </div>
+                        <div *ngIf="ans.fraction < 0" class="text-[10px] text-red-500/80 font-bold mt-0.5">
+                          Penalty option ({{ ans.fraction }}% weighting)
                         </div>
                       </div>
                     </div>
@@ -1111,8 +1096,7 @@
               <span *ngIf="question.metadata?.modified_by">Modified by <strong class="text-slate-700 font-bold">{{ question.metadata?.modified_by }}</strong> on {{ question.metadata?.modified_at ? (question.metadata?.modified_at | date:'d MMM y, h:mm a') : (question.created_at | date:'d MMM y, h:mm a') }}</span>
             </div>
 
-            <!-- Action Buttons Row -->
-            <div class="flex items-center gap-3 flex-wrap justify-end">
+            <div class="flex items-center gap-2 justify-end flex-nowrap">
               <!-- If we are in Archive View, show RESTORE and PURGE actions -->
               <ng-container *ngIf="currentView() === 'archive'; else activeActions">
                 <button (click)="restoreQuestion(question.id, question.name)"
@@ -1144,8 +1128,17 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
-                  <span>{{ (question.status === 'draft' || question.status === 'rejected') ? 'Edit Question' : 'View Details' }}</span>
+                  <span>{{ (question.status === 'draft' || question.status === 'rejected') ? 'Edit' : 'View' }}</span>
                 </a>
+
+                <!-- DUPLICATE -->
+                <button (click)="duplicateQuestion(question)"
+                        class="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-2xl bg-white border border-blue-200 text-blue-600 font-black text-sm uppercase tracking-wider hover:bg-blue-50 hover:-translate-y-0.5 transition-all shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                  </svg>
+                  Duplicate
+                </button>
 
                 <!-- WITHDRAW (Only for In-Review) -->
                 <button *ngIf="question.status === 'pending_review' || question.status === 'assigned'"

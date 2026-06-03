@@ -49,3 +49,29 @@ input[type=number] {
   border-bottom-left-radius: 0 !important;
 }
 
+/* Global Disabled Button & Input Styling */
+button:disabled,
+input[type="submit"]:disabled,
+.p-button:disabled,
+a.disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  filter: grayscale(30%) !important;
+}
+
+/* Dashboard inline images sizing */
+.dashboard-choice-text img {
+  max-height: 80px !important;
+  max-width: 150px !important;
+  object-fit: contain;
+  margin-top: 6px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  padding: 2px;
+  background-color: white;
+  display: block;
+}
+

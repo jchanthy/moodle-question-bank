@@ -143,8 +143,9 @@
             </div>
 
             <!-- Image Support in Preview -->
-            <div *ngIf="imagePreview()" class="mb-10 rounded-none overflow-hidden border-4 border-blue-50 shadow-sm relative group">
-              <img [src]="imagePreview()" class="w-full max-h-[500px] object-contain block mx-auto">
+            <div *ngIf="imagePreview()" class="mb-6 rounded-none border-4 border-blue-50 shadow-sm relative group"
+                 (mouseup)="stopDragging()" (mouseleave)="stopDragging()">
+              <img id="previewImg" [src]="imagePreview()" class="w-full max-h-[500px] object-contain block mx-auto pointer-events-none select-none">
               
               <!-- Drag and Drop Overlay in Preview -->
               <ng-container *ngIf="questionForm.get('qtype')?.value === 'ddimageortext'">
@@ -154,6 +155,30 @@
                   <span class="text-[10px] font-black text-blue-400 uppercase tracking-widest">Drop Here</span>
                 </div>
               </ng-container>
+
+              <!-- Draggable labels that have been placed on image -->
+              <ng-container *ngIf="['ddimageortext', 'ddmarker'].includes(questionForm.get('qtype')?.value!)">
+                <ng-container *ngFor="let answer of answers.controls; let i=index">
+                  <div *ngIf="studentPlacement()[i]"
+                    [style.left.%]="studentPlacement()[i]?.x" [style.top.%]="studentPlacement()[i]?.y"
+                    (mousedown)="startDragging(i, $event)"
+                    class="absolute -translate-x-1/2 -translate-y-1/2 bg-blue-600 text-white px-3 py-1.5 rounded-none shadow-xl text-xs font-black whitespace-nowrap border-2 border-white transition-all cursor-grab active:cursor-grabbing hover:scale-110 z-40">
+                    {{ answer.get('answer_text')?.value }}
+                  </div>
+                </ng-container>
+              </ng-container>
+            </div>
+
+            <!-- Label Bank (Dock) -->
+            <div *ngIf="['ddimageortext', 'ddmarker'].includes(questionForm.get('qtype')?.value!)" 
+              class="bg-gray-100 rounded-xl p-4 flex flex-wrap gap-3 justify-center border border-gray-200 shadow-inner mb-10">
+              <div *ngFor="let answer of answers.controls; let i=index">
+                <div (mousedown)="startDragging(i, $event)"
+                  [class.invisible]="questionForm.get('qtype')?.value === 'ddimageortext' ? studentPlacement()[i] : (!answer.get('marker_infinite')?.value && studentPlacement()[i])"
+                  class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-none shadow-lg text-xs font-black whitespace-nowrap border border-white/20 transition-all cursor-grab active:cursor-grabbing select-none">
+                  {{ answer.get('answer_text')?.value || (questionForm.get('qtype')?.value === 'ddmarker' ? 'Marker ' : 'Label ') + (i+1) }}
+                </div>
+              </div>
             </div>
 
             <!-- Interaction Area -->
@@ -187,8 +212,11 @@
                      </div>
                    </div>
                    
-                   <span class="text-gray-700 font-bold text-lg flex-1">{{ ans.get('answer_text')?.value }}</span>
-                 </div>
+                    <div class="flex-1 flex flex-col gap-2">
+                      <span class="text-gray-700 font-bold text-lg leading-relaxed">{{ ans.get('answer_text')?.value }}</span>
+                      <img *ngIf="ans.get('image_url')?.value" [src]="ans.get('image_url')?.value" class="max-h-[120px] object-contain self-start rounded border border-gray-200 p-1 bg-white mt-1">
+                    </div>
+                  </div>
                </ng-container>
 
               <!-- Short Answer / Numerical -->
@@ -199,6 +227,29 @@
                     [disabled]="!!previewResult()"
                     placeholder="Type your response here..." 
                     class="w-full p-5 border-2 border-blue-100/50 bg-gray-50 focus:bg-white focus:border-blue-500 transition-all outline-none text-lg font-medium shadow-inner">
+                </div>
+              </ng-container>
+
+              <!-- Matching -->
+              <ng-container *ngIf="questionForm.get('qtype')?.value === 'match'">
+                <div class="space-y-4 max-w-2xl">
+                  <ng-container *ngFor="let ans of answers.controls; let i=index">
+                    <div *ngIf="ans.get('match_subquestion')?.value?.trim()" class="flex items-center gap-4 bg-gray-50 p-4 border border-blue-50">
+                      <div class="flex-1 flex flex-col gap-2">
+                        <span class="text-gray-700 font-bold text-base">{{ ans.get('match_subquestion')?.value }}</span>
+                        <img *ngIf="ans.get('image_url')?.value" [src]="ans.get('image_url')?.value" class="max-h-[120px] object-contain self-start rounded border border-gray-200 p-1 bg-white mt-1">
+                      </div>
+                      <div class="w-64">
+                        <select [disabled]="!!previewResult()"
+                          [ngModel]="studentMatchAnswers()[i] || ''"
+                          (ngModelChange)="updateStudentMatchAnswer(i, $event)"
+                          class="w-full border border-blue-300 bg-white p-2.5 font-semibold text-sm outline-none">
+                          <option value="">— Select Choice —</option>
+                          <option *ngFor="let choice of previewMatchChoices()" [value]="choice">{{ choice }}</option>
+                        </select>
+                      </div>
+                    </div>
+                  </ng-container>
                 </div>
               </ng-container>
 
@@ -216,7 +267,7 @@
             </div>
 
             <!-- Submit Button (Preview) -->
-            <div class="mt-10 flex justify-center" *ngIf="!previewResult() && (['multichoice', 'truefalse', 'shortanswer', 'numerical', 'ddimageortext'].includes(questionForm.get('qtype')?.value!))">
+            <div class="mt-10 flex justify-center" *ngIf="!previewResult() && (['multichoice', 'truefalse', 'shortanswer', 'numerical', 'ddimageortext', 'match'].includes(questionForm.get('qtype')?.value!))">
               <button type="button" (click)="checkPreviewAnswer()"
                 class="bg-blue-600 text-white px-10 py-4 font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-900/20 active:scale-95">
                 Check My Answer
@@ -342,7 +393,7 @@
                 </div>
                 <div class="relative">
                   <select formControlName="qtype"
-                    class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-4 pl-12 border bg-white font-bold transition-all appearance-none cursor-pointer">
+                    class="mt-1 block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-4 pl-12 border bg-white font-bold transition-all appearance-none cursor-pointer">
                     <option *ngFor="let type of questionTypes" [value]="type.value">{{ type.label }}</option>
                   </select>
                   <div class="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500 pointer-events-none">
@@ -399,7 +450,7 @@
                 </button>
               </div>
               <select formControlName="category_id"
-                class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
+                class="mt-1 block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
                 <option [ngValue]="null">No Category</option>
                 <option *ngFor="let cat of formCategories()" [ngValue]="cat.id">
                   {{ '—'.repeat(cat.depth) }}{{ cat.depth > 0 ? ' ' : '' }}{{ cat.name }}
@@ -413,7 +464,7 @@
                     <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Category Name</label>
                     <input type="text" [ngModel]="newCategoryName()" (ngModelChange)="newCategoryName.set($event)" [ngModelOptions]="{standalone: true}"
                       placeholder="e.g. Chapter 1 - Introduction"
-                      class="block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2.5 border bg-white font-medium transition-all">
+                      class="block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2.5 border bg-white font-medium transition-all">
                   </div>
                   
                   <div *ngIf="isAdmin" class="md:mt-5">
@@ -427,7 +478,7 @@
                 <div>
                   <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Parent Category (Optional)</label>
                   <select [ngModel]="newCategoryParent()" (ngModelChange)="newCategoryParent.set($event)" [ngModelOptions]="{standalone: true}"
-                    class="block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2.5 border bg-white font-medium transition-all">
+                    class="block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2.5 border bg-white font-medium transition-all">
                     <option [ngValue]="null">— Top Level (No Parent) —</option>
                     <option *ngFor="let cat of formCategories()" [ngValue]="cat.id">
                       {{ '—'.repeat(cat.depth) }}{{ cat.depth > 0 ? ' ' : '' }}{{ cat.name }}
@@ -451,39 +502,18 @@
             <div>
               <label class="block text-sm font-bold text-gray-700">Question Name (Internal)</label>
               <input type="text" formControlName="name" placeholder="e.g. History_Q1_FrenchRevolution"
-                class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
-            </div>
-
-            <!-- Tags -->
-            <div>
-              <label class="block text-sm font-bold text-gray-700 flex items-center gap-2 mb-1">
-                Question Tags
-                <span class="text-[10px] font-normal text-gray-400 normal-case">(Type a tag then press Enter to add)</span>
-              </label>
-              <p-autocomplete formControlName="tags" 
-                               [multiple]="true"
-                               [unique]="true"
-                               [suggestions]="filteredTags()"
-                               (completeMethod)="filterTags($event)"
-                               (keydown)="onTagInputKeydown($event)"
-                               [delay]="0"
-                               [autoHighlight]="true"
-                               [completeOnFocus]="true"
-                               placeholder="Type a tag and press Enter..."
-                               styleClass="w-full"
-                               inputStyleClass="w-full mt-1 block border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2 border bg-gray-50/50 font-medium transition-all rounded-none min-h-[44px]">
-              </p-autocomplete>
+                class="mt-1 block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
             </div>
 
             <div>
               <label class="block text-sm font-bold text-gray-700">Question Text</label>
               <textarea formControlName="question_text" rows="4"
                 [placeholder]="questionForm.get('qtype')?.value === 'ddwtos' ? 'Use [[1]], [[2]] for the gaps. e.g. The capital of [[1]] is [[2]].' : 'What is the primary cause of...'"
-                class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all"></textarea>
+                class="mt-1 block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all"></textarea>
             </div>
 
             <!-- Image Support -->
-            <div class="space-y-4 pt-4 border-t border-blue-100/50">
+            <div *ngIf="questionForm.get('qtype')?.value !== 'coderunner'" class="space-y-4 pt-4 border-t border-blue-100/50">
               <div class="flex items-center justify-between">
                 <label class="block text-xs font-black text-gray-400 uppercase tracking-widest">
                   {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Background Image (Required)' : 'Question Illustration (Optional)' }}
@@ -518,8 +548,20 @@
                 </div>
               </div>
 
-              <!-- Interactive Preview Area -->
-              <div *ngIf="imagePreview() && !uploading()" class="space-y-4">
+              <!-- Static Preview Area (non drag-and-drop question types) -->
+              <div *ngIf="imagePreview() && !uploading() && !['ddimageortext', 'ddmarker'].includes(questionForm.get('qtype')?.value!)" class="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-gray-100 p-2">
+                <img [src]="imagePreview()" class="max-h-[300px] object-contain block mx-auto rounded-2xl">
+                <!-- Delete Image Button -->
+                <button type="button" (click)="removeImage()" 
+                  class="absolute top-4 right-4 bg-red-600 text-white p-2 rounded-none shadow-lg hover:bg-red-700 transition transform hover:scale-110">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Interactive Preview Area (drag and drop questions) -->
+              <div *ngIf="imagePreview() && !uploading() && ['ddimageortext', 'ddmarker'].includes(questionForm.get('qtype')?.value!)" class="space-y-4">
                 <div class="flex items-center justify-between mb-2">
                    <div class="flex items-center gap-2">
                       <span class="bg-blue-600 w-2 h-2 rounded-none animate-ping"></span>
@@ -537,6 +579,32 @@
                   
                   <img id="previewImg" [src]="imagePreview()" class="w-full max-h-[600px] object-contain block mx-auto pointer-events-none select-none">
                   
+                  <!-- SVG Overlays for Drop Zones (Designer mode for ddmarker) -->
+                  <svg *ngIf="questionForm.get('qtype')?.value === 'ddmarker' && !isPreviewMode()" 
+                    class="absolute inset-0 w-full h-full pointer-events-none z-10">
+                    <ng-container *ngFor="let answer of answers.controls; let i=index">
+                      <!-- Circle -->
+                      <circle *ngIf="answer.get('marker_shape')?.value === 'circle' && answer.get('marker_coords')?.value"
+                        [attr.cx]="answer.get('marker_coords')?.value.split(';')[0]?.split(',')[0] + '%'"
+                        [attr.cy]="answer.get('marker_coords')?.value.split(';')[0]?.split(',')[1] + '%'"
+                        [attr.r]="answer.get('marker_coords')?.value.split(';')[1] + '%'"
+                        fill="rgba(59, 130, 246, 0.3)" stroke="#3b82f6" stroke-width="2" />
+                      
+                      <!-- Rectangle -->
+                      <rect *ngIf="answer.get('marker_shape')?.value === 'rectangle' && answer.get('marker_coords')?.value"
+                        [attr.x]="answer.get('marker_coords')?.value.split(';')[0]?.split(',')[0] + '%'"
+                        [attr.y]="answer.get('marker_coords')?.value.split(';')[0]?.split(',')[1] + '%'"
+                        [attr.width]="answer.get('marker_coords')?.value.split(';')[1]?.split(',')[0] + '%'"
+                        [attr.height]="answer.get('marker_coords')?.value.split(';')[1]?.split(',')[1] + '%'"
+                        fill="rgba(168, 85, 247, 0.3)" stroke="#a855f7" stroke-width="2" />
+
+                      <!-- Polygon -->
+                      <polygon *ngIf="answer.get('marker_shape')?.value === 'polygon' && answer.get('marker_coords')?.value"
+                        [attr.points]="getSvgPolygonPoints(answer.get('marker_coords')?.value)"
+                        fill="rgba(16, 185, 129, 0.3)" stroke="#10b981" stroke-width="2" />
+                    </ng-container>
+                  </svg>
+
                   <!-- Markers (Always Draggable) -->
                   <ng-container *ngIf="questionForm.get('qtype')?.value === 'ddimageortext' && !isPreviewMode()">
                     <div *ngFor="let answer of answers.controls; let i=index" 
@@ -561,23 +629,25 @@
                     </div>
 
                   <!-- Draggable labels that have been placed on image -->
-                  <ng-container *ngFor="let answer of answers.controls; let i=index">
-                    <div *ngIf="studentPlacement()[i]"
-                      [style.left.%]="studentPlacement()[i]?.x" [style.top.%]="studentPlacement()[i]?.y"
-                      (mousedown)="startDragging(i, $event)"
-                      class="absolute -translate-x-1/2 -translate-y-1/2 bg-blue-600 text-white px-3 py-1.5 rounded-none shadow-xl text-xs font-black whitespace-nowrap border-2 border-white transition-all cursor-grab active:cursor-grabbing hover:scale-110 z-40">
-                      {{ answer.get('answer_text')?.value }}
-                    </div>
+                  <ng-container *ngIf="['ddimageortext', 'ddmarker'].includes(questionForm.get('qtype')?.value!)">
+                    <ng-container *ngFor="let answer of answers.controls; let i=index">
+                      <div *ngIf="studentPlacement()[i]"
+                        [style.left.%]="studentPlacement()[i]?.x" [style.top.%]="studentPlacement()[i]?.y"
+                        (mousedown)="startDragging(i, $event)"
+                        class="absolute -translate-x-1/2 -translate-y-1/2 bg-blue-600 text-white px-3 py-1.5 rounded-none shadow-xl text-xs font-black whitespace-nowrap border-2 border-white transition-all cursor-grab active:cursor-grabbing hover:scale-110 z-40">
+                        {{ answer.get('answer_text')?.value }}
+                      </div>
+                    </ng-container>
                   </ng-container>
 
                   <!-- Label Bank (Dock) -->
-                  <div *ngIf="questionForm.get('qtype')?.value === 'ddimageortext' && isPreviewMode()" 
+                  <div *ngIf="['ddimageortext', 'ddmarker'].includes(questionForm.get('qtype')?.value!) && isPreviewMode()" 
                     class="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-md p-4 flex flex-wrap gap-3 justify-center border-t border-white/10 z-30">
                     <div *ngFor="let answer of answers.controls; let i=index">
                       <div (mousedown)="startDragging(i, $event)"
-                        [class.invisible]="studentPlacement()[i]"
+                        [class.invisible]="questionForm.get('qtype')?.value === 'ddimageortext' ? studentPlacement()[i] : (!answer.get('marker_infinite')?.value && studentPlacement()[i])"
                         class="bg-blue-600/80 hover:bg-blue-600 text-white px-3 py-1.5 rounded-none shadow-lg text-xs font-black whitespace-nowrap border border-white/20 transition-all cursor-grab active:cursor-grabbing">
-                        {{ answer.get('answer_text')?.value || 'Label ' + (i+1) }}
+                        {{ answer.get('answer_text')?.value || 'Marker ' + (i+1) }}
                       </div>
                     </div>
                   </div>
@@ -607,7 +677,7 @@
             <div>
               <label class="block text-sm font-bold text-gray-700">One or multiple answers?</label>
               <select formControlName="single"
-                class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
+                class="mt-1 block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
                 <option [ngValue]="true">One answer only</option>
                 <option [ngValue]="false">Multiple answers allowed</option>
               </select>
@@ -616,7 +686,7 @@
             <div>
               <label class="block text-sm font-bold text-gray-700">Shuffle the choices?</label>
               <select formControlName="shuffleanswers"
-                class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
+                class="mt-1 block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
                 <option [ngValue]="true">Yes</option>
                 <option [ngValue]="false">No</option>
               </select>
@@ -625,7 +695,7 @@
             <div>
               <label class="block text-sm font-bold text-gray-700">Number the choices?</label>
               <select formControlName="answernumbering"
-                class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
+                class="mt-1 block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
                 <option value="abc">a., b., c., ...</option>
                 <option value="ABCD">A., B., C., ...</option>
                 <option value="123">1., 2., 3., ...</option>
@@ -639,43 +709,15 @@
         <section class="space-y-6">
           <h2 class="text-lg font-bold text-gray-900 border-b border-blue-50 flex items-center gap-2">
             <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-none flex items-center justify-center text-[10px] font-black uppercase">03</span>
-            Scoring & Feedback
+            General Feedback
           </h2>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Default Grade (Moodle: defaultgrade) -->
-            <div>
-              <label class="block text-sm font-bold text-gray-700">
-                Default Point Value
-                <span class="text-[10px] font-normal text-gray-400 ml-1">(Moodle: defaultgrade)</span>
-              </label>
-              <input type="number" formControlName="default_grade" min="0" step="0.5"
-                class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-bold transition-all"
-                placeholder="1">
-              <p class="text-[10px] text-gray-400 font-medium mt-1">
-                The maximum grade a student can achieve for this question. Typically 1.
-              </p>
-            </div>
-
-            <!-- Penalty (Moodle: penalty) - only applies to adaptive/interactive mode -->
-            <div>
-              <label class="block text-sm font-bold text-gray-700">
-                Penalty per Attempt
-                <span class="text-[10px] font-normal text-gray-400 ml-1">(Moodle: penalty)</span>
-              </label>
-              <select formControlName="penalty"
-                class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
-                <option *ngFor="let p of moodlePenaltyOptions" [ngValue]="p.value">{{ p.label }}</option>
-              </select>
-              <p class="text-[10px] text-gray-400 font-medium mt-1">
-                Fraction of grade deducted per wrong try in interactive/adaptive mode. 33.333% is standard.
-              </p>
-            </div>
-
             <div class="md:col-span-2">
-              <label class="block text-sm font-bold text-gray-700">General Feedback</label>
+              <label class="block text-sm font-bold text-gray-700">General Feedback (Shown to all students after submission)</label>
               <textarea formControlName="general_feedback" rows="2"
-                class="mt-1 block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all"></textarea>
+                placeholder="Explain the correct answer or solution here..."
+                class="mt-1 block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all"></textarea>
             </div>
           </div>
         </section>
@@ -685,16 +727,19 @@
           <div class="flex justify-between items-center border-b border-blue-50">
             <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
               <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-none flex items-center justify-center text-[10px] font-black uppercase">04</span>
-              {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Draggable Labels' : 'Multiple Choice Options' }}
+              {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Answers - Draggable Labels' : 'Answers - Choices & Grading (Set Correct Answers Here)' }}
             </h2>
-            <div class="flex items-center gap-4">
-              <button type="button" (click)="addAnswer()" class="text-blue-600 hover:text-blue-800 text-sm font-bold flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                Add {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Label' : 'Choice' }}
-              </button>
-            </div>
+          </div>
+
+          <!-- Correct Answer Selector for True/False -->
+          <div *ngIf="isTrueFalse" class="p-6 bg-blue-50/30 border border-blue-100 rounded-none mb-6">
+            <label class="block text-sm font-bold text-gray-700 mb-2">Correct Answer</label>
+            <select [ngModel]="getTrueFalseCorrectAnswer()" (ngModelChange)="setTrueFalseCorrectAnswer($event)"
+              [ngModelOptions]="{standalone: true}"
+              class="w-full text-sm border border-blue-300 bg-white px-3 py-2 font-bold focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all rounded-none">
+              <option value="True">True</option>
+              <option value="False">False</option>
+            </select>
           </div>
 
           <div formArrayName="answers" class="space-y-6">
@@ -709,44 +754,135 @@
               </button>
 
               <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div class="md:col-span-3">
-                  <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
-                    {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Label Text' : 'Choice Text' }}
-                  </label>
-                  <input type="text" formControlName="answer_text"
-                    [placeholder]="questionForm.get('qtype')?.value === 'ddimageortext' ? 'e.g. Brain' : 'Enter option text...'"
-                    class="block w-full border-blue-100 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2.5 border bg-white transition-all">
+                <div class="md:col-span-3 space-y-3" *ngIf="questionForm.get('qtype')?.value !== 'match'">
+                  <div>
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                      {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Label Text' : 'Choice Text' }}
+                    </label>
+                    <input type="text" formControlName="answer_text"
+                      [placeholder]="questionForm.get('qtype')?.value === 'ddimageortext' ? 'e.g. Brain' : 'Enter option text...'"
+                      class="block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2.5 border bg-white transition-all">
+                  </div>
+                  <!-- Choice Image Upload (Optional for MCQ) -->
+                  <div *ngIf="questionForm.get('qtype')?.value !== 'ddimageortext' && !isTrueFalse" class="mt-2">
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                      Choice Illustration (Optional)
+                    </label>
+                    <div class="flex items-center gap-4">
+                      <!-- Trigger button -->
+                      <button type="button" (click)="ansImageInput.click()" 
+                        class="text-[11px] bg-white hover:bg-gray-100 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-none font-bold transition flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        {{ answer.get('image_url')?.value ? 'Change Image' : 'Add Image' }}
+                      </button>
+                      <input type="file" #ansImageInput (change)="uploadAnswerImage(i, $event)" accept="image/*" class="hidden">
+                      
+                      <!-- Uploading indicator -->
+                      <span *ngIf="answer.get('uploading')?.value" class="text-xs text-blue-600 font-bold animate-pulse">Uploading...</span>
+                      
+                      <!-- Thumbnail preview -->
+                      <div *ngIf="answer.get('image_url')?.value" class="relative group border border-gray-200 p-1 bg-white inline-block">
+                        <img [src]="answer.get('image_url')?.value" class="h-10 w-10 object-cover">
+                        <button type="button" (click)="removeAnswerImage(i)" 
+                          class="absolute -top-1.5 -right-1.5 bg-red-600 text-white p-0.5 rounded-none shadow hover:bg-red-700 transition">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Specific Feedback (Moodle compliance) -->
+                  <div *ngIf="questionForm.get('qtype')?.value !== 'ddimageortext'">
+                    <label class="block text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">
+                      Specific Feedback for this Choice
+                    </label>
+                    <textarea formControlName="feedback" rows="2"
+                      placeholder="e.g. Correct! This option is indeed..."
+                      class="block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2 border bg-white transition-all text-xs font-medium resize-y"></textarea>
+                  </div>
                 </div>
-                <div>
+
+                <!-- MATCHING FIELDS -->
+                <div class="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4" *ngIf="questionForm.get('qtype')?.value === 'match'">
+                  <div>
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Sub-question</label>
+                    <input type="text" formControlName="match_subquestion" placeholder="e.g. Paris (or leave empty for extra answer choices)"
+                      class="block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2.5 border bg-white transition-all font-semibold">
+                    
+                    <!-- Sub-question Image Upload (Optional) -->
+                    <div class="mt-2 flex items-center gap-4">
+                      <button type="button" (click)="matchImageInput.click()" 
+                        class="text-[11px] bg-white hover:bg-gray-100 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-none font-bold transition flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        {{ answer.get('image_url')?.value ? 'Change Image' : 'Add Image' }}
+                      </button>
+                      <input type="file" #matchImageInput (change)="uploadAnswerImage(i, $event)" accept="image/*" class="hidden">
+                      
+                      <!-- Uploading indicator -->
+                      <span *ngIf="answer.get('uploading')?.value" class="text-xs text-blue-600 font-bold animate-pulse">Uploading...</span>
+                      
+                      <!-- Thumbnail preview -->
+                      <div *ngIf="answer.get('image_url')?.value" class="relative group border border-gray-200 p-1 bg-white inline-block">
+                        <img [src]="answer.get('image_url')?.value" class="h-10 w-10 object-cover">
+                        <button type="button" (click)="removeAnswerImage(i)" 
+                          class="absolute -top-1.5 -right-1.5 bg-red-600 text-white p-0.5 rounded-none shadow hover:bg-red-700 transition">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Matching Answer</label>
+                    <input type="text" formControlName="match_answer" placeholder="e.g. France"
+                      class="block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2.5 border bg-white transition-all font-semibold">
+                  </div>
+                </div>
+
+                <!-- DRAG AND DROP MARKERS FIELDS -->
+                <div class="md:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-4" *ngIf="questionForm.get('qtype')?.value === 'ddmarker'">
+                  <div class="md:col-span-1">
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Marker Text</label>
+                    <input type="text" formControlName="answer_text" placeholder="e.g. Heart"
+                      class="block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2.5 border bg-white transition-all font-semibold">
+                  </div>
+                  <div class="md:col-span-1">
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Shape</label>
+                    <select formControlName="marker_shape"
+                      class="block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2.5 border bg-white transition-all font-semibold appearance-none cursor-pointer">
+                      <option value="circle">Circle</option>
+                      <option value="rectangle">Rectangle</option>
+                      <option value="polygon">Polygon</option>
+                    </select>
+                  </div>
+                  <div class="md:col-span-1">
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Coordinates (%)</label>
+                    <input type="text" formControlName="marker_coords" placeholder="e.g. 50,50;15"
+                      class="block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2.5 border bg-white transition-all font-semibold">
+                  </div>
+                  <div class="md:col-span-1 flex items-center h-full pt-4">
+                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                      <input type="checkbox" formControlName="marker_infinite" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                      <span class="text-[10px] font-black uppercase text-gray-700">Infinite</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div *ngIf="['multichoice', 'multichoiceanswernone', 'shortanswer', 'numerical'].includes(questionForm.get('qtype')?.value!)">
                   <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
-                    {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Group / Color' : 'Grade / Scoring' }}
+                    Grade / Scoring
                   </label>
                   
                   <div class="flex flex-col gap-2">
-                    <!-- Simple Correct/Incorrect Toggle -->
-                    <button type="button" 
-                      (click)="toggleAnswerCorrect(i)"
-                      [class]="isAnswerCorrect(i) ? 'bg-green-600 text-white shadow-md' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'"
-                      class="flex items-center justify-between gap-2 py-3 px-4 font-black transition-all border border-transparent text-xs tracking-widest group rounded-none">
-                      <div class="flex items-center gap-2">
-                        <div [class]="isAnswerCorrect(i) ? 'bg-white text-green-600' : 'bg-gray-300 text-gray-500'" class="w-5 h-5 rounded-none flex items-center justify-center transition-colors">
-                          <svg *ngIf="isAnswerCorrect(i)" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                          </svg>
-                          <svg *ngIf="!isAnswerCorrect(i)" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                          </svg>
-                        </div>
-                        {{ isAnswerCorrect(i) ? 'CORRECT ANSWER' : 'INCORRECT' }}
-                      </div>
-                      <span class="bg-black/10 px-2 py-0.5 font-bold tabular-nums">
-                        {{ answers.at(i).get('fraction')?.value }}%
-                      </span>
-                    </button>
-
                     <!-- Moodle-standard fraction dropdown — hidden for True/False (always binary) -->
                     <select *ngIf="!isTrueFalse" formControlName="fraction"
-                      class="w-full text-xs border border-blue-100 bg-white px-2 py-1.5 font-bold focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all rounded-none"
+                      class="w-full text-xs border border-blue-300 bg-white px-2 py-1.5 font-bold focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all rounded-none"
                       title="Set exact Moodle-standard grade fraction for this answer">
                       <option *ngFor="let f of moodleFractionOptions" [ngValue]="f.value">{{ f.label }}</option>
                     </select>
@@ -765,15 +901,111 @@
                   <div class="flex gap-4">
                     <div class="flex-1">
                       <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">X Coordinate %</label>
-                      <input type="number" formControlName="x" class="w-full p-2 border border-blue-100 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none bg-white font-bold text-xs transition-all">
+                      <input type="number" formControlName="x" class="w-full p-2 border border-blue-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none bg-white font-bold text-xs transition-all">
                     </div>
                     <div class="flex-1">
                       <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Y Coordinate %</label>
-                      <input type="number" formControlName="y" class="w-full p-2 border border-blue-100 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none bg-white font-bold text-xs transition-all">
+                      <input type="number" formControlName="y" class="w-full p-2 border border-blue-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none bg-white font-bold text-xs transition-all">
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- Add Choice Button below the answers -->
+          <div class="mt-6 flex justify-end" *ngIf="!isTrueFalse">
+            <button type="button" (click)="addAnswer()" class="text-blue-600 hover:text-blue-800 text-sm font-bold flex items-center gap-1 bg-blue-50/50 px-4 py-2 border border-blue-100/50 hover:bg-blue-100 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Add {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Label' : 'Choice' }}
+            </button>
+          </div>
+        </section>
+ 
+        <!-- Combined Feedback Section (Moodle compliance) -->
+        <section class="space-y-6" *ngIf="['multichoice', 'multichoiceanswernone'].includes(questionForm.get('qtype')?.value!)">
+          <h2 class="text-lg font-bold text-gray-900 border-b border-blue-50 flex items-center gap-2">
+            <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-none flex items-center justify-center text-[10px] font-black uppercase">05</span>
+            Combined Feedback
+          </h2>
+
+          <div class="grid grid-cols-1 gap-6 bg-gray-50/50 p-6 border border-blue-50 rounded-none shadow-sm">
+            <!-- Correct Response -->
+            <div>
+              <label class="block text-sm font-bold text-gray-700">For any correct response</label>
+              <textarea formControlName="correct_feedback" rows="2"
+                placeholder="Defaults to: Your answer is correct."
+                class="mt-1 block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-white font-medium transition-all"></textarea>
+            </div>
+
+            <!-- Partially Correct Response -->
+            <div>
+              <label class="block text-sm font-bold text-gray-700">For any partially correct response</label>
+              <textarea formControlName="partially_correct_feedback" rows="2"
+                placeholder="Defaults to: Your answer is partially correct."
+                class="mt-1 block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-white font-medium transition-all"></textarea>
+            </div>
+
+            <!-- Incorrect Response -->
+            <div>
+              <label class="block text-sm font-bold text-gray-700">For any incorrect response</label>
+              <textarea formControlName="incorrect_feedback" rows="2"
+                placeholder="Defaults to: Your answer is incorrect."
+                class="mt-1 block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-white font-medium transition-all"></textarea>
+            </div>
+
+            <!-- Checkbox Option (Show number of correct responses) -->
+            <div class="pt-2">
+              <label class="flex items-center gap-3 cursor-pointer group">
+                <input type="checkbox" formControlName="show_num_correct"
+                  class="rounded-none border-blue-200 text-blue-600 focus:ring-blue-500 w-4 h-4">
+                <span class="text-xs font-bold text-gray-700 select-none group-hover:text-blue-600 transition-colors">
+                  Show the number of correct responses once the question has been finished
+                </span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- Question Tags Section -->
+        <section class="space-y-6">
+          <h2 class="text-lg font-bold text-gray-900 border-b border-blue-50 flex items-center gap-2">
+            <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-none flex items-center justify-center text-[10px] font-black uppercase">
+              <i class="pi pi-tags"></i>
+            </span>
+          </h2>
+          <div class="bg-gray-50/50 p-6 border border-blue-50 rounded-none shadow-sm space-y-4">
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-1">Question Difficulty Level</label>
+              <select [ngModel]="difficulty()" (ngModelChange)="setDifficulty($event)" [ngModelOptions]="{standalone: true}"
+                class="block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-white font-medium transition-all cursor-pointer">
+                <option value="">— Select Difficulty —</option>
+                <option value="L1">Easy (L1)</option>
+                <option value="L2">Medium (L2)</option>
+                <option value="L3">Hard (L3)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-bold text-gray-700 flex items-center gap-2 mb-1">
+                Tags
+                <span class="text-[10px] font-normal text-gray-400 normal-case">(Type a tag then press Enter to add)</span>
+              </label>
+              <p-autocomplete formControlName="tags" 
+                               [multiple]="true"
+                               [unique]="true"
+                               [suggestions]="filteredTags()"
+                               (completeMethod)="filterTags($event)"
+                               (keydown)="onTagInputKeydown($event)"
+                               [delay]="0"
+                               [autoHighlight]="true"
+                               [completeOnFocus]="true"
+                               placeholder="Type a tag and press Enter..."
+                               styleClass="w-full"
+                               inputStyleClass="w-full mt-1 block border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2 border bg-white font-medium transition-all rounded-none min-h-[44px]">
+              </p-autocomplete>
             </div>
           </div>
         </section>
@@ -831,17 +1063,6 @@
             
             <div class="h-6 w-px bg-gray-200"></div>
 
-            <button type="button" (click)="togglePreview()"
-              class="px-5 py-2 text-gray-600 hover:bg-gray-100 font-bold rounded-none transition flex items-center gap-2 text-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              {{ isPreviewMode() ? 'Exit Preview' : 'Student Preview' }}
-            </button>
-          </div>
-
-          <div class="flex items-center gap-3">
             <!-- Save Progress (Stay on page) -->
             <button *ngIf="!isReady" type="button" (click)="saveAndContinueEditing()" [disabled]="questionForm.invalid || loading()"
               class="px-5 py-2.5 border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold rounded-none transition-all flex items-center gap-2 text-sm">
@@ -849,6 +1070,18 @@
                 <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
               </svg>
               Save Progress
+            </button>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <!-- Student Preview -->
+            <button type="button" (click)="togglePreview()"
+              class="px-5 py-2.5 border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold rounded-none transition flex items-center gap-2 text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              {{ isPreviewMode() ? 'Exit Preview' : 'Student Preview' }}
             </button>
 
             <!-- Role-Specific Primary Actions -->

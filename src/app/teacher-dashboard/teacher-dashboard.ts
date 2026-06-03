@@ -1213,6 +1213,92 @@ export class TeacherDashboardComponent implements OnInit {
     }
   }
 
+  async duplicateQuestion(question: Question) {
+    this.loading.set(true);
+    try {
+      const user = this.supabaseService.currentUser();
+      if (!user) {
+        this.showToast('You must be logged in to duplicate questions', 'error');
+        this.loading.set(false);
+        return;
+      }
+
+      // 1. Prepare duplicated question data
+      const newQuestionData = {
+        name: `${question.name || 'Question'} (Copy)`,
+        question_text: question.question_text,
+        general_feedback: question.general_feedback,
+        qtype: question.qtype,
+        version: 1,
+        status: 'draft',
+        parent_id: null,
+        created_by: user.id,
+        category_id: question.category_id,
+        penalty: question.penalty,
+        default_grade: question.default_grade,
+        metadata: {
+          ...(question.metadata || {}),
+          author_id: user.id,
+          author_name: user.user_metadata?.['full_name'] || user.email?.split('@')[0] || 'Teacher',
+          author_email: user.email,
+          comments: [],
+          paid_at: null,
+          assigned_to_id: null,
+          assigned_to_name: null,
+          assigned_reviewers: []
+        }
+      };
+
+      // 2. Insert the new question
+      const { data: newQ, error: qError } = await this.supabaseService.db
+        .from('questions')
+        .insert(newQuestionData)
+        .select()
+        .single();
+
+      if (qError) throw qError;
+
+      // 3. Duplicate answers if any exist
+      if (question.answers && question.answers.length > 0) {
+        const answersToInsert = question.answers.map(ans => ({
+          question_id: newQ.id,
+          answer_text: ans.answer_text,
+          fraction: ans.fraction,
+          feedback: ans.feedback,
+          x: ans.x,
+          y: ans.y
+        }));
+
+        const { error: ansError } = await this.supabaseService.db
+          .from('answers')
+          .insert(answersToInsert);
+
+        if (ansError) throw ansError;
+      }
+
+      // 4. Duplicate tags if they exist
+      const tags = question.metadata?.tags || [];
+      if (tags.length > 0) {
+        await this.supabaseService.syncQuestionTags(newQ.id, tags);
+      }
+
+      this.showToast('Question duplicated successfully. Opening editor...', 'success');
+      
+      // Set dashboard view states so returning displays the copy correctly
+      this.currentView.set('my');
+      this.currentPage.set(1);
+      this.filterStatus.set('');
+      
+      // Navigate straight to the edit page
+      this.router.navigate(['/teacher/edit-question', newQ.id]);
+    } catch (err: any) {
+      console.error('Duplication Error:', err);
+      this.showToast('Failed to duplicate question: ' + err.message, 'error');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
   async deleteQuestion(id: string, name?: string) {
     if (!confirm(`Are you sure you want to delete "${name || 'this question'}"?`)) return;
 
@@ -1926,60 +2012,7 @@ export class TeacherDashboardComponent implements OnInit {
     }
   }
 
-  async exportToMoodle() {
-    await this.exportQuestions('moodle_xml');
-  }
 
-  async exportXML() {
-    await this.exportQuestions('moodle_xml');
-  }
-
-  async exportGIFT() {
-    await this.exportQuestions('gift');
-  }
-
-  private async exportQuestions(format: 'moodle_xml' | 'gift') {
-    const ids = Array.from(this.selectedIds());
-    if (ids.length === 0) {
-      this.showToast('Select questions to export', 'info');
-      return;
-    }
-
-    const { data: questions } = await this.supabaseService.db
-      .from('questions')
-      .select('*')
-      .in('id', ids);
-
-    if (!questions) return;
-
-    const { data: answers } = await this.supabaseService.db
-      .from('answers')
-      .select('*')
-      .in('question_id', ids);
-
-    const answersMap = new Map<string, any[]>();
-    answers?.forEach(a => {
-      if (!answersMap.has(a.question_id)) answersMap.set(a.question_id, []);
-      answersMap.get(a.question_id)!.push(a);
-    });
-
-    let content = '';
-    let filename = '';
-    let mimeType = '';
-
-    if (format === 'moodle_xml') {
-      content = this.importExportService.exportMoodleXML(questions, answersMap, this.categories());
-      filename = `moodle_export_${new Date().toISOString().split('T')[0]}.xml`;
-      mimeType = 'text/xml';
-    } else {
-      content = this.importExportService.exportGIFT(questions, answersMap);
-      filename = `gift_export_${new Date().toISOString().split('T')[0]}.txt`;
-      mimeType = 'text/plain';
-    }
-
-    this.importExportService.downloadFile(content, filename, mimeType);
-    this.showToast(`Exported ${questions.length} questions`, 'success');
-  }
 
   resetImport() {
     this.importText = '';

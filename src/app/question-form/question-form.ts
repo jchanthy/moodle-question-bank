@@ -1,6 +1,6 @@
 import { Component, inject, signal, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, Validators, FormArray } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, Validators, FormArray, FormGroup } from '@angular/forms';
 import { SupabaseService } from '../services/supabase.service';
 import { ImportExportService } from '../services/import-export.service';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
@@ -106,9 +106,14 @@ export class QuestionFormComponent implements OnInit {
   creatingCategory = signal(false);
   questionMetadata = signal<any>({});
   
+  // Difficulty Level Selection Mapped to Tags (Easy = L1, Medium = L2, Hard = L3)
+  difficulty = signal<string>('');
+  
   // Preview Testing State
   studentSelectedAnswers = signal<number[]>([]);
   studentTextAnswer = signal<string>('');
+  studentMatchAnswers = signal<Record<number, string>>({});
+  previewMatchChoices = signal<string[]>([]);
   previewResult = signal<{ isCorrect: boolean; feedback: string; grade: number } | null>(null);
 
   questionTypes = [
@@ -280,8 +285,15 @@ export class QuestionFormComponent implements OnInit {
     parent_id: [null],
     category_id: [null as string | null],
     tags: [[] as string[]],
+    // Combined Feedback (Moodle compliance)
+    correct_feedback: [''],
+    partially_correct_feedback: [''],
+    incorrect_feedback: [''],
+    show_num_correct: [true],
     // Answers array
     answers: this.fb.array([
+      this.createAnswer(0),
+      this.createAnswer(0),
       this.createAnswer(0),
       this.createAnswer(0)
     ])
@@ -311,10 +323,56 @@ export class QuestionFormComponent implements OnInit {
       this.handleTypeChange(type);
     });
 
-    // Listen for Single vs Multiple mode changes to re-balance grades
-    this.questionForm.get('single')?.valueChanges.subscribe(() => {
-      this.autoBalanceGrades(true);
+    // Listen for Single vs Multiple mode changes
+    this.questionForm.get('single')?.valueChanges.subscribe(singleVal => {
+      const isSingle = singleVal !== false;
+      if (isSingle) {
+        let foundCorrect = false;
+        this.answers.controls.forEach(ctrl => {
+          const val = Number(ctrl.get('fraction')?.value);
+          if (val > 0 && !foundCorrect) {
+            ctrl.get('fraction')?.setValue(100, { emitEvent: false });
+            ctrl.get('isCorrect')?.setValue(true, { emitEvent: false });
+            foundCorrect = true;
+          } else {
+            ctrl.get('fraction')?.setValue(0, { emitEvent: false });
+            ctrl.get('isCorrect')?.setValue(false, { emitEvent: false });
+          }
+        });
+      }
     });
+
+    // Listen for tags changes to update difficulty dropdown signal reactively
+    this.questionForm.get('tags')?.valueChanges.subscribe((tags: string[] | null) => {
+      const normalized = (tags || []).map(t => typeof t === 'string' ? t.toLowerCase() : '');
+      if (normalized.includes('l1')) {
+        this.difficulty.set('L1');
+      } else if (normalized.includes('l2')) {
+        this.difficulty.set('L2');
+      } else if (normalized.includes('l3')) {
+        this.difficulty.set('L3');
+      } else {
+        this.difficulty.set('');
+      }
+    });
+  }
+
+  setDifficulty(level: string) {
+    this.difficulty.set(level);
+    
+    // Get current tags from the form control
+    const currentTags: string[] = this.questionForm.get('tags')?.value || [];
+    
+    // Filter out existing L1, L2, L3 tags (case insensitive)
+    const cleanedTags = currentTags.filter(t => typeof t === 'string' && t.toLowerCase() !== 'l1' && t.toLowerCase() !== 'l2' && t.toLowerCase() !== 'l3');
+    
+    // Add the new level tag if selected
+    if (level) {
+      cleanedTags.push(level.toLowerCase());
+    }
+    
+    // Patch back to form
+    this.questionForm.patchValue({ tags: cleanedTags });
   }
 
   async loadQuestionData(id: string) {
@@ -394,8 +452,20 @@ export class QuestionFormComponent implements OnInit {
         single: question.metadata?.single !== undefined ? question.metadata.single : true,
         shuffleanswers: question.metadata?.shuffleanswers !== undefined ? question.metadata.shuffleanswers : true,
         answernumbering: question.metadata?.answernumbering || 'abc',
+        correct_feedback: question.metadata?.correct_feedback !== undefined ? question.metadata.correct_feedback : 'Your answer is correct.',
+        partially_correct_feedback: question.metadata?.partially_correct_feedback !== undefined ? question.metadata.partially_correct_feedback : 'Your answer is partially correct.',
+        incorrect_feedback: question.metadata?.incorrect_feedback !== undefined ? question.metadata.incorrect_feedback : 'Your answer is incorrect.',
+        show_num_correct: question.metadata?.show_num_correct !== undefined ? question.metadata.show_num_correct : true,
         tags: mergedTags
       }, { emitEvent: false });
+
+      // Determine difficulty level on load
+      const diffTag = mergedTags.find(t => typeof t === 'string' && (t === 'l1' || t === 'l2' || t === 'l3'));
+      if (diffTag) {
+        this.difficulty.set(diffTag.toUpperCase());
+      } else {
+        this.difficulty.set('');
+      }
 
       // History is already handled and synced above
 
@@ -440,22 +510,46 @@ export class QuestionFormComponent implements OnInit {
       const answersArray = this.answers;
       answersArray.clear();
       answers.forEach((ans: any) => {
+        const { text, imageUrl } = this.parseAnswerTextAndImage(ans.answer_text);
+        let subQ = '';
+        let matchA = '';
+        if (question.qtype === 'match') {
+          const parts = text.split(' | ');
+          if (parts.length > 1) {
+            subQ = parts[0];
+            matchA = parts.slice(1).join(' | ');
+          } else {
+            subQ = '';
+            matchA = text;
+          }
+        }
+        let markerShape = 'circle';
+        let markerCoords = '';
+        let markerInfinite = true;
+        if (question.qtype === 'ddmarker') {
+          const feedbackText = ans.feedback || '';
+          const parts = feedbackText.split(' | ');
+          if (parts.length > 0) markerShape = parts[0];
+          if (parts.length > 1) markerCoords = parts[1];
+          if (parts.length > 2) markerInfinite = parts[2] !== 'false';
+        }
         const group = this.fb.group({
-          answer_text: [this.importExport.cleanHtml(ans.answer_text), Validators.required],
+          answer_text: [this.importExport.cleanHtml(text)],
+          match_subquestion: [subQ],
+          match_answer: [matchA],
+          marker_shape: [markerShape],
+          marker_coords: [markerCoords],
+          marker_infinite: [markerInfinite],
           fraction: [ans.fraction, Validators.required],
           isCorrect: [ans.fraction > 0],
           feedback: [this.importExport.cleanHtml(ans.feedback || '')],
+          image_url: [imageUrl],
+          uploading: [false],
           x: [ans.x || 50],
           y: [ans.y || 50]
         });
 
-        // Add listener for existing answers too
-        group.get('isCorrect')?.valueChanges.subscribe(() => {
-          if (this.questionForm.get('qtype')?.value === 'multichoice') {
-            this.autoBalanceGrades(true);
-          }
-        });
-
+        this.setupAnswerGroup(group);
         answersArray.push(group);
       });
 
@@ -679,13 +773,15 @@ export class QuestionFormComponent implements OnInit {
     if (type === 'truefalse') {
       this.answers.push(this.fb.group({ answer_text: ['True', Validators.required], fraction: [100, Validators.required], feedback: [''] }));
       this.answers.push(this.fb.group({ answer_text: ['False', Validators.required], fraction: [0, Validators.required], feedback: [''] }));
-    } else if (type === 'ddimageortext' || type === 'ordering' || type === 'match') {
+    } else if (type === 'ddimageortext' || type === 'ordering' || type === 'match' || type === 'ddmarker') {
       this.answers.push(this.createAnswer(0));
       this.answers.push(this.createAnswer(0));
       this.answers.push(this.createAnswer(0));
     } else if (type === 'essay' || type === 'coderunner') {
       // Empty
     } else {
+      this.answers.push(this.createAnswer(0));
+      this.answers.push(this.createAnswer(0));
       this.answers.push(this.createAnswer(0));
       this.answers.push(this.createAnswer(0));
     }
@@ -706,27 +802,112 @@ export class QuestionFormComponent implements OnInit {
 
   createAnswer(fraction = 0) {
     const group = this.fb.group({
-      answer_text: ['', Validators.required],
+      answer_text: [''],
+      match_subquestion: [''],
+      match_answer: [''],
+      marker_shape: ['circle'],
+      marker_coords: [''],
+      marker_infinite: [true],
       fraction: [fraction, Validators.required],
       isCorrect: [fraction > 0],
       feedback: [''],
+      image_url: [''],
+      uploading: [false],
       x: [50],
       y: [50]
     });
 
-    // Reactive: when fraction changes in the dropdown
-    group.get('fraction')?.valueChanges.subscribe(val => {
-      if (this.questionForm.get('qtype')?.value === 'multichoice') {
-        this.autoBalanceGrades(true);
+    this.setupAnswerGroup(group);
+    return group;
+  }
+
+  setupAnswerGroup(group: FormGroup) {
+    group.get('fraction')?.valueChanges.subscribe((val: any) => {
+      const qtype = this.questionForm.get('qtype')?.value;
+      const isSingle = this.questionForm.get('single')?.value !== false;
+      const numVal = Number(val);
+      
+      group.get('isCorrect')?.setValue(numVal > 0, { emitEvent: false });
+
+      if (qtype === 'multichoice' && isSingle && numVal > 0) {
+        this.answers.controls.forEach(ctrl => {
+          if (ctrl !== group) {
+            ctrl.get('fraction')?.setValue(0, { emitEvent: false });
+            ctrl.get('isCorrect')?.setValue(false, { emitEvent: false });
+          }
+        });
       }
     });
+  }
 
-    return group;
+  parseAnswerTextAndImage(html: string): { text: string, imageUrl: string } {
+    if (!html) return { text: '', imageUrl: '' };
+    const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/i;
+    const match = html.match(imgRegex);
+    if (match && match[1]) {
+      const imageUrl = match[1];
+      const text = html.replace(imgRegex, '').trim();
+      return { text, imageUrl };
+    }
+    return { text: html, imageUrl: '' };
+  }
+
+  async uploadAnswerImage(index: number, event: any) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const group = this.answers.at(index) as FormGroup;
+    group.get('uploading')?.setValue(true);
+
+    try {
+      const optimizedFile = await this.optimizeImage(file);
+      
+      const fileName = `${Date.now()}_ans_${index}_${file.name.replace(/\s+/g, '_')}`;
+      const { data, error } = await this.supabase.db.storage
+        .from('question-images')
+        .upload(fileName, optimizedFile);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = this.supabase.db.storage
+        .from('question-images')
+        .getPublicUrl(fileName);
+
+      group.get('image_url')?.setValue(publicUrl);
+    } catch (err: any) {
+      console.error('Answer image upload error:', err);
+      alert('Failed to upload answer image: ' + err.message);
+    } finally {
+      group.get('uploading')?.setValue(false);
+    }
+  }
+
+  removeAnswerImage(index: number) {
+    const group = this.answers.at(index) as FormGroup;
+    group.get('image_url')?.setValue('');
   }
 
   compareFractions(o1: any, o2: any): boolean {
     if (Number(o1) > 0 && Number(o2) > 0) return true;
     return Number(o1) === Number(o2);
+  }
+
+  getTrueFalseCorrectAnswer(): string {
+    if (this.answers.length < 2) return 'True';
+    const firstAnsFraction = Number(this.answers.at(0)?.get('fraction')?.value || 0);
+    return firstAnsFraction > 0 ? 'True' : 'False';
+  }
+
+  setTrueFalseCorrectAnswer(value: string) {
+    if (this.answers.length >= 2) {
+      if (value === 'True') {
+        this.answers.at(0).get('fraction')?.setValue(100);
+        this.answers.at(1).get('fraction')?.setValue(0);
+      } else {
+        this.answers.at(0).get('fraction')?.setValue(0);
+        this.answers.at(1).get('fraction')?.setValue(100);
+      }
+    }
   }
 
   isAnswerCorrect(index: number): boolean {
@@ -854,19 +1035,47 @@ export class QuestionFormComponent implements OnInit {
   togglePreview() {
     if (!this.isPreviewMode()) {
       const questionText = this.questionForm.get('question_text')?.value;
-      const hasAnswers = this.answers.controls.some(a => a.get('answer_text')?.value?.trim());
+      const isMatch = this.questionForm.get('qtype')?.value === 'match';
+      const hasAnswers = this.answers.controls.some(a => {
+        if (isMatch) {
+          return a.get('match_answer')?.value?.trim() !== '';
+        }
+        return a.get('answer_text')?.value?.trim() !== '';
+      });
       
       if (!questionText?.trim() || !hasAnswers) {
         this.showToast('Please enter the question text and at least one answer before previewing.', 'error');
         return;
       }
+      this.previewMatchChoices.set(this.getMatchAnswersList());
     }
     this.isPreviewMode.set(!this.isPreviewMode());
     this.previewResult.set(null);
     this.studentSelectedAnswers.set([]);
     this.studentTextAnswer.set('');
     this.studentPlacement.set({});
+    this.studentMatchAnswers.set({});
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  getMatchAnswersList(): string[] {
+    const answers = this.answers.value || [];
+    const list: string[] = answers
+      .map((a: any) => a.match_answer || '')
+      .filter((v: string) => v.trim() !== '');
+    return (Array.from(new Set(list)) as string[]).sort(() => Math.random() - 0.5); // Shuffle for the student
+  }
+
+  updateStudentMatchAnswer(index: number, value: string) {
+    this.studentMatchAnswers.update(prev => ({
+      ...prev,
+      [index]: value
+    }));
+  }
+
+  getSvgPolygonPoints(coordsStr: string): string {
+    if (!coordsStr) return '';
+    return coordsStr.replace(/;/g, ' ');
   }
 
   checkPreviewAnswer() {
@@ -885,12 +1094,36 @@ export class QuestionFormComponent implements OnInit {
           const selected = answers[selectedIndices[0]];
           grade = selected.fraction;
           isCorrect = grade === 100;
-          feedback = selected.feedback || (isCorrect ? 'Well done!' : 'That is not correct.');
+          
+          const correctFb = this.questionForm.get('correct_feedback')?.value || 'Your answer is correct.';
+          const incorrectFb = this.questionForm.get('incorrect_feedback')?.value || 'Your answer is incorrect.';
+          
+          feedback = isCorrect ? correctFb : incorrectFb;
+          if (selected.feedback) {
+            feedback += '\n\n' + selected.feedback;
+          }
         } else {
           // Sum up fractions for multiple answers
           grade = selectedIndices.reduce((acc, idx) => acc + (answers[idx].fraction || 0), 0);
           isCorrect = grade >= 99;
-          feedback = isCorrect ? 'Correct! All selected answers are right.' : `Partial credit: ${grade}%.`;
+          const isPartiallyCorrect = grade > 0 && grade < 99;
+          
+          const correctFb = this.questionForm.get('correct_feedback')?.value || 'Your answer is correct.';
+          const partiallyCorrectFb = this.questionForm.get('partially_correct_feedback')?.value || 'Your answer is partially correct.';
+          const incorrectFb = this.questionForm.get('incorrect_feedback')?.value || 'Your answer is incorrect.';
+          
+          if (isCorrect) {
+            feedback = correctFb;
+          } else if (isPartiallyCorrect) {
+            feedback = partiallyCorrectFb;
+            if (this.questionForm.get('show_num_correct')?.value !== false) {
+              const totalCorrectCount = answers.filter((a: any) => a.fraction > 0).length;
+              const selectedCorrectCount = selectedIndices.filter(idx => answers[idx].fraction > 0).length;
+              feedback += `\nYou selected ${selectedCorrectCount} of ${totalCorrectCount} correct options.`;
+            }
+          } else {
+            feedback = incorrectFb;
+          }
           
           // Add specific feedback for each selected answer
           const feedbacks = selectedIndices
@@ -931,6 +1164,105 @@ export class QuestionFormComponent implements OnInit {
       grade = Math.round((numCorrect / numTotal) * 100);
       isCorrect = grade >= 99;
       feedback = isCorrect ? 'Perfect! All labels are in the correct spots.' : `You got ${numCorrect} out of ${numTotal} labels correct (${grade}%).`;
+    } else if (qtype === 'match') {
+      const selections = this.studentMatchAnswers();
+      let totalQuestions = 0;
+      let correctCount = 0;
+
+      answers.forEach((ans: any, idx: number) => {
+        if (ans.match_subquestion && ans.match_subquestion.trim() !== '') {
+          totalQuestions++;
+          const selected = selections[idx];
+          if (selected === ans.match_answer) {
+            correctCount++;
+          }
+        }
+      });
+
+      if (totalQuestions > 0) {
+        grade = Math.round((correctCount / totalQuestions) * 100);
+        isCorrect = grade === 100;
+        feedback = isCorrect 
+          ? 'Correct! All matches are correct.' 
+          : `You got ${correctCount} out of ${totalQuestions} matches correct (${grade}%).`;
+      } else {
+        grade = 100;
+        isCorrect = true;
+        feedback = 'No matches to grade.';
+      }
+    } else if (qtype === 'ddmarker') {
+      const placements = this.studentPlacement();
+      let numCorrect = 0;
+      let totalTargets = 0;
+
+      answers.forEach((ans: any, i: number) => {
+        if (!ans.answer_text?.trim()) return;
+        totalTargets++;
+        const studentPos = placements[i];
+
+        if (studentPos) {
+          const feedbackText = ans.feedback || '';
+          const parts = feedbackText.split(' | ');
+          const shape = parts[0] || 'circle';
+          const coordsStr = parts[1] || '';
+
+          if (shape === 'circle') {
+            const coordParts = coordsStr.split(';');
+            const centerParts = coordParts[0]?.split(',');
+            const cx = parseFloat(centerParts?.[0] || '50');
+            const cy = parseFloat(centerParts?.[1] || '50');
+            const r = parseFloat(coordParts[1] || '10');
+
+            const dist = Math.sqrt(Math.pow(studentPos.x - cx, 2) + Math.pow(studentPos.y - cy, 2));
+            if (dist <= r) {
+              numCorrect++;
+            }
+          } else if (shape === 'rectangle') {
+            const coordParts = coordsStr.split(';');
+            const posParts = coordParts[0]?.split(',');
+            const sizeParts = coordParts[1]?.split(',');
+            const rx = parseFloat(posParts?.[0] || '0');
+            const ry = parseFloat(posParts?.[1] || '0');
+            const rw = parseFloat(sizeParts?.[0] || '100');
+            const rh = parseFloat(sizeParts?.[1] || '100');
+
+            if (studentPos.x >= rx && studentPos.x <= (rx + rw) &&
+                studentPos.y >= ry && studentPos.y <= (ry + rh)) {
+              numCorrect++;
+            }
+          } else if (shape === 'polygon') {
+            const coordParts = coordsStr.split(';');
+            let minX = 100, maxX = 0, minY = 100, maxY = 0;
+            coordParts.forEach((pt: string) => {
+              const xy = pt.split(',');
+              const px = parseFloat(xy[0]);
+              const py = parseFloat(xy[1]);
+              if (!isNaN(px) && !isNaN(py)) {
+                if (px < minX) minX = px;
+                if (px > maxX) maxX = px;
+                if (py < minY) minY = py;
+                if (py > maxY) maxY = py;
+              }
+            });
+            if (studentPos.x >= minX && studentPos.x <= maxX &&
+                studentPos.y >= minY && studentPos.y <= maxY) {
+              numCorrect++;
+            }
+          }
+        }
+      });
+
+      if (totalTargets > 0) {
+        grade = Math.round((numCorrect / totalTargets) * 100);
+        isCorrect = grade >= 99;
+        feedback = isCorrect 
+          ? 'Perfect! All markers are in their target drop zones.' 
+          : `You got ${numCorrect} out of ${totalTargets} markers correct (${grade}%).`;
+      } else {
+        grade = 100;
+        isCorrect = true;
+        feedback = 'No markers to grade.';
+      }
     }
 
     this.previewResult.set({ 
@@ -1084,6 +1416,11 @@ export class QuestionFormComponent implements OnInit {
           answernumbering: formValue.answernumbering,
           image_url: formValue.image_url,
           tags: formValue.tags || [],
+          // Combined Feedback fields (Moodle compliance)
+          correct_feedback: formValue.correct_feedback || '',
+          partially_correct_feedback: formValue.partially_correct_feedback || '',
+          incorrect_feedback: formValue.incorrect_feedback || '',
+          show_num_correct: formValue.show_num_correct !== false,
           // Ownership tracking
           author_id: currentMetadata.author_id || originalCreator,
           author_name: currentMetadata.author_name || this.currentTeacher,
@@ -1177,16 +1514,34 @@ export class QuestionFormComponent implements OnInit {
       }
 
       // 2. Save Answers
-      const answersToInsert = (formValue.answers as any[])?.map(ans => ({
-        question_id: targetId,
-        answer_text: ans.answer_text,
-        // Preserve decimal fraction precision (e.g. 33.33333 for 3-answer questions)
-        // Use ?? to safely preserve explicit 0 fractions (e.g. False answer in TF)
-        fraction: Number(ans.fraction) != null ? parseFloat(Number(ans.fraction).toFixed(5)) : 0,
-        feedback: ans.feedback,
-        x: Math.round(Number(ans.x) || 0),
-        y: Math.round(Number(ans.y) || 0)
-      }));
+      const answersToInsert = (formValue.answers as any[])?.map(ans => {
+        let finalText = ans.answer_text || '';
+        if (formValue.qtype === 'match') {
+          let subText = ans.match_subquestion || '';
+          if (ans.image_url) {
+            subText = `${subText} <img src="${ans.image_url}" style="max-height: 120px; display: block; margin-top: 8px;" />`;
+          }
+          finalText = `${subText} | ${ans.match_answer || ''}`;
+        } else {
+          if (ans.image_url) {
+            finalText = `${finalText} <img src="${ans.image_url}" style="max-height: 120px; display: block; margin-top: 8px;" />`;
+          }
+        }
+        let feedbackVal = ans.feedback || '';
+        if (formValue.qtype === 'ddmarker') {
+          feedbackVal = `${ans.marker_shape || 'circle'} | ${ans.marker_coords || ''} | ${ans.marker_infinite ?? true}`;
+        }
+        return {
+          question_id: targetId,
+          answer_text: finalText,
+          // Preserve decimal fraction precision (e.g. 33.33333 for 3-answer questions)
+          // Use ?? to safely preserve explicit 0 fractions (e.g. False answer in TF)
+          fraction: Number(ans.fraction) != null ? parseFloat(Number(ans.fraction).toFixed(5)) : 0,
+          feedback: feedbackVal,
+          x: Math.round(Number(ans.x) || 0),
+          y: Math.round(Number(ans.y) || 0)
+        };
+      });
 
       if (answersToInsert?.length) {
         const { error: ansError } = await this.supabase.db.from('answers').insert(answersToInsert);
