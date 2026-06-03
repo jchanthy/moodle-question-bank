@@ -687,16 +687,26 @@ export class AdminDashboardComponent implements OnInit {
 
   startEditingText(q: Question) {
     this.editingTextQuestionId.set(q.id);
-    this.editingTextValue = q.question_text || '';
+    let text = q.question_text || '';
+    if (text.toLowerCase().startsWith('<p>') && text.toLowerCase().endsWith('</p>')) {
+      text = text.substring(3, text.length - 4);
+    }
+    this.editingTextValue = text;
   }
 
   async saveInlineText(q: Question) {
     if (!this.editingTextValue.trim()) return;
     this.savingInline.set(true);
     try {
+      let finalValue = this.editingTextValue.trim();
+      const original = q.question_text || '';
+      if (original.toLowerCase().startsWith('<p>') && original.toLowerCase().endsWith('</p>')) {
+        finalValue = `<p>${finalValue}</p>`;
+      }
+
       const { error } = await this.supabaseService.db
         .from('questions')
-        .update({ question_text: this.editingTextValue.trim(), updated_at: new Date().toISOString() })
+        .update({ question_text: finalValue, updated_at: new Date().toISOString() })
         .eq('id', q.id);
 
       if (error) throw error;
@@ -704,7 +714,7 @@ export class AdminDashboardComponent implements OnInit {
       // Update in memory state
       const updated = this.allQuestions().map(item => {
         if (item.id === q.id) {
-          return { ...item, question_text: this.editingTextValue.trim() };
+          return { ...item, question_text: finalValue };
         }
         return item;
       });
@@ -720,16 +730,26 @@ export class AdminDashboardComponent implements OnInit {
 
   startEditingChoice(ans: any) {
     this.editingChoiceId.set(ans.id);
-    this.editingChoiceText = ans.answer_text || '';
+    let text = ans.answer_text || '';
+    if (text.toLowerCase().startsWith('<p>') && text.toLowerCase().endsWith('</p>')) {
+      text = text.substring(3, text.length - 4);
+    }
+    this.editingChoiceText = text;
   }
 
   async saveChoiceText(ans: any, q: Question) {
     if (!this.editingChoiceText.trim()) return;
     this.savingInline.set(true);
     try {
+      let finalValue = this.editingChoiceText.trim();
+      const original = ans.answer_text || '';
+      if (original.toLowerCase().startsWith('<p>') && original.toLowerCase().endsWith('</p>')) {
+        finalValue = `<p>${finalValue}</p>`;
+      }
+
       const { error } = await this.supabaseService.db
         .from('answers')
-        .update({ answer_text: this.editingChoiceText.trim() })
+        .update({ answer_text: finalValue })
         .eq('id', ans.id);
 
       if (error) throw error;
@@ -739,7 +759,7 @@ export class AdminDashboardComponent implements OnInit {
         if (item.id === q.id && item.answers) {
           const updatedAnswers = item.answers.map((a: any) => {
             if (a.id === ans.id) {
-              return { ...a, answer_text: this.editingChoiceText.trim() };
+              return { ...a, answer_text: finalValue };
             }
             return a;
           });
