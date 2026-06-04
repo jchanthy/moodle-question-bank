@@ -429,6 +429,10 @@ ${dropsXml}
     const parseErr = doc.querySelector('parsererror');
     if (parseErr) throw new Error('Invalid XML file. Please check the file format.');
 
+    if (doc.querySelector('digital_economy_quiz') || doc.querySelector('multiple_choice_questions') || doc.querySelector('matching_exercises') || doc.querySelector('general_sections')) {
+      return this.parseCustomXML(doc);
+    }
+
     const questions: ParsedQuestion[] = [];
     let currentCategoryPath = '';
 
@@ -542,6 +546,113 @@ ${dropsXml}
         })(),
         answers,
         category_path: currentCategoryPath,
+      });
+    });
+
+    return questions;
+  }
+
+  private parseCustomXML(doc: Document): ParsedQuestion[] {
+    const questions: ParsedQuestion[] = [];
+
+    // 1. Parse Q&A Pairs under general_sections -> section -> qa_pair
+    doc.querySelectorAll('general_sections section').forEach(secEl => {
+      const sectionTitle = secEl.getAttribute('title') || '';
+      const catPath = sectionTitle ? `General Sections/${sectionTitle}` : 'General Sections';
+
+      secEl.querySelectorAll('qa_pair').forEach(qaEl => {
+        const qText = qaEl.querySelector('question')?.textContent?.trim() || '';
+        const aText = qaEl.querySelector('answer')?.textContent?.trim() || '';
+        if (!qText) return;
+
+        // Parse as essay/shortanswer
+        questions.push({
+          name: qText.substring(0, 60),
+          question_text: qText,
+          qtype: 'essay',
+          default_grade: 1,
+          penalty: 0,
+          general_feedback: '',
+          metadata: {
+            tags: ['general', 'q&a']
+          },
+          answers: [
+            {
+              answer_text: aText,
+              fraction: 100,
+              feedback: 'Correct answer guide.'
+            }
+          ],
+          category_path: catPath
+        });
+      });
+    });
+
+    // 2. Parse Multiple Choice Questions
+    doc.querySelectorAll('multiple_choice_questions question').forEach(mcEl => {
+      const qText = mcEl.querySelector('text')?.textContent?.trim() || '';
+      const correctKey = mcEl.querySelector('correct_answer')?.textContent?.trim() || '';
+      const difficulty = mcEl.getAttribute('difficulty') || '';
+
+      const answers: ParsedAnswer[] = [];
+      mcEl.querySelectorAll('options option').forEach(optEl => {
+        const optId = optEl.getAttribute('id') || '';
+        const optText = optEl.textContent?.trim() || '';
+        const isCorrect = optId.toUpperCase() === correctKey.toUpperCase();
+
+        answers.push({
+          answer_text: optText,
+          fraction: isCorrect ? 100 : 0,
+          feedback: isCorrect ? 'Correct!' : 'Incorrect.'
+        });
+      });
+
+      if (!qText) return;
+
+      questions.push({
+        name: qText.substring(0, 60),
+        question_text: qText,
+        qtype: 'multichoice',
+        default_grade: 1,
+        penalty: 0.3333333,
+        general_feedback: '',
+        metadata: {
+          tags: difficulty ? [difficulty] : []
+        },
+        answers,
+        category_path: 'Multiple Choice Questions'
+      });
+    });
+
+    // 3. Parse Matching Exercises
+    doc.querySelectorAll('matching_exercises exercise').forEach(exEl => {
+      const title = exEl.getAttribute('title') || '';
+      const answers: ParsedAnswer[] = [];
+
+      exEl.querySelectorAll('pairs pair').forEach(pairEl => {
+        const left = pairEl.querySelector('left')?.textContent?.trim() || '';
+        const right = pairEl.querySelector('right')?.textContent?.trim() || '';
+        
+        // Match format text: left | right
+        answers.push({
+          answer_text: `${left} | ${right}`,
+          fraction: 0,
+          feedback: ''
+        });
+      });
+
+      if (answers.length === 0) return;
+
+      questions.push({
+        name: title || 'Matching Exercise',
+        question_text: `Match the following terms: ${title}`,
+        qtype: 'match',
+        default_grade: 1,
+        penalty: 0.3333333,
+        general_feedback: '',
+        metadata: {},
+        answers,
+        category_path: 'Matching Exercises'
       });
     });
 
