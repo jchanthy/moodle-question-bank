@@ -607,6 +607,10 @@ export class AdminDashboardComponent implements OnInit {
     'multichoiceanswernone': {
       label: 'All-or-Nothing MCQ', icon: '❗',
       description: 'Multiple Choice where full credit is given ONLY if all correct options are chosen.'
+    },
+    'gapfill': { 
+      label: 'Gap Fill', icon: '📝', 
+      description: 'Fill-in-the-blank style questions. Words inside brackets [like this] become gaps. Supports drag-drop, dropdown, or text input.' 
     }
   };
 

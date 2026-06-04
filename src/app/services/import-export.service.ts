@@ -115,7 +115,47 @@ export class ImportExportService {
     if (q.qtype === 'ddmarker') {
       return this.ddMarkerToMoodleXML(q, answers);
     }
+    if (q.qtype === 'gapfill') {
+      return this.gapfillToMoodleXML(q, answers);
+    }
     return this.genericToMoodleXML(q, answers);
+  }
+
+  private gapfillToMoodleXML(q: any, answers: any[]): string {
+    const mode = q.metadata?.gapfill_mode || 'dragdrop';
+    const answerdisplay = mode === 'text' ? 'gapfill' : mode;
+    const delimiters = q.metadata?.gapfill_delimiters || '[]';
+    const casesensitive = q.metadata?.gapfill_casesensitive ? 1 : 0;
+    const fixedgapsize = q.metadata?.gapfill_fixedgapsize !== false ? 1 : 0;
+
+    const answersXml = answers.map(a => `    <answer fraction="0" format="html">
+      <text><![CDATA[${a.answer_text || ''}]]></text>
+      <feedback format="html"><text><![CDATA[${a.feedback || ''}]]></text></feedback>
+    </answer>`).join('\n');
+
+    const tags = (q.metadata?.tags || [])
+      .map((t: string) => `      <tag><text>${this.escapeXML(t)}</text></tag>`).join('\n');
+
+    return `  <question type="gapfill">
+    <name><text>${this.escapeXML(q.name)}</text></name>
+    <questiontext format="html">
+      <text><![CDATA[${this.getQuestionTextWithIllustration(q)}]]></text>
+    </questiontext>
+    <generalfeedback format="html">
+      <text><![CDATA[${q.general_feedback || ''}]]></text>
+    </generalfeedback>
+    <defaultgrade>${q.default_grade ?? 1}</defaultgrade>
+    <penalty>${q.penalty ?? 0.3333333}</penalty>
+    <hidden>0</hidden>
+    <answerdisplay>${answerdisplay}</answerdisplay>
+    <delimitchars>${this.escapeXML(delimiters)}</delimitchars>
+    <casesensitive>${casesensitive}</casesensitive>
+    <fixedgapsize>${fixedgapsize}</fixedgapsize>
+    <tags>
+      ${tags}
+    </tags>
+\n${answersXml}
+  </question>\n\n`;
   }
 
   /**
@@ -481,15 +521,25 @@ ${dropsXml}
         default_grade: parseFloat(qEl.querySelector('defaultgrade')?.textContent || '1'),
         penalty: parseFloat(qEl.querySelector('penalty')?.textContent || '0'),
         general_feedback: this.cleanHtml(getText('generalfeedback')),
-        metadata: {
-          shuffleanswers: qEl.querySelector('shuffleanswers')?.textContent === '1',
-          answernumbering: qEl.querySelector('answernumbering')?.textContent || 'abc',
-          correct_feedback: this.cleanHtml(qEl.querySelector('correctfeedback > text')?.textContent || ''),
-          partially_correct_feedback: this.cleanHtml(qEl.querySelector('partiallycorrectfeedback > text')?.textContent || ''),
-          incorrect_feedback: this.cleanHtml(qEl.querySelector('incorrectfeedback > text')?.textContent || ''),
-          show_num_correct: qEl.querySelector('shownumcorrect') !== null,
-          tags: Array.from(qEl.querySelectorAll('tags > tag > text')).map(t => t.textContent?.trim() || '').filter(Boolean)
-        },
+        metadata: (() => {
+          const meta: Record<string, any> = {
+            shuffleanswers: qEl.querySelector('shuffleanswers')?.textContent === '1',
+            answernumbering: qEl.querySelector('answernumbering')?.textContent || 'abc',
+            correct_feedback: this.cleanHtml(qEl.querySelector('correctfeedback > text')?.textContent || ''),
+            partially_correct_feedback: this.cleanHtml(qEl.querySelector('partiallycorrectfeedback > text')?.textContent || ''),
+            incorrect_feedback: this.cleanHtml(qEl.querySelector('incorrectfeedback > text')?.textContent || ''),
+            show_num_correct: qEl.querySelector('shownumcorrect') !== null,
+            tags: Array.from(qEl.querySelectorAll('tags > tag > text')).map(t => t.textContent?.trim() || '').filter(Boolean)
+          };
+          if (type === 'gapfill') {
+            const display = qEl.querySelector('answerdisplay')?.textContent?.trim() || 'dragdrop';
+            meta['gapfill_mode'] = display === 'gapfill' ? 'text' : display;
+            meta['gapfill_delimiters'] = qEl.querySelector('delimitchars')?.textContent?.trim() || '[]';
+            meta['gapfill_casesensitive'] = qEl.querySelector('casesensitive')?.textContent?.trim() === '1';
+            meta['gapfill_fixedgapsize'] = qEl.querySelector('fixedgapsize')?.textContent?.trim() !== '0';
+          }
+          return meta;
+        })(),
         answers,
         category_path: currentCategoryPath,
       });

@@ -114,6 +114,9 @@ export class QuestionFormComponent implements OnInit {
   studentTextAnswer = signal<string>('');
   studentMatchAnswers = signal<Record<number, string>>({});
   previewMatchChoices = signal<string[]>([]);
+  studentGapfillAnswers = signal<Record<number, string>>({});
+  previewGapfillChoices = signal<string[]>([]);
+  parsedGapfillSegments = signal<{ type: 'text' | 'gap'; content: string; gapIndex?: number }[]>([]);
   previewResult = signal<{ isCorrect: boolean; feedback: string; grade: number } | null>(null);
 
   questionTypes = [
@@ -133,7 +136,8 @@ export class QuestionFormComponent implements OnInit {
     { value: 'calculated', label: 'Calculated', icon: 'pi pi-calculator', info: 'Math questions where numbers are randomly generated from a dataset.' },
     { value: 'calculatedmulti', label: 'Calc. Multichoice', icon: 'pi pi-table', info: 'Calculated question presented as multiple choice options.' },
     { value: 'calculatedsimple', label: 'Calc. Simple', icon: 'pi pi-cog', info: 'Easier way to create calculated questions without full datasets.' },
-    { value: 'multichoiceanswernone', label: 'All-or-Nothing MCQ', icon: 'pi pi-exclamation-circle', info: 'Multiple Choice where full credit is given ONLY if all correct options are chosen.' }
+    { value: 'multichoiceanswernone', label: 'All-or-Nothing MCQ', icon: 'pi pi-exclamation-circle', info: 'Multiple Choice where full credit is given ONLY if all correct options are chosen.' },
+    { value: 'gapfill', label: 'Gap Fill', icon: 'pi pi-plus-circle', info: 'Missing words in text are defined with bracketed syntax e.g. [cat]. Supports decoy answers.' }
   ];
 
   moodleAdvice = {
@@ -153,7 +157,8 @@ export class QuestionFormComponent implements OnInit {
     calculated: 'Use wildcards like {x} and {y}. Moodle will substitute them with random values during the quiz.',
     calculatedmulti: 'Calculated question logic combined with multiple choice format. Use {x} in answer options too.',
     calculatedsimple: 'The easiest way to create math questions with random variables without full dataset management.',
-    multichoiceanswernone: 'Ensure all correct options are marked. Students get 0 if they miss even one correct choice or pick a wrong one.'
+    multichoiceanswernone: 'Ensure all correct options are marked. Students get 0 if they miss even one correct choice or pick a wrong one.',
+    gapfill: 'Enter text with bracketed gaps (e.g. "The [cat] sat on the [mat]."). Decoy distractors can be defined in the answers fields.'
   };
 
   // Standard Moodle penalty values
@@ -290,6 +295,11 @@ export class QuestionFormComponent implements OnInit {
     partially_correct_feedback: [''],
     incorrect_feedback: [''],
     show_num_correct: [true],
+    // Gap Fill fields (metadata)
+    gapfill_mode: ['dragdrop'],
+    gapfill_delimiters: ['[]'],
+    gapfill_casesensitive: [false],
+    gapfill_fixedgapsize: [true],
     // Answers array
     answers: this.fb.array([
       this.createAnswer(0),
@@ -456,7 +466,11 @@ export class QuestionFormComponent implements OnInit {
         partially_correct_feedback: question.metadata?.partially_correct_feedback !== undefined ? question.metadata.partially_correct_feedback : 'Your answer is partially correct.',
         incorrect_feedback: question.metadata?.incorrect_feedback !== undefined ? question.metadata.incorrect_feedback : 'Your answer is incorrect.',
         show_num_correct: question.metadata?.show_num_correct !== undefined ? question.metadata.show_num_correct : true,
-        tags: mergedTags
+        tags: mergedTags,
+        gapfill_mode: question.metadata?.gapfill_mode || 'dragdrop',
+        gapfill_delimiters: question.metadata?.gapfill_delimiters || '[]',
+        gapfill_casesensitive: question.metadata?.gapfill_casesensitive !== undefined ? question.metadata.gapfill_casesensitive : false,
+        gapfill_fixedgapsize: question.metadata?.gapfill_fixedgapsize !== undefined ? question.metadata.gapfill_fixedgapsize : true
       }, { emitEvent: false });
 
       // Determine difficulty level on load
@@ -1035,18 +1049,42 @@ export class QuestionFormComponent implements OnInit {
   togglePreview() {
     if (!this.isPreviewMode()) {
       const questionText = this.questionForm.get('question_text')?.value;
-      const isMatch = this.questionForm.get('qtype')?.value === 'match';
-      const hasAnswers = this.answers.controls.some(a => {
+      const qtype = this.questionForm.get('qtype')?.value;
+      const isMatch = qtype === 'match';
+      const isGapfill = qtype === 'gapfill';
+      
+      let hasAnswers = this.answers.controls.some(a => {
         if (isMatch) {
           return a.get('match_answer')?.value?.trim() !== '';
         }
         return a.get('answer_text')?.value?.trim() !== '';
       });
       
+      if (isGapfill) {
+        const segments = this.getParsedGapfillSegments();
+        const hasGaps = segments.some(s => s.type === 'gap');
+        if (!hasGaps) {
+          this.showToast('Please include at least one gap (e.g. [gap]) in the question text.', 'error');
+          return;
+        }
+        hasAnswers = true;
+      }
+      
       if (!questionText?.trim() || !hasAnswers) {
         this.showToast('Please enter the question text and at least one answer before previewing.', 'error');
         return;
       }
+      
+      if (isGapfill) {
+        // Cache segments and choices once
+        const segments = this.getParsedGapfillSegments();
+        this.parsedGapfillSegments.set(segments);
+        
+        const choices = this.getGapfillChoices();
+        this.previewGapfillChoices.set(choices.sort(() => Math.random() - 0.5));
+        this.studentGapfillAnswers.set({});
+      }
+      
       this.previewMatchChoices.set(this.getMatchAnswersList());
     }
     this.isPreviewMode.set(!this.isPreviewMode());
@@ -1055,6 +1093,7 @@ export class QuestionFormComponent implements OnInit {
     this.studentTextAnswer.set('');
     this.studentPlacement.set({});
     this.studentMatchAnswers.set({});
+    this.studentGapfillAnswers.set({});
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -1070,6 +1109,136 @@ export class QuestionFormComponent implements OnInit {
     this.studentMatchAnswers.update(prev => ({
       ...prev,
       [index]: value
+    }));
+  }
+
+  // Gapfill Helpers
+  escapeRegex(str: string): string {
+    return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  }
+
+  getParsedGapfillSegments(): { type: 'text' | 'gap'; content: string; gapIndex?: number }[] {
+    const text = this.questionForm.get('question_text')?.value || '';
+    const delimiters = this.questionForm.get('gapfill_delimiters')?.value || '[]';
+    let startChar = '[';
+    let endChar = ']';
+    if (delimiters.length >= 2) {
+      startChar = delimiters[0];
+      endChar = delimiters[1];
+    } else if (delimiters.length === 1) {
+      startChar = delimiters[0];
+      endChar = delimiters[0];
+    }
+    const startEsc = this.escapeRegex(startChar);
+    const endEsc = this.escapeRegex(endChar);
+    // Use non-greedy matching to capture bracketed contents cleanly without character class issues
+    const regex = new RegExp(`${startEsc}(.*?)${endEsc}`, 'g');
+
+    const segments: { type: 'text' | 'gap'; content: string; gapIndex?: number }[] = [];
+    let lastIndex = 0;
+    let gapIndex = 0;
+    let match;
+
+    while ((match = regex.exec(text)) !== null) {
+      // Prevent infinite loops if regex matches empty string
+      if (match.index === regex.lastIndex) {
+        regex.lastIndex++;
+      }
+      const plainText = text.substring(lastIndex, match.index);
+      if (plainText) {
+        segments.push({ type: 'text', content: plainText });
+      }
+      segments.push({
+        type: 'gap',
+        content: match[1],
+        gapIndex: gapIndex++
+      });
+      lastIndex = regex.lastIndex;
+    }
+    const remainingText = text.substring(lastIndex);
+    if (remainingText) {
+      segments.push({ type: 'text', content: remainingText });
+    }
+    return segments;
+  }
+
+  getGapfillChoices(): string[] {
+    const segments = this.getParsedGapfillSegments();
+    const correctChoices = segments
+      .filter(s => s.type === 'gap')
+      .map(s => s.content.split('|')[0].trim()); // Use first option as correct choice text if multiple correct options exist
+    
+    const answersList = this.answers.value || [];
+    const distractors = answersList
+      .map((a: any) => a.answer_text?.trim() || '')
+      .filter((v: string) => v !== '');
+
+    const allChoices = Array.from(new Set([...correctChoices, ...distractors]));
+    return allChoices;
+  }
+
+  // Interactive Placement for Gap Fill
+  draggedGapfillChoice: string | null = null;
+  selectedGapfillChoiceForPlacement: string | null = null;
+
+  onGapfillDragStart(choice: string) {
+    if (this.previewResult()) return;
+    this.draggedGapfillChoice = choice;
+  }
+
+  onGapfillDrop(gapIndex: number, event: DragEvent) {
+    event.preventDefault();
+    if (this.previewResult()) return;
+    if (this.draggedGapfillChoice) {
+      this.studentGapfillAnswers.update(prev => ({
+        ...prev,
+        [gapIndex]: this.draggedGapfillChoice!
+      }));
+      this.draggedGapfillChoice = null;
+    }
+  }
+
+  allowGapfillDrop(event: DragEvent) {
+    event.preventDefault();
+  }
+
+  selectGapfillChoice(choice: string) {
+    if (this.previewResult()) return;
+    this.selectedGapfillChoiceForPlacement = this.selectedGapfillChoiceForPlacement === choice ? null : choice;
+  }
+
+  placeGapfillChoice(gapIndex: number) {
+    if (this.previewResult()) return;
+    if (this.selectedGapfillChoiceForPlacement) {
+      this.studentGapfillAnswers.update(prev => ({
+        ...prev,
+        [gapIndex]: this.selectedGapfillChoiceForPlacement!
+      }));
+      this.selectedGapfillChoiceForPlacement = null;
+    } else {
+      // Click again to clear/return the choice to the bank
+      this.studentGapfillAnswers.update(prev => {
+        const copy = { ...prev };
+        delete copy[gapIndex];
+        return copy;
+      });
+    }
+  }
+
+  updateGapfillTextAnswer(gapIndex: number, event: Event) {
+    if (this.previewResult()) return;
+    const value = (event.target as HTMLInputElement).value;
+    this.studentGapfillAnswers.update(prev => ({
+      ...prev,
+      [gapIndex]: value
+    }));
+  }
+
+  updateGapfillDropdownAnswer(gapIndex: number, value: string) {
+    if (this.previewResult()) return;
+    this.studentGapfillAnswers.update(prev => ({
+      ...prev,
+      [gapIndex]: value
     }));
   }
 
@@ -1263,6 +1432,43 @@ export class QuestionFormComponent implements OnInit {
         isCorrect = true;
         feedback = 'No markers to grade.';
       }
+    } else if (qtype === 'gapfill') {
+      const segments = this.getParsedGapfillSegments();
+      const gapSegments = segments.filter(s => s.type === 'gap');
+      const studentAnswers = this.studentGapfillAnswers();
+      const caseSensitive = this.questionForm.get('gapfill_casesensitive')?.value === true;
+      
+      let correctCount = 0;
+      const totalGaps = gapSegments.length;
+      
+      gapSegments.forEach(seg => {
+        const studentAns = (studentAnswers[seg.gapIndex!] || '').trim();
+        const correctOptions = seg.content.split('|').map(o => o.trim());
+        
+        const isMatch = correctOptions.some(opt => {
+          if (caseSensitive) {
+            return studentAns === opt;
+          } else {
+            return studentAns.toLowerCase() === opt.toLowerCase();
+          }
+        });
+        
+        if (isMatch) {
+          correctCount++;
+        }
+      });
+      
+      if (totalGaps > 0) {
+        grade = Math.round((correctCount / totalGaps) * 100);
+        isCorrect = grade === 100;
+        feedback = isCorrect 
+          ? 'Correct! All gaps are filled correctly.' 
+          : `You got ${correctCount} out of ${totalGaps} gaps correct (${grade}%).`;
+      } else {
+        grade = 100;
+        isCorrect = true;
+        feedback = 'No gaps to grade.';
+      }
     }
 
     this.previewResult.set({ 
@@ -1421,6 +1627,10 @@ export class QuestionFormComponent implements OnInit {
           partially_correct_feedback: formValue.partially_correct_feedback || '',
           incorrect_feedback: formValue.incorrect_feedback || '',
           show_num_correct: formValue.show_num_correct !== false,
+          gapfill_mode: formValue.gapfill_mode || 'dragdrop',
+          gapfill_delimiters: formValue.gapfill_delimiters || '[]',
+          gapfill_casesensitive: formValue.gapfill_casesensitive === true,
+          gapfill_fixedgapsize: formValue.gapfill_fixedgapsize === true,
           // Ownership tracking
           author_id: currentMetadata.author_id || originalCreator,
           author_name: currentMetadata.author_name || this.currentTeacher,

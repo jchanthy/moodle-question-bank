@@ -139,7 +139,53 @@
           <div class="bg-white rounded-none p-8 shadow-xl border border-white">
             <!-- Question Text -->
             <div class="prose prose-blue max-w-none mb-10">
-              <div [innerHTML]="questionForm.get('question_text')?.value" class="text-xl font-medium text-gray-800 leading-relaxed"></div>
+              <!-- Non-gapfill question text -->
+              <div *ngIf="questionForm.get('qtype')?.value !== 'gapfill'" [innerHTML]="questionForm.get('question_text')?.value" class="text-xl font-medium text-gray-800 leading-relaxed"></div>
+
+              <!-- Gapfill parsed question text -->
+              <div *ngIf="questionForm.get('qtype')?.value === 'gapfill'" class="text-xl font-medium text-gray-800 leading-relaxed flex flex-wrap items-center gap-y-3 gap-x-1.5">
+                <ng-container *ngFor="let seg of parsedGapfillSegments()">
+                  <span *ngIf="seg.type === 'text'" [innerHTML]="seg.content"></span>
+                  
+                  <ng-container *ngIf="seg.type === 'gap'">
+                    <!-- Drag and Drop Mode -->
+                    <span *ngIf="questionForm.get('gapfill_mode')?.value === 'dragdrop'"
+                      (dragover)="allowGapfillDrop($event)"
+                      (drop)="onGapfillDrop(seg.gapIndex!, $event)"
+                      (click)="placeGapfillChoice(seg.gapIndex!)"
+                      [class.w-28]="questionForm.get('gapfill_fixedgapsize')?.value !== false"
+                      [class.min-w-[100px]]="questionForm.get('gapfill_fixedgapsize')?.value === false"
+                      [ngClass]="{
+                        'border-blue-500 bg-blue-50 text-blue-700': studentGapfillAnswers()[seg.gapIndex!],
+                        'border-dashed border-gray-300 bg-gray-50 text-gray-400 hover:border-blue-400 hover:bg-blue-50/30': !studentGapfillAnswers()[seg.gapIndex!]
+                      }"
+                      class="inline-flex items-center justify-center h-9 px-3 border-2 text-sm font-bold rounded-none cursor-pointer transition-all select-none">
+                      {{ studentGapfillAnswers()[seg.gapIndex!] || 'Drop Here' }}
+                    </span>
+
+                    <!-- Dropdown Mode -->
+                    <select *ngIf="questionForm.get('gapfill_mode')?.value === 'dropdown'"
+                      [disabled]="!!previewResult()"
+                      [class.w-32]="questionForm.get('gapfill_fixedgapsize')?.value !== false"
+                      [ngModel]="studentGapfillAnswers()[seg.gapIndex!] || ''"
+                      (ngModelChange)="updateGapfillDropdownAnswer(seg.gapIndex!, $event)"
+                      class="inline-block h-9 px-2 border-2 border-blue-200 bg-white text-sm font-bold rounded-none focus:border-blue-500 focus:outline-none transition-all">
+                      <option value="">— Select —</option>
+                      <option *ngFor="let choice of previewGapfillChoices()" [value]="choice">{{ choice }}</option>
+                    </select>
+
+                    <!-- Text Mode -->
+                    <input *ngIf="questionForm.get('gapfill_mode')?.value === 'text'"
+                      type="text"
+                      [disabled]="!!previewResult()"
+                      [class.w-28]="questionForm.get('gapfill_fixedgapsize')?.value !== false"
+                      [ngModel]="studentGapfillAnswers()[seg.gapIndex!] || ''"
+                      (input)="updateGapfillTextAnswer(seg.gapIndex!, $event)"
+                      placeholder="Fill..."
+                      class="inline-block h-9 px-3 border-2 border-blue-200 bg-white text-sm font-semibold rounded-none focus:border-blue-500 focus:outline-none transition-all placeholder:text-gray-300">
+                  </ng-container>
+                </ng-container>
+              </div>
             </div>
 
             <!-- Image Support in Preview -->
@@ -169,7 +215,7 @@
               </ng-container>
             </div>
 
-            <!-- Label Bank (Dock) -->
+             <!-- Label Bank (Dock) -->
             <div *ngIf="['ddimageortext', 'ddmarker'].includes(questionForm.get('qtype')?.value!)" 
               class="bg-gray-100 rounded-xl p-4 flex flex-wrap gap-3 justify-center border border-gray-200 shadow-inner mb-10">
               <div *ngFor="let answer of answers.controls; let i=index">
@@ -177,6 +223,23 @@
                   [class.invisible]="questionForm.get('qtype')?.value === 'ddimageortext' ? studentPlacement()[i] : (!answer.get('marker_infinite')?.value && studentPlacement()[i])"
                   class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-none shadow-lg text-xs font-black whitespace-nowrap border border-white/20 transition-all cursor-grab active:cursor-grabbing select-none">
                   {{ answer.get('answer_text')?.value || (questionForm.get('qtype')?.value === 'ddmarker' ? 'Marker ' : 'Label ') + (i+1) }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Gap Fill Drag and Drop Dock -->
+            <div *ngIf="questionForm.get('qtype')?.value === 'gapfill' && questionForm.get('gapfill_mode')?.value === 'dragdrop'" 
+              class="bg-gray-100 rounded-xl p-6 flex flex-wrap gap-3 justify-center border border-blue-200 shadow-inner mb-10">
+              <div *ngFor="let choice of previewGapfillChoices()">
+                <div draggable="true"
+                  (dragstart)="onGapfillDragStart(choice)"
+                  (click)="selectGapfillChoice(choice)"
+                  [ngClass]="{
+                    'bg-blue-600 text-white ring-4 ring-blue-300 scale-105': selectedGapfillChoiceForPlacement === choice,
+                    'bg-white border-2 border-blue-200 text-gray-700 hover:border-blue-500 hover:bg-blue-50': selectedGapfillChoiceForPlacement !== choice
+                  }"
+                  class="px-4 py-2 font-bold text-sm shadow-md transition-all cursor-grab active:cursor-grabbing select-none rounded-none">
+                  {{ choice }}
                 </div>
               </div>
             </div>
@@ -267,7 +330,7 @@
             </div>
 
             <!-- Submit Button (Preview) -->
-            <div class="mt-10 flex justify-center" *ngIf="!previewResult() && (['multichoice', 'truefalse', 'shortanswer', 'numerical', 'ddimageortext', 'match'].includes(questionForm.get('qtype')?.value!))">
+            <div class="mt-10 flex justify-center" *ngIf="!previewResult() && (['multichoice', 'truefalse', 'shortanswer', 'numerical', 'ddimageortext', 'match', 'gapfill'].includes(questionForm.get('qtype')?.value!))">
               <button type="button" (click)="checkPreviewAnswer()"
                 class="bg-blue-600 text-white px-10 py-4 font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-900/20 active:scale-95">
                 Check My Answer
@@ -293,7 +356,7 @@
                   [innerHTML]="previewResult()?.feedback">
                 </div>
                 
-                <button type="button" (click)="previewResult.set(null); studentSelectedAnswers.set([]); studentTextAnswer.set(''); studentPlacement.set({})"
+                <button type="button" (click)="previewResult.set(null); studentSelectedAnswers.set([]); studentTextAnswer.set(''); studentPlacement.set({}); studentGapfillAnswers.set({})"
                   class="mt-6 text-sm font-black text-blue-600 hover:underline">
                   Try Again
                 </button>
@@ -705,6 +768,47 @@
           </div>
         </section>
 
+        <!-- Gap Fill Options Section (Specific to Gap Fill) -->
+        <section class="space-y-6" *ngIf="questionForm.get('qtype')?.value === 'gapfill'">
+          <h2 class="text-lg font-bold text-gray-900 border-b border-blue-50 flex items-center gap-2">
+            <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-none flex items-center justify-center text-[10px] font-black uppercase">02</span>
+            Gap Fill Options
+          </h2>
+          
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div>
+              <label class="block text-sm font-bold text-gray-700">Gapfill Mode</label>
+              <select formControlName="gapfill_mode"
+                class="mt-1 block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all">
+                <option value="dragdrop">Drag and Drop</option>
+                <option value="dropdown">Dropdown List</option>
+                <option value="gapfill">Text Input</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-bold text-gray-700">Delimiters</label>
+              <input type="text" formControlName="gapfill_delimiters"
+                class="mt-1 block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all"
+                placeholder="e.g. []">
+            </div>
+
+            <div class="flex items-center h-full pt-6">
+              <label class="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" formControlName="gapfill_casesensitive" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                <span class="text-sm font-bold text-gray-700">Case Sensitive</span>
+              </label>
+            </div>
+
+            <div class="flex items-center h-full pt-6">
+              <label class="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" formControlName="gapfill_fixedgapsize" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                <span class="text-sm font-bold text-gray-700">Fixed Gap Size</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
         <!-- Scoring Section -->
         <section class="space-y-6">
           <h2 class="text-lg font-bold text-gray-900 border-b border-blue-50 flex items-center gap-2">
@@ -727,7 +831,7 @@
           <div class="flex justify-between items-center border-b border-blue-50">
             <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
               <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-none flex items-center justify-center text-[10px] font-black uppercase">04</span>
-              {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Answers - Draggable Labels' : 'Answers - Choices & Grading (Set Correct Answers Here)' }}
+              {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Answers - Draggable Labels' : (questionForm.get('qtype')?.value === 'gapfill' ? 'Answers - Choices & Distractors' : 'Answers - Choices & Grading (Set Correct Answers Here)') }}
             </h2>
           </div>
 
@@ -757,7 +861,7 @@
                 <div class="md:col-span-3 space-y-3" *ngIf="questionForm.get('qtype')?.value !== 'match'">
                   <div>
                     <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
-                      {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Label Text' : 'Choice Text' }}
+                      {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Label Text' : (questionForm.get('qtype')?.value === 'gapfill' ? 'Choice / Distractor Word' : 'Choice Text') }}
                     </label>
                     <input type="text" formControlName="answer_text"
                       [placeholder]="questionForm.get('qtype')?.value === 'ddimageortext' ? 'e.g. Brain' : 'Enter option text...'"
@@ -919,7 +1023,7 @@
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 4v16m8-8H4" />
               </svg>
-              Add {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Label' : 'Choice' }}
+              Add {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Label' : (questionForm.get('qtype')?.value === 'gapfill' ? 'Choice / Distractor' : 'Choice') }}
             </button>
           </div>
         </section>
