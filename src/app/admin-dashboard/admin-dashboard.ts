@@ -382,11 +382,52 @@ export class AdminDashboardComponent implements OnInit {
   // Pagination
   currentPage = signal(1);
   pageSize = signal(10);
-  totalCounts = signal({
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-    draft: 0
+  totalCounts = computed(() => {
+    const allQs = this.allQuestions();
+    
+    // 1. Filter for latest versions in family
+    const familyMap = new Map<string, Question>();
+    allQs.forEach(q => {
+      const familyId = q.parent_id || q.id;
+      const existing = familyMap.get(familyId);
+      if (!existing || q.version > existing.version) {
+        familyMap.set(familyId, q);
+      }
+    });
+    
+    let list = Array.from(familyMap.values());
+    
+    // 2. Apply filters (except status and search sequence number)
+    if (this.filterQtype()) list = list.filter(q => q.qtype === this.filterQtype());
+    if (this.filterCategory()) list = list.filter(q => q.category_id === this.filterCategory());
+    if (this.filterTeacher()) {
+      const teacher = this.filterTeacher().toLowerCase();
+      list = list.filter(q => q.metadata?.author_name?.toLowerCase().includes(teacher));
+    }
+    
+    const selectedTags = this.filterSelectedTags();
+    if (selectedTags && selectedTags.length > 0) {
+      list = list.filter(q => {
+        const qTags = (q.metadata?.tags || []).map((t: string) => t.toLowerCase());
+        return selectedTags.every(tag => qTags.includes(tag.toLowerCase()));
+      });
+    }
+    
+    const search = this.debouncedSearch().toLowerCase().trim();
+    if (search) {
+      list = list.filter(q => {
+        const nameMatch = q.name.toLowerCase().includes(search);
+        const textMatch = q.question_text.toLowerCase().includes(search);
+        return nameMatch || textMatch;
+      });
+    }
+
+    return {
+      pending: list.filter(q => q.status === 'pending_review').length,
+      approved: list.filter(q => q.status === 'approved').length,
+      rejected: list.filter(q => q.status === 'rejected').length,
+      draft: list.filter(q => q.status === 'draft').length
+    };
   });
 
   // All registered teachers from the database
@@ -839,8 +880,7 @@ export class AdminDashboardComponent implements OnInit {
       const questions = (data as Question[]).filter(q => q.name !== '__SYSTEM_USER_RECORDS__');
       this.allQuestions.set(questions);
 
-      // Also sync total counts and type counts
-      this.syncTotalCounts(questions);
+      // Also sync type counts
       this.loadQuestionTypeCounts();
 
       // Restore focus & scroll to the active question card
@@ -873,26 +913,7 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
-  private syncTotalCounts(questions: Question[]) {
-    // Filter for latest versions
-    const familyMap = new Map<string, Question>();
-    questions.forEach(q => {
-      const familyId = q.parent_id || q.id;
-      const existing = familyMap.get(familyId);
-      if (!existing || q.version > existing.version) {
-        familyMap.set(familyId, q);
-      }
-    });
-    const latestQuestions = Array.from(familyMap.values());
 
-    const counts = {
-      pending: latestQuestions.filter(q => q.status === 'pending_review').length,
-      approved: latestQuestions.filter(q => q.status === 'approved').length,
-      rejected: latestQuestions.filter(q => q.status === 'rejected').length,
-      draft: latestQuestions.filter(q => q.status === 'draft').length
-    };
-    this.totalCounts.set(counts);
-  }
 
   async loadQuestionsForActiveTab() {
     await this.loadAllQuestionsData();
@@ -1517,11 +1538,7 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   totalPages = computed(() => {
-    const status = this.activeTab();
-    const count = status === 'pending' ? this.totalCounts().pending :
-                 status === 'approved' ? this.totalCounts().approved :
-                 status === 'rejected' ? this.totalCounts().rejected :
-                 this.totalCounts().draft;
+    const count = this.filteredQuestions().length;
     return Math.ceil(count / this.pageSize());
   });
 
