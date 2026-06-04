@@ -1331,7 +1331,13 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   assigningQuestionId = signal<string | null>(null);
+  selectedReviewers = signal<Teacher[]>([]);
   filteredTeachers = signal<Teacher[]>([]);
+
+  startAssigning(q: Question) {
+    this.assigningQuestionId.set(q.id);
+    this.selectedReviewers.set(this.getAssignedTeachers(q.id));
+  }
 
   searchTeachers(event: any, contextQuestion?: Question) {
     const query = event.query.toLowerCase();
@@ -1434,7 +1440,8 @@ export class AdminDashboardComponent implements OnInit {
       }
 
       this.messageService.add({ severity: 'success', summary: 'Success', detail: `Reviewer ${teacher.name} added` });
-      this.loadAssignments();
+      await this.loadAssignments();
+      this.selectedReviewers.set(this.getAssignedTeachers(question.id));
     } catch (err: any) {
       this.messageService.add({ severity: 'error', summary: 'Error', detail: err.message });
     }
@@ -1470,7 +1477,8 @@ export class AdminDashboardComponent implements OnInit {
 
       question.metadata = metadata;
       this.messageService.add({ severity: 'info', summary: 'Removed', detail: `Reviewer ${teacher.name} removed` });
-      this.loadAssignments();
+      await this.loadAssignments();
+      this.selectedReviewers.set(this.getAssignedTeachers(question.id));
     } catch (err: any) {
       this.messageService.add({ severity: 'error', summary: 'Error', detail: err.message });
     }

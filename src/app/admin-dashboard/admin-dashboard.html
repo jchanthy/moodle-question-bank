@@ -578,7 +578,7 @@
                   <span
                     class="text-[10px] font-black uppercase tracking-widest text-gray-400 shrink-0">Reviewers:</span>
                   <div class="flex flex-wrap gap-2">
-                    <button (click)="assigningQuestionId.set(q.id)"
+                    <button (click)="startAssigning(q)"
                       *ngFor="let rev of (q.metadata?.assigned_reviewers || [{id: q.metadata?.assigned_to_id, name: q.metadata?.assigned_to_name}])"
                       class="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold rounded-none border border-blue-100 flex items-center gap-1.5 transition-all">
                       <div
@@ -587,7 +587,7 @@
                       </div>
                       {{ rev.name || 'Teacher' }}
                     </button>
-                    <button (click)="assigningQuestionId.set(q.id)"
+                    <button (click)="startAssigning(q)"
                       class="w-6 h-6 flex items-center justify-center bg-gray-50 text-gray-400 rounded-none hover:bg-blue-600 hover:text-white transition-all border border-dashed border-gray-200">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24"
                         stroke="currentColor">
@@ -601,7 +601,7 @@
                 <div *ngIf="assigningQuestionId() !== q.id && !q.metadata?.assigned_to_name"
                   class="flex items-center gap-3">
                   <span class="text-[10px] font-black uppercase tracking-widest text-gray-400 shrink-0">Reviewer:</span>
-                  <button (click)="assigningQuestionId.set(q.id)"
+                  <button (click)="startAssigning(q)"
                     class="px-4 py-2 bg-white hover:bg-gray-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-none transition-all border-2 border-blue-50 shadow-sm hover:shadow flex items-center gap-2 group">
                     <div class="p-1 rounded-none bg-blue-50 group-hover:bg-blue-100 transition-colors">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"
@@ -619,7 +619,7 @@
                   <div class="flex items-center gap-3 w-full">
                     <span
                       class="text-[10px] font-black uppercase tracking-widest text-blue-500 shrink-0">Reviewers:</span>
-                    <p-autocomplete [ngModel]="getAssignedTeachers(q.id)" (onSelect)="addReviewer(q, $event)"
+                    <p-autocomplete [ngModel]="selectedReviewers()" (onSelect)="addReviewer(q, $event)"
                       (onUnselect)="removeReviewer(q, $event)" [multiple]="true" [suggestions]="filteredTeachers()"
                       (completeMethod)="searchTeachers($event, q)" field="name" optionLabel="name"
                       [forceSelection]="true" placeholder="Search teachers..." appendTo="body" [autofocus]="true"
