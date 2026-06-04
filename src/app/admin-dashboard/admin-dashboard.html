@@ -537,10 +537,10 @@
                       
                       <!-- Choice text edit input -->
                       <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5">
-                        <input type="text" 
-                               [ngModel]="editingChoiceText"
-                               (ngModelChange)="editingChoiceText = $event"
-                               class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white">
+                        <textarea [ngModel]="editingChoiceText"
+                                  (ngModelChange)="editingChoiceText = $event"
+                                  rows="2"
+                                  class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white"></textarea>
                         <div class="flex gap-1 justify-end">
                           <button (click)="editingChoiceId.set(null)" 
                                   class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">
@@ -895,10 +895,10 @@
                       
                       <!-- Choice text edit input -->
                       <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5">
-                        <input type="text" 
-                               [ngModel]="editingChoiceText"
-                               (ngModelChange)="editingChoiceText = $event"
-                               class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white">
+                        <textarea [ngModel]="editingChoiceText"
+                                  (ngModelChange)="editingChoiceText = $event"
+                                  rows="2"
+                                  class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white"></textarea>
                         <div class="flex gap-1 justify-end">
                           <button (click)="editingChoiceId.set(null)" 
                                   class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">
@@ -1122,10 +1122,10 @@
                       
                       <!-- Choice text edit input -->
                       <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5">
-                        <input type="text" 
-                               [ngModel]="editingChoiceText"
-                               (ngModelChange)="editingChoiceText = $event"
-                               class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white">
+                        <textarea [ngModel]="editingChoiceText"
+                                  (ngModelChange)="editingChoiceText = $event"
+                                  rows="2"
+                                  class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white"></textarea>
                         <div class="flex gap-1 justify-end">
                           <button (click)="editingChoiceId.set(null)" 
                                   class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">
@@ -1338,10 +1338,10 @@
                       
                       <!-- Choice text edit input -->
                       <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5">
-                        <input type="text" 
-                               [ngModel]="editingChoiceText"
-                               (ngModelChange)="editingChoiceText = $event"
-                               class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white">
+                        <textarea [ngModel]="editingChoiceText"
+                                  (ngModelChange)="editingChoiceText = $event"
+                                  rows="2"
+                                  class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white"></textarea>
                         <div class="flex gap-1 justify-end">
                           <button (click)="editingChoiceId.set(null)" 
                                   class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">
