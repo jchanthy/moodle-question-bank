@@ -491,6 +491,8 @@
                             (ngModelChange)="editingTextValue = $event"
                             rows="3"
                             class="w-full text-xl font-black text-gray-900 border-2 border-blue-400 p-3 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white"
+                            (keydown)="onTextKeyDown($event, q)"
+                            (blur)="onBlurText()"
                             placeholder="Edit question text..."></textarea>
                   <div class="flex gap-2 justify-end">
                     <button (click)="editingTextQuestionId.set(null)" 
@@ -540,7 +542,9 @@
                         <textarea [ngModel]="editingChoiceText"
                                   (ngModelChange)="editingChoiceText = $event"
                                   rows="2"
-                                  class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white"></textarea>
+                                  class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white"
+                                  (keydown)="onChoiceKeyDown($event, ans, q)"
+                                  (blur)="onBlurChoice()"></textarea>
                         <div class="flex gap-1 justify-end">
                           <button (click)="editingChoiceId.set(null)" 
                                   class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">
@@ -849,6 +853,8 @@
                             (ngModelChange)="editingTextValue = $event"
                             rows="3"
                             class="w-full text-xl font-black text-gray-900 border-2 border-blue-400 p-3 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white"
+                            (keydown)="onTextKeyDown($event, q)"
+                            (blur)="onBlurText()"
                             placeholder="Edit question text..."></textarea>
                   <div class="flex gap-2 justify-end">
                     <button (click)="editingTextQuestionId.set(null)" 
@@ -898,7 +904,9 @@
                         <textarea [ngModel]="editingChoiceText"
                                   (ngModelChange)="editingChoiceText = $event"
                                   rows="2"
-                                  class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white"></textarea>
+                                  class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white"
+                                  (keydown)="onChoiceKeyDown($event, ans, q)"
+                                  (blur)="onBlurChoice()"></textarea>
                         <div class="flex gap-1 justify-end">
                           <button (click)="editingChoiceId.set(null)" 
                                   class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">
@@ -1076,6 +1084,8 @@
                             (ngModelChange)="editingTextValue = $event"
                             rows="3"
                             class="w-full text-xl font-black text-gray-900 border-2 border-blue-400 p-3 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white"
+                            (keydown)="onTextKeyDown($event, q)"
+                            (blur)="onBlurText()"
                             placeholder="Edit question text..."></textarea>
                   <div class="flex gap-2 justify-end">
                     <button (click)="editingTextQuestionId.set(null)" 
@@ -1125,7 +1135,9 @@
                         <textarea [ngModel]="editingChoiceText"
                                   (ngModelChange)="editingChoiceText = $event"
                                   rows="2"
-                                  class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white"></textarea>
+                                  class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white"
+                                  (keydown)="onChoiceKeyDown($event, ans, q)"
+                                  (blur)="onBlurChoice()"></textarea>
                         <div class="flex gap-1 justify-end">
                           <button (click)="editingChoiceId.set(null)" 
                                   class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">
@@ -1292,6 +1304,8 @@
                             (ngModelChange)="editingTextValue = $event"
                             rows="3"
                             class="w-full text-xl font-black text-gray-900 border-2 border-blue-400 p-3 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white"
+                            (keydown)="onTextKeyDown($event, q)"
+                            (blur)="onBlurText()"
                             placeholder="Edit question text..."></textarea>
                   <div class="flex gap-2 justify-end">
                     <button (click)="editingTextQuestionId.set(null)" 
@@ -1341,7 +1355,9 @@
                         <textarea [ngModel]="editingChoiceText"
                                   (ngModelChange)="editingChoiceText = $event"
                                   rows="2"
-                                  class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white"></textarea>
+                                  class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white"
+                                  (keydown)="onChoiceKeyDown($event, ans, q)"
+                                  (blur)="onBlurChoice()"></textarea>
                         <div class="flex gap-1 justify-end">
                           <button (click)="editingChoiceId.set(null)" 
                                   class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">

@@ -822,6 +822,40 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
+  onBlurText() {
+    setTimeout(() => {
+      if (!this.savingInline()) {
+        this.editingTextQuestionId.set(null);
+      }
+    }, 200);
+  }
+
+  onBlurChoice() {
+    setTimeout(() => {
+      if (!this.savingInline()) {
+        this.editingChoiceId.set(null);
+      }
+    }, 200);
+  }
+
+  onTextKeyDown(event: any, q: Question) {
+    if (event.key === 'Enter') {
+      if (!event.shiftKey) {
+        event.preventDefault();
+        this.saveInlineText(q);
+      }
+    }
+  }
+
+  onChoiceKeyDown(event: any, ans: any, q: Question) {
+    if (event.key === 'Enter') {
+      if (!event.shiftKey) {
+        event.preventDefault();
+        this.saveChoiceText(ans, q);
+      }
+    }
+  }
+
   async toggleChoiceCorrect(ans: any, q: Question) {
     const isCurrentlyCorrect = ans.fraction > 0;
     const newFraction = isCurrentlyCorrect ? 0.0 : 1.0;
