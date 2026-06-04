@@ -179,7 +179,7 @@ export class SupabaseService {
         version: 1,
         status: 'approved',
         category_id: categoryId,
-        created_by: 'facb49a1-dffc-4497-bea0-15cc57d9f0f7', // MUST set Admin as creator!
+        created_by: this.currentUser()?.id || 'facb49a1-dffc-4497-bea0-15cc57d9f0f7', // Use logged in user ID to avoid RLS violation
         metadata: { users: defaultRegistry }
       });
 
@@ -311,7 +311,7 @@ export class SupabaseService {
         version: 1,
         status: 'approved',
         category_id: categoryId,
-        created_by: 'facb49a1-dffc-4497-bea0-15cc57d9f0f7', // MUST set Admin as creator!
+        created_by: this.currentUser()?.id || 'facb49a1-dffc-4497-bea0-15cc57d9f0f7', // Use logged in user ID to avoid RLS violation
         metadata: metadata
       });
 

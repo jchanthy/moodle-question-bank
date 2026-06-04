@@ -953,8 +953,6 @@ export class TeacherDashboardComponent implements OnInit {
           .eq('id', user.id)
           .maybeSingle();
 
-        console.log('[DEBUG loadAssistantSubmissions] teacher profile specialization:', profile?.specialization);
-
         if (profile && profile.specialization && profile.specialization.length > 0) {
           const specIds = profile.specialization;
           const allowedIds = new Set<string>();
@@ -968,19 +966,15 @@ export class TeacherDashboardComponent implements OnInit {
           };
           specIds.forEach((id: string) => collectIds(id));
 
-          console.log('[DEBUG loadAssistantSubmissions] allowedCategoryIds:', Array.from(allowedIds));
 
           if (allowedIds.size > 0) {
             query = query.in('category_id', Array.from(allowedIds));
           }
-        } else {
-          console.log('[DEBUG loadAssistantSubmissions] No specialization set — showing ALL subjects');
         }
       }
 
       const { data, error } = await query;
 
-      console.log('[DEBUG loadAssistantSubmissions] raw from DB:', data?.length, data?.map((q: any) => ({ id: q.id, name: q.name, status: q.status, category_id: q.category_id, version: q.version, parent_id: q.parent_id })));
 
       if (!error && data) {
         let filteredQuestions = data as Question[];
@@ -996,18 +990,15 @@ export class TeacherDashboardComponent implements OnInit {
             .select('parent_id, version')
             .in('parent_id', allFamilyIds);
 
-          console.log('[DEBUG loadAssistantSubmissions] newerVersions:', newerVersions);
 
           filteredQuestions = (data as Question[]).filter((q: any) => {
             const familyId = q.parent_id || q.id;
             // Filter out if there is a version in newerVersions with parent_id = familyId and version > q.version
             const hasNewer = newerVersions?.some((nv: any) => nv.parent_id === familyId && nv.version > q.version);
-            console.log(`[DEBUG] Q[${q.name}] v${q.version} family=${familyId} hasNewer=${hasNewer}`);
             return !hasNewer;
           });
         }
 
-        console.log('[DEBUG loadAssistantSubmissions] final shown count:', filteredQuestions.length);
         return filteredQuestions;
       }
     } catch (err) {
