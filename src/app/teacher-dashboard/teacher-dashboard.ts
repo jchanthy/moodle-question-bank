@@ -420,6 +420,13 @@ export class TeacherDashboardComponent implements OnInit {
   newCategoryIsGlobal = false;
   editingCategory = signal<Category | null>(null);
 
+  // Inline editing signals
+  editingTextQuestionId = signal<string | null>(null);
+  editingTextValue = '';
+  savingInline = signal(false);
+  editingChoiceId = signal<string | null>(null);
+  editingChoiceText = '';
+
   // Category Deletion Modal
   categoryToDelete = signal<Category | null>(null);
   deleteMoveToCategoryId = signal<string | null>(null);
@@ -1569,6 +1576,164 @@ export class TeacherDashboardComponent implements OnInit {
       this.showToast('Name updated', 'success');
     }
     q.isEditingName = false;
+  }
+
+  startEditingText(q: Question) {
+    this.editingTextQuestionId.set(q.id);
+    let text = q.question_text || '';
+    if (text.toLowerCase().startsWith('<p>') && text.toLowerCase().endsWith('</p>')) {
+      text = text.substring(3, text.length - 4);
+    }
+    this.editingTextValue = text;
+  }
+
+  async saveInlineText(q: Question) {
+    if (!this.editingTextValue.trim()) return;
+    this.savingInline.set(true);
+    try {
+      let finalValue = this.editingTextValue.trim();
+      const original = q.question_text || '';
+      if (original.toLowerCase().startsWith('<p>') && original.toLowerCase().endsWith('</p>')) {
+        finalValue = `<p>${finalValue}</p>`;
+      }
+
+      const { error } = await this.supabaseService.db
+        .from('questions')
+        .update({ question_text: finalValue, updated_at: new Date().toISOString() })
+        .eq('id', q.id);
+
+      if (error) throw error;
+
+      // Update in memory state
+      const updated = this.allQuestions().map(item => {
+        if (item.id === q.id) {
+          return { ...item, question_text: finalValue };
+        }
+        return item;
+      });
+      this.allQuestions.set(updated);
+      this.showToast('Question text updated successfully', 'success');
+      this.editingTextQuestionId.set(null);
+    } catch (e: any) {
+      this.showToast(e.message, 'error');
+    } finally {
+      this.savingInline.set(false);
+    }
+  }
+
+  startEditingChoice(ans: any) {
+    this.editingChoiceId.set(ans.id);
+    let text = ans.answer_text || '';
+    if (text.toLowerCase().startsWith('<p>') && text.toLowerCase().endsWith('</p>')) {
+      text = text.substring(3, text.length - 4);
+    }
+    this.editingChoiceText = text;
+  }
+
+  async saveChoiceText(ans: any, q: Question) {
+    if (!this.editingChoiceText.trim()) return;
+    this.savingInline.set(true);
+    try {
+      let finalValue = this.editingChoiceText.trim();
+      const original = ans.answer_text || '';
+      if (original.toLowerCase().startsWith('<p>') && original.toLowerCase().endsWith('</p>')) {
+        finalValue = `<p>${finalValue}</p>`;
+      }
+
+      const { error } = await this.supabaseService.db
+        .from('answers')
+        .update({ answer_text: finalValue })
+        .eq('id', ans.id);
+
+      if (error) throw error;
+
+      // Update in memory state
+      const updatedQuestions = this.allQuestions().map(item => {
+        if (item.id === q.id && item.answers) {
+          const updatedAnswers = item.answers.map((a: any) => {
+            if (a.id === ans.id) {
+              return { ...a, answer_text: finalValue };
+            }
+            return a;
+          });
+          return { ...item, answers: updatedAnswers };
+        }
+        return item;
+      });
+      this.allQuestions.set(updatedQuestions);
+      this.showToast('Choice text updated successfully', 'success');
+      this.editingChoiceId.set(null);
+    } catch (e: any) {
+      this.showToast(e.message, 'error');
+    } finally {
+      this.savingInline.set(false);
+    }
+  }
+
+  async toggleChoiceCorrect(ans: any, q: Question) {
+    const isCurrentlyCorrect = ans.fraction > 0;
+    const newFraction = isCurrentlyCorrect ? 0.0 : 1.0;
+    
+    try {
+      const { error } = await this.supabaseService.db
+        .from('answers')
+        .update({ fraction: newFraction })
+        .eq('id', ans.id);
+
+      if (error) throw error;
+
+      // Update in memory state
+      const updatedQuestions = this.allQuestions().map(item => {
+        if (item.id === q.id && item.answers) {
+          const updatedAnswers = item.answers.map((a: any) => {
+            if (a.id === ans.id) {
+              return { ...a, fraction: newFraction };
+            }
+            return a;
+          });
+          return { ...item, answers: updatedAnswers };
+        }
+        return item;
+      });
+      this.allQuestions.set(updatedQuestions);
+      this.showToast(`Choice marked as ${newFraction > 0 ? 'correct' : 'incorrect'}`, 'success');
+    } catch (e: any) {
+      this.showToast(e.message, 'error');
+    }
+  }
+
+  onBlurText() {
+    setTimeout(() => {
+      if (!this.savingInline()) {
+        this.editingTextQuestionId.set(null);
+      }
+    }, 200);
+  }
+
+  onBlurChoice() {
+    setTimeout(() => {
+      if (!this.savingInline()) {
+        this.editingChoiceId.set(null);
+      }
+    }, 200);
+  }
+
+  onTextKeyDown(event: any, q: Question) {
+    if (event.key === 'Enter') {
+      if (!event.shiftKey) {
+        event.preventDefault();
+        this.saveInlineText(q);
+      }
+    }
+  }
+
+  onChoiceKeyDown(event: any, ans: any, q: Question) {
+    if (event.key === 'Enter') {
+      if (!event.shiftKey) {
+        event.preventDefault();
+        this.saveChoiceText(ans, q);
+      }
+    }
   }
 
   async updateQuestionStatus(q: Question, statusOrEvent: any) {

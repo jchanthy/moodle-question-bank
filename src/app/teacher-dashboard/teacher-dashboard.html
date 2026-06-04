@@ -1019,24 +1019,36 @@
               <!-- Question Content Block -->
               <div class="space-y-3 pt-2">
                 <!-- Large, bold Question Text -->
-                <div class="group/name relative w-full">
-                  <ng-container *ngIf="!question.isEditingName">
-                    <div class="text-xl md:text-2xl font-black text-slate-800 leading-relaxed hover:text-blue-600 transition-colors cursor-pointer flex items-start gap-2" [title]="question.question_text">
-                      <span [innerHTML]="question.question_text"></span>
-                      <button (click)="question.isEditingName = true" class="opacity-0 group-hover/name:opacity-100 transition-opacity p-1 hover:bg-slate-100 rounded text-blue-500 mt-1.5 shrink-0" title="Edit Question Name">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
+                <!-- Editable Question Text -->
+                <div class="relative group/text mt-2">
+                  <div *ngIf="editingTextQuestionId() !== question.id" 
+                       (click)="startEditingText(question)"
+                       class="text-xl md:text-2xl font-black text-slate-800 leading-relaxed hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between cursor-pointer">
+                    <div class="flex-1 leading-relaxed" [innerHTML]="question.question_text"></div>
+                    <span class="text-xs text-blue-500 opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-1.5 flex items-center gap-1">
+                      ✏️ Click to Edit Text
+                    </span>
+                  </div>
+                  <div *ngIf="editingTextQuestionId() === question.id" class="flex flex-col gap-2 mt-1">
+                    <textarea [ngModel]="editingTextValue"
+                              (ngModelChange)="editingTextValue = $event"
+                              rows="3"
+                              class="w-full text-xl font-black text-gray-900 border-2 border-blue-400 p-3 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white"
+                              (keydown)="onTextKeyDown($event, question)"
+                              (blur)="onBlurText()"
+                              placeholder="Edit question text..."></textarea>
+                    <div class="flex gap-2 justify-end">
+                      <button (click)="editingTextQuestionId.set(null)" 
+                              class="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition">
+                        Cancel
+                      </button>
+                      <button (click)="saveInlineText(question)" 
+                              [disabled]="savingInline()"
+                              class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
+                        {{ savingInline() ? 'Saving...' : 'Save' }}
                       </button>
                     </div>
-                  </ng-container>
-                  <input *ngIf="question.isEditingName" 
-                         #nameInput
-                         [value]="question.name"
-                         (blur)="updateQuestionName(question, nameInput.value)"
-                         (keyup.enter)="updateQuestionName(question, nameInput.value)"
-                         class="text-lg font-bold text-slate-800 bg-white border border-blue-400 rounded-2xl px-4 py-2 outline-none w-full shadow-inner"
-                         autoFocus>
+                  </div>
                 </div>
 
                 <!-- Name & Tags -->
@@ -1062,13 +1074,44 @@
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div *ngFor="let ans of question.answers" 
                          [class]="ans.fraction > 0 ? 'bg-emerald-50/50 text-emerald-800 border-emerald-200 font-bold' : 'bg-slate-50 text-slate-600 border-slate-200'"
-                         class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md">
-                      <span class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm" 
-                            [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-400'">
+                         class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md relative group/choice">
+                      <!-- Toggle Correct Button -->
+                      <button (click)="toggleChoiceCorrect(ans, question)"
+                              [title]="ans.fraction > 0 ? 'Click to make Incorrect' : 'Click to make Correct'"
+                              class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm transition-all transform hover:scale-110 active:scale-95 cursor-pointer" 
+                              [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800 hover:bg-emerald-300' : 'bg-slate-200 text-slate-400 hover:bg-slate-300 hover:text-slate-600'">
                         {{ ans.fraction > 0 ? '✓' : '✗' }}
-                      </span>
+                      </button>
                       <div class="flex-1 min-w-0">
-                        <div class="break-words leading-relaxed dashboard-choice-text" [innerHTML]="ans.answer_text"></div>
+                        <!-- Choice text display -->
+                        <div *ngIf="editingChoiceId() !== ans.id"
+                             (click)="startEditingChoice(ans)"
+                             class="break-words leading-relaxed cursor-pointer hover:bg-black/5 px-2 py-0.5 -mx-2 rounded transition flex items-start gap-1 justify-between">
+                          <span class="dashboard-choice-text" [innerHTML]="ans.answer_text"></span>
+                          <span class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5">✏️ Edit</span>
+                        </div>
+                        
+                        <!-- Choice text edit input -->
+                        <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5">
+                          <textarea [ngModel]="editingChoiceText"
+                                    (ngModelChange)="editingChoiceText = $event"
+                                    rows="2"
+                                    class="w-full text-base font-bold text-slate-900 border border-slate-300 px-2.5 py-1.5 rounded-lg focus:border-blue-500 outline-none bg-white"
+                                    (keydown)="onChoiceKeyDown($event, ans, question)"
+                                    (blur)="onBlurChoice()"></textarea>
+                          <div class="flex gap-1 justify-end">
+                            <button (click)="editingChoiceId.set(null)" 
+                                    class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">
+                              Cancel
+                            </button>
+                            <button (click)="saveChoiceText(ans, question)" 
+                                    [disabled]="savingInline()"
+                                    class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded transition">
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                        
                         <div *ngIf="ans.fraction > 0" class="text-[10px] text-emerald-600/80 font-bold mt-0.5">
                           Correct option ({{ ans.fraction }}% weighting)
                         </div>
