@@ -26,7 +26,6 @@ export class NotificationService {
    * Create a notification for a specific user
    */
   async createNotification(userId: string, type: string, title: string, message: string, metadata: any = {}) {
-    console.log(`[NotificationService] Creating notification for user: ${userId}, type: ${type}`);
     const { error } = await this.supabase.db
       .from('notifications')
       .insert({
@@ -39,8 +38,6 @@ export class NotificationService {
       });
     if (error) {
       console.error('[NotificationService] Error creating notification:', error);
-    } else {
-      console.log('[NotificationService] Notification created successfully');
     }
   }
 
@@ -48,7 +45,6 @@ export class NotificationService {
    * Notify all administrators
    */
   async notifyAdmins(type: string, title: string, message: string, metadata: any = {}) {
-    console.log(`[NotificationService] Notifying all admins, type: ${type}`);
     // 1. Fetch all admin user IDs from registry
     let admins: any[] = [];
     try {
@@ -100,8 +96,6 @@ export class NotificationService {
       
       if (error) {
         console.error('[NotificationService] Error batch inserting admin notifications:', error);
-      } else {
-        console.log(`[NotificationService] Successfully notified ${admins.length} admins`);
       }
     }
   }
@@ -110,7 +104,6 @@ export class NotificationService {
    * Notify all teachers
    */
   async notifyTeachers(type: string, title: string, message: string, metadata: any = {}) {
-    console.log(`[NotificationService] Notifying teachers, type: ${type}`);
     let teachers: { user_id: string }[] = [];
 
     try {
@@ -236,8 +229,6 @@ export class NotificationService {
       
       if (error) {
         console.error('[NotificationService] Error batch inserting teacher notifications:', error);
-      } else {
-        console.log(`[NotificationService] Successfully notified ${teachers.length} teachers`);
       }
     }
   }
@@ -245,11 +236,9 @@ export class NotificationService {
   async loadNotifications() {
     const user = this.supabase.currentUser();
     if (!user) {
-      console.log('[NotificationService] No logged-in user. Skipping notification load.');
       return;
     }
 
-    console.log(`[NotificationService] Loading latest 20 notifications for user: ${user.id}`);
     const { data, error } = await this.supabase.db
       .from('notifications')
       .select('*')
@@ -263,7 +252,6 @@ export class NotificationService {
     }
 
     if (data) {
-      console.log(`[NotificationService] Loaded ${data.length} notifications. Unread count: ${data.filter(n => !n.is_read).length}`);
       this.notifications.set(data);
       this.unreadCount.set(data.filter(n => !n.is_read).length);
     }
@@ -273,7 +261,6 @@ export class NotificationService {
     const user = this.supabase.currentUser();
     if (!user) return;
 
-    console.log(`[NotificationService] Loading up to 200 archive notifications for user: ${user.id}`);
     const { data, error } = await this.supabase.db
       .from('notifications')
       .select('*')
@@ -287,13 +274,11 @@ export class NotificationService {
     }
 
     if (data) {
-      console.log(`[NotificationService] Loaded ${data.length} archive notifications`);
       this.allNotificationsArchive.set(data);
     }
   }
 
   async markAsRead(id: string) {
-    console.log(`[NotificationService] Marking notification ${id} as read...`);
     const { data, error } = await this.supabase.db
       .from('notifications')
       .update({ is_read: true })
@@ -305,7 +290,6 @@ export class NotificationService {
       return;
     }
 
-    console.log('[NotificationService] DB response for update:', data);
     if (!data || data.length === 0) {
       console.warn('[NotificationService] DB update affected 0 rows! This is highly likely an RLS permission issue.');
     }
@@ -324,20 +308,16 @@ export class NotificationService {
     const user = this.supabase.currentUser();
     if (!user) return;
 
-    console.log(`[NotificationService] Marking all unread notifications as read for user ${user.id}`);
-    const { data, error } = await this.supabase.db
+    const { error } = await this.supabase.db
       .from('notifications')
       .update({ is_read: true })
       .eq('user_id', user.id)
-      .eq('is_read', false)
-      .select();
+      .eq('is_read', false);
 
     if (error) {
       console.error('[NotificationService] Error marking all notifications as read in DB:', error);
       return;
     }
-
-    console.log('[NotificationService] DB response for batch update:', data);
 
     this.notifications.update(prev => prev.map(n => ({ ...n, is_read: true })));
     this.allNotificationsArchive.update(prev => prev.map(n => ({ ...n, is_read: true })));
@@ -348,7 +328,6 @@ export class NotificationService {
    * Automatically mark a review notification as read when a review task is completed
    */
   async markReviewNotificationsAsRead(questionId: string, userId?: string) {
-    console.log(`[NotificationService] Clearing review notifications for question ${questionId}, user ${userId || 'all'}`);
     let query = this.supabase.db
       .from('notifications')
       .update({ is_read: true })
@@ -372,7 +351,6 @@ export class NotificationService {
    * Delete or retract active review notifications when a question is withdrawn or returned to draft
    */
   async retractReviewNotifications(questionId: string) {
-    console.log(`[NotificationService] Retracting active review notifications for question ${questionId}`);
     const { error } = await this.supabase.db
       .from('notifications')
       .delete()
@@ -382,7 +360,6 @@ export class NotificationService {
     if (error) {
       console.error('[NotificationService] Error retracting notifications:', error);
     } else {
-      console.log('[NotificationService] Active review notifications retracted successfully');
       this.loadNotifications();
       this.loadAllNotificationsArchive();
     }
