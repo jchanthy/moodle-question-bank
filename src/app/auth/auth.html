@@ -4,16 +4,53 @@
   <div class="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 rounded-none blur-3xl"></div>
 
   <div class="w-full max-w-md bg-white rounded-none shadow-2xl p-8 md:p-12 relative z-10 border border-gray-100">
+    <!-- Header -->
     <div class="text-center mb-10">
       <h2 class="text-3xl font-black text-brand-dark tracking-tight mb-2">
-        Welcome Back
+        {{ isForgotPasswordMode() ? 'Reset Password' : 'Welcome Back' }}
       </h2>
       <p class="text-gray-500 font-medium">
-        Sign in to continue your work
+        {{ isForgotPasswordMode() ? 'Enter your email to receive a recovery link' : 'Sign in to continue your work' }}
       </p>
     </div>
 
-    <form (ngSubmit)="onSubmit()" class="flex flex-col gap-6">
+    <!-- Forgot Password Form -->
+    <form *ngIf="isForgotPasswordMode()" (ngSubmit)="onSendResetLink()" class="flex flex-col gap-6">
+      <div class="flex flex-col gap-2">
+        <label for="reset-email" class="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
+        <p-iconfield iconPosition="left" class="w-full">
+          <p-inputicon styleClass="pi pi-envelope text-gray-400"></p-inputicon>
+          <input pInputText type="email" id="reset-email" name="email" [(ngModel)]="email" placeholder="you@example.com"
+            class="w-full rounded-none py-4" required />
+        </p-iconfield>
+      </div>
+
+      <div *ngIf="errorMessage()"
+        class="bg-red-50 text-red-500 p-4 rounded-none text-xs font-bold flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+        <i class="pi pi-exclamation-circle text-lg"></i>
+        <span>{{ errorMessage() }}</span>
+      </div>
+
+      <div *ngIf="successMessage()"
+        class="bg-green-50 text-green-600 p-4 rounded-none text-xs font-bold flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+        <i class="pi pi-check-circle text-lg"></i>
+        <span>{{ successMessage() }}</span>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <p-button type="submit" label="Send Recovery Link" [loading]="loading()"
+          [disabled]="loading() || !email"
+          styleClass="w-full py-4 rounded-none shadow-lg shadow-blue-500/20 font-bold text-base uppercase tracking-widest">
+        </p-button>
+        <button type="button" (click)="isForgotPasswordMode.set(false); errorMessage.set(''); successMessage.set('')"
+          class="w-full text-center text-xs font-bold text-gray-500 hover:text-gray-700 transition py-2">
+          Back to Sign In
+        </button>
+      </div>
+    </form>
+
+    <!-- Normal Sign In Form -->
+    <form *ngIf="!isForgotPasswordMode()" (ngSubmit)="onSubmit()" class="flex flex-col gap-6">
       <div class="flex flex-col gap-2">
         <label for="email" class="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
         <p-iconfield iconPosition="left" class="w-full">
@@ -24,7 +61,13 @@
       </div>
 
       <div class="flex flex-col gap-2">
-        <label for="password" class="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Password</label>
+        <div class="flex justify-between items-center ml-1">
+          <label for="password" class="text-xs font-bold text-gray-400 uppercase tracking-widest">Password</label>
+          <button type="button" (click)="isForgotPasswordMode.set(true); errorMessage.set(''); successMessage.set('')"
+            class="text-[10px] font-bold text-blue-600 hover:text-blue-700 transition uppercase tracking-wider">
+            Forgot Password?
+          </button>
+        </div>
         <p-iconfield iconPosition="left" class="w-full">
           <p-inputicon styleClass="pi pi-lock text-gray-400"></p-inputicon>
           <p-password [(ngModel)]="password" [toggleMask]="true" [feedback]="false" name="password" id="password"

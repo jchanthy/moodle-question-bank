@@ -1,4 +1,4 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SupabaseService } from '../services/supabase.service';
@@ -17,7 +17,7 @@ import { InputIconModule } from 'primeng/inputicon';
   templateUrl: './auth.html',
   styleUrl: './auth.css'
 })
-export class AuthComponent {
+export class AuthComponent implements OnInit {
   email = '';
   password = '';
   loading = signal(false);
@@ -30,8 +30,16 @@ export class AuthComponent {
   setupPassword = '';
   setupSuccess = signal(false);
   isResetMode = signal(false);
+  isForgotPasswordMode = signal(false);
 
-  constructor(private supabaseService: SupabaseService, private router: Router) {}
+  constructor(private supabaseService: SupabaseService, private router: Router) {
+    effect(() => {
+      if (this.supabaseService.isRecoveryMode()) {
+        this.isPendingSetup.set(true);
+        this.isResetMode.set(true);
+      }
+    });
+  }
 
   async ngOnInit() {
     // If in password recovery/reset mode, show the reset password overlay immediately
@@ -152,6 +160,29 @@ export class AuthComponent {
           this.successMessage.set('Password configured successfully! Access will be granted once the administrator approves your account.');
         }
       }, 3500);
+    } catch (err: any) {
+      this.errorMessage.set(err.message);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  async onSendResetLink() {
+    if (!this.email.trim()) {
+      this.errorMessage.set('Please enter your email address.');
+      return;
+    }
+
+    this.loading.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    try {
+      const { error } = await this.supabaseService.auth.resetPasswordForEmail(this.email.trim(), {
+        redirectTo: `${window.location.origin}/auth`
+      });
+      if (error) throw error;
+      this.successMessage.set('A password reset link has been successfully sent to your email.');
+      this.isForgotPasswordMode.set(false);
     } catch (err: any) {
       this.errorMessage.set(err.message);
     } finally {
