@@ -5,7 +5,7 @@
 /* Custom Global Styles */
 body {
   margin: 0;
-  font-family: 'Inter', 'Kantumruy Pro', system-ui, -apple-system, sans-serif;
+  font-family: 'Kantumruy Pro', 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -73,5 +73,22 @@ a.disabled {
   padding: 2px;
   background-color: white;
   display: block;
+}
+
+/* Global Headings Formatting (Kantumruy Pro Bold) */
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6,
+th, .p-column-title {
+  font-family: 'Kantumruy Pro', 'Inter', sans-serif !important;
+  font-weight: 700 !important;
+}
+
+/* Question Text Elements Formatting (Kantumruy Pro Bold) */
+.question-text,
+[innerHTML*="question_text"],
+[innerHTML*="question.question_text"],
+textarea[formControlName="question_text"] {
+  font-family: 'Kantumruy Pro', 'Inter', sans-serif !important;
+  font-weight: 700 !important;
 }
 

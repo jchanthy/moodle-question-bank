@@ -140,10 +140,10 @@
             <!-- Question Text -->
             <div class="prose prose-blue max-w-none mb-10">
               <!-- Non-gapfill question text -->
-              <div *ngIf="questionForm.get('qtype')?.value !== 'gapfill'" [innerHTML]="questionForm.get('question_text')?.value" class="text-xl font-medium text-gray-800 leading-relaxed"></div>
+              <div *ngIf="questionForm.get('qtype')?.value !== 'gapfill'" [innerHTML]="questionForm.get('question_text')?.value" class="text-xl font-medium text-gray-800 leading-relaxed question-text"></div>
 
               <!-- Gapfill parsed question text -->
-              <div *ngIf="questionForm.get('qtype')?.value === 'gapfill'" class="text-xl font-medium text-gray-800 leading-relaxed flex flex-wrap items-center gap-y-3 gap-x-1.5">
+              <div *ngIf="questionForm.get('qtype')?.value === 'gapfill'" class="text-xl font-medium text-gray-800 leading-relaxed flex flex-wrap items-center gap-y-3 gap-x-1.5 question-text">
                 <ng-container *ngFor="let seg of parsedGapfillSegments()">
                   <span *ngIf="seg.type === 'text'" [innerHTML]="seg.content"></span>
                   

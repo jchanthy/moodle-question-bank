@@ -443,7 +443,19 @@ export class AdminDashboardComponent implements OnInit {
 
   // Unique teachers from the database (Source of Truth)
   availableTeachers = computed(() => {
-    return [...this.allRegisteredTeachers()].sort((a, b) => a.name.localeCompare(b.name));
+    const qMeta = this.allQuestionsMeta();
+    const authorIds = new Set<string>();
+    
+    qMeta.forEach(q => {
+      const authorId = q.metadata?.author_id || q.created_by;
+      if (authorId) {
+        authorIds.add(authorId);
+      }
+    });
+
+    return [...this.allRegisteredTeachers()]
+      .filter(t => authorIds.has(t.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
   });
 
   // Filter questions for the selected teacher (both authored and reviewed)
