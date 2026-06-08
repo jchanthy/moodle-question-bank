@@ -89,6 +89,6 @@ th, .p-column-title {
 [innerHTML*="question.question_text"],
 textarea[formControlName="question_text"] {
   font-family: 'Kantumruy Pro', 'Inter', sans-serif !important;
-  font-weight: 700 !important;
+  font-weight: var(--question-font-weight, 700) !important;
 }
 
