@@ -162,9 +162,19 @@ export class AdminDashboardComponent implements OnInit {
       }, 50);
     }
 
-    // Close on Escape
-    if (event.key === 'Escape' && this.showCommandPalette()) {
-      this.showCommandPalette.set(false);
+    // Close on Escape or clear search text filter
+    if (event.key === 'Escape') {
+      if (this.showCommandPalette()) {
+        this.showCommandPalette.set(false);
+      } else {
+        this.filterSearch.set('');
+        this.debouncedSearch.set('');
+        this.searchSubject.next('');
+        this.currentPage.set(1);
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+          (activeEl as HTMLElement).blur();
+        }
+      }
     }
   }
 
@@ -454,7 +464,12 @@ export class AdminDashboardComponent implements OnInit {
     });
 
     return [...this.allRegisteredTeachers()]
-      .filter(t => authorIds.has(t.id))
+      .filter(t => 
+        authorIds.has(t.id) && 
+        t.role !== 'admin' && 
+        !t.name.toLowerCase().includes('admin') && 
+        !t.email?.toLowerCase().includes('admin')
+      )
       .sort((a, b) => a.name.localeCompare(b.name));
   });
 
@@ -575,7 +590,12 @@ export class AdminDashboardComponent implements OnInit {
           reviewsPending: assigned.filter(q => q.status !== 'approved' && q.status !== 'rejected').length
         }
       };
-    }).sort((a, b) => {
+    })
+    .filter(t => {
+      const activity = t.stats.authoredReady + t.stats.authoredPending + t.stats.reviewsCompleted + t.stats.reviewsPending;
+      return activity > 0;
+    })
+    .sort((a, b) => {
       const activityA = a.stats.authoredReady + a.stats.authoredPending + a.stats.reviewsCompleted + a.stats.reviewsPending;
       const activityB = b.stats.authoredReady + b.stats.authoredPending + b.stats.reviewsCompleted + b.stats.reviewsPending;
       return activityB - activityA;

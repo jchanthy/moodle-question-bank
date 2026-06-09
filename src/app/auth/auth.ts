@@ -83,7 +83,7 @@ export class AuthComponent implements OnInit {
     }
 
     if (approvalStatus === 'suspended') {
-      this.errorMessage.set('Your account access has been revoked by the administrator.');
+      this.errorMessage.set('Invalid login credentials.');
       await this.supabaseService.auth.signOut();
       return;
     }
@@ -225,7 +225,7 @@ export class AuthComponent implements OnInit {
       }
 
       if (approvalStatus === 'suspended') {
-        this.errorMessage.set('Your account access has been revoked by the administrator.');
+        this.errorMessage.set('Invalid login credentials.');
         await this.supabaseService.auth.signOut();
         return;
       }

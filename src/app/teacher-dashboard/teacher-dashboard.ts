@@ -174,9 +174,19 @@ export class TeacherDashboardComponent implements OnInit {
       }, 50);
     }
 
-    // Close on Escape
-    if (event.key === 'Escape' && this.showCommandPalette()) {
-      this.showCommandPalette.set(false);
+    // Close on Escape or clear search text filter
+    if (event.key === 'Escape') {
+      if (this.showCommandPalette()) {
+        this.showCommandPalette.set(false);
+      } else {
+        this.filterKeyword.set('');
+        this.debouncedKeyword.set('');
+        this.keywordSubject.next('');
+        this.currentPage.set(1);
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+          (activeEl as HTMLElement).blur();
+        }
+      }
     }
   }
 
