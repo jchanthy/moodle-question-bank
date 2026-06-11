@@ -302,7 +302,9 @@ export class AdminDashboardComponent implements OnInit {
   questionTypeCounts = signal<TypeCount[]>([]);
   totalQuestions = signal(0);
   // Tabs
-  activeTab = signal<'pending' | 'approved' | 'rejected' | 'draft'>('pending');
+  activeTab = signal<'pending' | 'approved' | 'rejected' | 'draft'>(
+    (sessionStorage.getItem('admin_active_tab') as any) || 'pending'
+  );
   showTypeHelp = signal(false);
 
   // Inline Editing variables
@@ -313,7 +315,9 @@ export class AdminDashboardComponent implements OnInit {
   savingInline = signal(false);
 
   // View state
-  currentView = signal<'questions' | 'team' | 'report' | 'categories' | 'tags'>('questions');
+  currentView = signal<'questions' | 'team' | 'report' | 'categories' | 'tags'>(
+    (sessionStorage.getItem('admin_current_view') as any) || 'questions'
+  );
   selectedTeacherId = signal<string | null>(null);
   tagsList = signal<any[]>([]);
   loadingTags = signal(false);
@@ -362,13 +366,13 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   // Filter state
-  filterTeacher = signal('');
-  filterQtype = signal('');
-  filterCategory = signal('');
-  filterSearch = signal('');
+  filterTeacher = signal(sessionStorage.getItem('admin_filter_teacher') || '');
+  filterQtype = signal(sessionStorage.getItem('admin_filter_qtype') || '');
+  filterCategory = signal(sessionStorage.getItem('admin_filter_category') || '');
+  filterSearch = signal(sessionStorage.getItem('admin_filter_search') || '');
 
   // Debounced filter states to prevent 503 errors
-  debouncedSearch = signal('');
+  debouncedSearch = signal(sessionStorage.getItem('admin_filter_search') || '');
   private searchSubject = new Subject<string>();
 
   showCommandPalette = signal(false);
@@ -760,6 +764,17 @@ export class AdminDashboardComponent implements OnInit {
         });
       }
     });
+
+    // Effect to persist filters
+    effect(() => {
+      sessionStorage.setItem('admin_filter_teacher', this.filterTeacher());
+      sessionStorage.setItem('admin_filter_qtype', this.filterQtype());
+      sessionStorage.setItem('admin_filter_category', this.filterCategory());
+      sessionStorage.setItem('admin_filter_search', this.filterSearch());
+      sessionStorage.setItem('admin_filter_selected_tags', JSON.stringify(this.filterSelectedTags()));
+      sessionStorage.setItem('admin_active_tab', this.activeTab());
+      sessionStorage.setItem('admin_current_view', this.currentView());
+    });
   }
 
   startEditingText(q: Question) {
@@ -1084,7 +1099,24 @@ export class AdminDashboardComponent implements OnInit {
     return result;
   }
 
-  filterSelectedTags = signal<string[]>([]);
+  filteredQuestionTypeCounts = computed(() => {
+    const list = this.filteredQuestions();
+    const countsMap: Record<string, number> = {};
+    list.forEach(q => {
+      countsMap[q.qtype] = (countsMap[q.qtype] || 0) + 1;
+    });
+    
+    return Object.keys(countsMap).map(type => ({
+      type,
+      count: countsMap[type],
+      label: this.typeLabels[type]?.label || type,
+      icon: this.typeLabels[type]?.icon || '❓'
+    })).sort((a, b) => b.count - a.count);
+  });
+
+  filterSelectedTags = signal<string[]>(
+    JSON.parse(sessionStorage.getItem('admin_filter_selected_tags') || '[]')
+  );
   filteredTagsSuggestions = signal<string[]>([]);
 
   searchTagFilters(event: any) {
