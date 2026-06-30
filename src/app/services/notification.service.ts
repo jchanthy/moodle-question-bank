@@ -266,7 +266,9 @@ export class NotificationService {
     const baseUrl = window.location.origin;
     let actionUrl = `${baseUrl}/auth`;
 
-    if (type === 'submitted_for_review') {
+    if (metadata?.test_url) {
+      actionUrl = metadata.test_url;
+    } else if (type === 'submitted_for_review') {
       actionUrl = `${baseUrl}/admin`;
     } else if (type === 'submitted_for_teacher_review') {
       actionUrl = `${baseUrl}/teacher`;
