@@ -246,6 +246,14 @@ export class NotificationService {
    * Send a formatted alert message to the shared Telegram group/channel
    */
   async sendTelegramAlert(title: string, message: string, type: string, metadata: any = {}) {
+    // Skip alerts in local development environment
+    const hostname = window.location.hostname;
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === 'lvh.me' || hostname.startsWith('192.168.') || hostname.startsWith('10.');
+    if (isLocalhost) {
+      console.log('[NotificationService] Telegram alert skipped (running on local development)');
+      return;
+    }
+
     const token = environment.telegramBotToken;
     const chatId = environment.telegramChatId;
     if (!token || !chatId) {
