@@ -1138,6 +1138,15 @@ export class AdminDashboardComponent implements OnInit {
     this.currentPage.set(1);
   }
 
+  testTelegramAlert() {
+    this.notificationService.sendTelegramAlert(
+      'Test Alert',
+      'This is a manual test message from Moodle Question Bank to verify Telegram integration.',
+      'submitted_for_review'
+    );
+    this.messageService.add({ severity: 'success', summary: 'Test Sent', detail: 'Sent test Telegram alert. Check console and Telegram.' });
+  }
+
   hasActiveFilters = computed(() => {
     return !!(
       this.filterTeacher() || 

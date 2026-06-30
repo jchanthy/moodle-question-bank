@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
+import { environment } from '../../environments/environment';
 
 export interface Notification {
   id: string;
@@ -26,6 +27,10 @@ export class NotificationService {
    * Create a notification for a specific user
    */
   async createNotification(userId: string, type: string, title: string, message: string, metadata: any = {}) {
+    if (['question_approved', 'question_rejected', 'teacher_approved', 'teacher_rejected'].includes(type)) {
+      this.sendTelegramAlert(title, message, type, metadata);
+    }
+
     const { error } = await this.supabase.db
       .from('notifications')
       .insert({
@@ -45,6 +50,8 @@ export class NotificationService {
    * Notify all administrators
    */
   async notifyAdmins(type: string, title: string, message: string, metadata: any = {}) {
+    this.sendTelegramAlert(title, message, type, metadata);
+
     // 1. Fetch all admin user IDs from registry
     let admins: any[] = [];
     try {
@@ -104,6 +111,8 @@ export class NotificationService {
    * Notify all teachers
    */
   async notifyTeachers(type: string, title: string, message: string, metadata: any = {}) {
+    this.sendTelegramAlert(title, message, type, metadata);
+
     let teachers: { user_id: string }[] = [];
 
     try {
@@ -230,6 +239,68 @@ export class NotificationService {
       if (error) {
         console.error('[NotificationService] Error batch inserting teacher notifications:', error);
       }
+    }
+  }
+
+  /**
+   * Send a formatted alert message to the shared Telegram group/channel
+   */
+  async sendTelegramAlert(title: string, message: string, type: string, metadata: any = {}) {
+    const token = environment.telegramBotToken;
+    const chatId = environment.telegramChatId;
+    if (!token || !chatId) {
+      return;
+    }
+
+    // Map type to user-friendly emoji status
+    let statusEmoji = '🔔';
+    if (type.includes('approved') || type.includes('ready')) {
+      statusEmoji = '✅';
+    } else if (type.includes('rejected')) {
+      statusEmoji = '❌';
+    } else if (type.includes('submitted')) {
+      statusEmoji = '📝';
+    }
+
+    // Construct a dynamic system URL
+    const baseUrl = window.location.origin;
+    let actionUrl = `${baseUrl}/auth`;
+
+    if (type === 'submitted_for_review') {
+      actionUrl = `${baseUrl}/admin`;
+    } else if (type === 'submitted_for_teacher_review') {
+      actionUrl = `${baseUrl}/teacher`;
+    } else if (metadata?.question_id) {
+      actionUrl = `${baseUrl}/teacher/edit-question/${metadata.question_id}`;
+    } else if (type.includes('approved') || type.includes('rejected')) {
+      actionUrl = `${baseUrl}/teacher`;
+    }
+
+    const htmlMessage = `${statusEmoji} <b>Moodle Question Bank Alert</b>\n\n` +
+      `<b>Action:</b> ${title}\n` +
+      `<b>Detail:</b> ${message}\n\n` +
+      `🔗 <b>Link:</b> <a href="${actionUrl}">${actionUrl}</a>`;
+
+    try {
+      console.log(`[NotificationService] Attempting to send Telegram alert to chat: ${chatId}`);
+      const url = `https://api.telegram.org/bot${token}/sendMessage`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: htmlMessage,
+          parse_mode: 'HTML'
+        })
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error('[NotificationService] Telegram API error response:', errorData);
+      } else {
+        console.log('[NotificationService] Telegram alert sent successfully!');
+      }
+    } catch (err) {
+      console.error('[NotificationService] Failed to send Telegram notification:', err);
     }
   }
 
