@@ -454,6 +454,7 @@ export class AdminDashboardComponent implements OnInit {
   newCategoryDescription = '';
   newCategoryParent: string | null = null;
   newCategoryIsGlobal = false;
+  editingCategoryId = signal<string | null>(null);
 
   // Unique teachers from the database (Source of Truth)
   availableTeachers = computed(() => {
@@ -1709,6 +1710,50 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
+  startEditCategory(cat: Category) {
+    this.editingCategoryId.set(cat.id);
+    this.newCategoryName = cat.name;
+    this.newCategoryDescription = cat.description || '';
+    this.newCategoryParent = cat.parent_id;
+    this.newCategoryIsGlobal = cat.is_global;
+  }
+
+  cancelEditCategory() {
+    this.editingCategoryId.set(null);
+    this.newCategoryName = '';
+    this.newCategoryDescription = '';
+    this.newCategoryParent = null;
+    this.newCategoryIsGlobal = false;
+  }
+
+  async updateCategory() {
+    const id = this.editingCategoryId();
+    if (!id || !this.newCategoryName.trim()) return;
+    
+    if (this.newCategoryParent === id) {
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'A category cannot be its own parent.' });
+      return;
+    }
+
+    const { error } = await this.supabaseService.db
+      .from('question_categories')
+      .update({
+        name: this.newCategoryName,
+        description: this.newCategoryDescription,
+        parent_id: this.newCategoryParent,
+        is_global: this.newCategoryIsGlobal
+      })
+      .eq('id', id);
+
+    if (error) {
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: error.message });
+    } else {
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Category updated' });
+      this.cancelEditCategory();
+      this.loadCategories();
+    }
+  }
+
   flatCategories = computed(() => {
     const flat: any[] = [];
     const build = (parentId: string | null, depth: number) => {
@@ -1733,13 +1778,17 @@ export class AdminDashboardComponent implements OnInit {
         .is('deleted_at', null);
 
       if (qError) throw qError;
-      if (!questions || questions.length === 0) {
+
+      // Filter out system registry records
+      const validQuestions = (questions as Question[] || []).filter(q => q.name !== '__SYSTEM_USER_RECORDS__');
+
+      if (validQuestions.length === 0) {
         this.messageService.add({ severity: 'info', summary: 'No Questions', detail: 'There are no questions with status "Ready" to export.' });
         return;
       }
 
       // 2. Filter questions to match the active filters on the UI (latest versions first)
-      let filtered = questions as Question[];
+      let filtered = validQuestions;
       
       const familyMap = new Map<string, Question>();
       filtered.forEach(q => {

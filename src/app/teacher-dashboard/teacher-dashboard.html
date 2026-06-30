@@ -1023,7 +1023,7 @@
                 <div class="relative group/text mt-2">
                   <div *ngIf="editingTextQuestionId() !== question.id" 
                        (click)="startEditingText(question)"
-                       class="text-xl md:text-2xl font-black text-slate-800 leading-relaxed hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between cursor-pointer">
+                       class="text-xl md:text-2xl font-bold text-slate-800 leading-relaxed hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between cursor-pointer">
                     <div class="flex-1 leading-relaxed question-text" [innerHTML]="question.question_text"></div>
                     <span class="text-xs text-blue-500 opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-1.5 flex items-center gap-1">
                       ✏️ Click to Edit Text
@@ -1033,7 +1033,7 @@
                     <textarea [ngModel]="editingTextValue"
                               (ngModelChange)="editingTextValue = $event"
                               rows="3"
-                              class="w-full text-xl font-black text-gray-900 border-2 border-blue-400 p-3 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white"
+                              class="w-full text-xl font-bold text-gray-900 border-2 border-blue-400 p-3 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white"
                               (keydown)="onTextKeyDown($event, question)"
                               (blur)="onBlurText()"
                               placeholder="Edit question text..."></textarea>
