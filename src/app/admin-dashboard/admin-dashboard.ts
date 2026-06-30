@@ -1138,16 +1138,6 @@ export class AdminDashboardComponent implements OnInit {
     this.currentPage.set(1);
   }
 
-  testTelegramAlert() {
-    this.notificationService.sendTelegramAlert(
-      'Test Alert (Clickable Link Simulation)',
-      'This is a manual test message. In production, this link will automatically point to your system website, but for this local test we are using a public HTTPS URL to show that it is clickable.',
-      'submitted_for_review',
-      { test_url: 'https://github.com' }
-    );
-    this.messageService.add({ severity: 'success', summary: 'Test Sent', detail: 'Sent test Telegram alert. Check Telegram.' });
-  }
-
   hasActiveFilters = computed(() => {
     return !!(
       this.filterTeacher() || 
