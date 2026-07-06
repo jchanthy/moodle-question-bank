@@ -2,7 +2,7 @@
   <div class="max-w-6xl mx-auto">
 
     <!-- Navigation & Header -->
-    <div class="mb-12">
+    <div class="mb-8">
       <a routerLink="/teacher"
         class="text-blue-600 hover:text-blue-800 font-bold flex items-center gap-2 mb-6 group w-fit">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transform group-hover:-translate-x-1 transition"
@@ -11,12 +11,32 @@
         </svg>
         Back to Dashboard
       </a>
-      <h1 class="text-4xl font-black text-gray-900 tracking-tight">Question Type Guide</h1>
-      <p class="text-xl text-gray-500 mt-2">Find the perfect question type for your assessment needs.</p>
+      <h1 class="text-4xl font-black text-gray-900 tracking-tight">Help Center & Guides</h1>
+      <p class="text-xl text-gray-500 mt-2">Learn how to create, format, and import questions into the bank.</p>
     </div>
 
-    <!-- Grouped Sections -->
-    <div class="space-y-16">
+    <!-- Tab Switching -->
+    <div class="flex gap-2 mb-10 bg-white border border-gray-100 p-1.5 shadow-sm w-fit rounded-none">
+      <button (click)="activeSection.set('types')"
+              [class.bg-blue-600]="activeSection() === 'types'"
+              [class.text-white]="activeSection() === 'types'"
+              [class.text-gray-500]="activeSection() !== 'types'"
+              [class.hover:bg-gray-50]="activeSection() !== 'types'"
+              class="px-6 py-3 font-black text-xs uppercase tracking-wider transition-all rounded-none">
+        🔘 Question Types Reference
+      </button>
+      <button (click)="activeSection.set('import')"
+              [class.bg-blue-600]="activeSection() === 'import'"
+              [class.text-white]="activeSection() === 'import'"
+              [class.text-gray-500]="activeSection() !== 'import'"
+              [class.hover:bg-gray-50]="activeSection() !== 'import'"
+              class="px-6 py-3 font-black text-xs uppercase tracking-wider transition-all rounded-none">
+        📄 Document Import Guidelines
+      </button>
+    </div>
+
+    <!-- SECTION 1: QUESTION TYPES REFERENCE -->
+    <div *ngIf="activeSection() === 'types'" class="space-y-16 animate-in fade-in duration-300">
       <section *ngFor="let category of categories" class="animate-fade-in">
         <div class="flex items-center gap-4 mb-8">
           <h2 class="text-2xl font-black text-gray-800">{{ category }} Question Types</h2>
@@ -39,12 +59,88 @@
       </section>
     </div>
 
+    <!-- SECTION 2: DOCUMENT IMPORT GUIDELINES -->
+    <div *ngIf="activeSection() === 'import'" class="space-y-10 animate-in fade-in duration-300">
+      
+      <!-- Core guidelines banner -->
+      <div class="bg-white border border-gray-100 p-8 shadow-sm space-y-6">
+        <h2 class="text-2xl font-black text-gray-900">Word Document (.docx) Formatting Standard</h2>
+        <p class="text-gray-600 text-sm leading-relaxed">
+          Lecturers and teachers can write their questions directly inside a Microsoft Word document (.docx) and import them all at once. To ensure that our automated system can successfully read your file, your document must follow this simple structure:
+        </p>
+
+        <!-- Template Example -->
+        <div class="bg-gray-950 p-6 rounded-none border border-gray-800 text-green-400 font-mono text-xs leading-relaxed max-w-3xl overflow-x-auto relative">
+          <span class="absolute top-3 right-3 text-[10px] uppercase font-bold text-gray-500 tracking-wider">Example Word Template</span>
+          <pre>Level 1:
+
+1. នៅក្នុងកម្មវិធី Word តើ Tab មួយណាដែលត្រូវបានប្រើប្រាស់ដើម្បីកំណត់ Margins (គម្លាតរឹម)?
+A). Design tab
+B). Home tab
+C). Layout tab
+D). View tab
+Answer: C
+
+2. Shortcuts key Ctrl + Home is used to go to start of document.
+A). True
+B). False
+Answer: A
+
+Level 2:
+
+3. What is the default port number of Apache HTTP Server?
+Answer: 80</pre>
+        </div>
+      </div>
+
+      <!-- Format constraints checklist -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Checklist card -->
+        <div class="bg-white border border-gray-100 p-8 shadow-sm space-y-4">
+          <h3 class="text-lg font-black text-gray-900">✅ Clean Formatting Checklist</h3>
+          <ul class="space-y-3 text-sm text-gray-600">
+            <li class="flex items-start gap-2.5">
+              <span class="text-green-600">✔️</span>
+              <span><strong>Question numbers:</strong> Must start with numbers followed by a separator (e.g. <code>1.</code>, <code>2)</code>). Avoid making the numbers bold or italic.</span>
+            </li>
+            <li class="flex items-start gap-2.5">
+              <span class="text-green-600">✔️</span>
+              <span><strong>Choice letters:</strong> Prefix multiple-choice options with <code>A).</code>, <code>B).</code>, <code>C).</code>, <code>D).</code> (or <code>A.</code>, <code>B.</code>).</span>
+            </li>
+            <li class="flex items-start gap-2.5">
+              <span class="text-green-600">✔️</span>
+              <span><strong>Correct Answer indicator:</strong> End every question with a line starting with <code>Answer: </code> followed by the correct choice letter (e.g. <code>Answer: D</code>).</span>
+            </li>
+            <li class="flex items-start gap-2.5">
+              <span class="text-green-600">✔️</span>
+              <span><strong>Difficulty Levels:</strong> Place <code>Level 1:</code> or <code>Level 2:</code> on its own line above the questions to group and tag them automatically.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- AI Assist card -->
+        <div class="bg-blue-50 border border-blue-100 p-8 shadow-sm space-y-4 flex flex-col justify-between">
+          <div>
+            <h3 class="text-lg font-black text-blue-900 flex items-center gap-2">🤖 AI-Assisted Formatting (Recommended)</h3>
+            <p class="text-sm text-blue-700 mt-2 leading-relaxed">
+              If your Word document has messy formatting or does not match our system's structure, you do not need to rewrite it manually! You can copy our custom formatting prompt, paste it into <strong>Gemini</strong>, <strong>ChatGPT</strong>, or any AI tool along with your questions, and it will clean them up for you instantly.
+            </p>
+          </div>
+          <button (click)="copyPromptText()"
+            class="w-full mt-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-widest transition-all rounded-none flex items-center justify-center gap-2 shadow-lg shadow-blue-200">
+            📋 Copy AI Formatting Prompt
+          </button>
+        </div>
+      </div>
+
+    </div>
+
     <!-- Help Footer -->
     <div
-      class="mt-20 bg-blue-600 rounded-none p-10 text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl shadow-blue-200">
+      class="mt-16 bg-blue-600 rounded-none p-10 text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl shadow-blue-200">
       <div class="max-w-md">
-        <h2 class="text-2xl font-bold mb-2">Ready to start?</h2>
-        <p class="text-blue-100">Choose the type that best fits your learning goals and start building.</p>
+        <h2 class="text-2xl font-bold mb-2">Need to add single questions?</h2>
+        <p class="text-blue-100">You can also manually build individual questions using our step-by-step interactive form.</p>
       </div>
       <a routerLink="/teacher/new-question"
         class="bg-white text-blue-600 px-8 py-4 rounded-none font-black shadow-lg hover:bg-gray-100 transition whitespace-nowrap">

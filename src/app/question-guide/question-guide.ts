@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 
@@ -19,6 +19,7 @@ interface QuestionGuideItem {
   styleUrl: './question-guide.css'
 })
 export class QuestionGuideComponent {
+  activeSection = signal<'types' | 'import'>('types');
   guides: QuestionGuideItem[] = [
     // Standard
     {
@@ -152,5 +153,22 @@ export class QuestionGuideComponent {
 
   getGuidesByCategory(category: string) {
     return this.guides.filter(g => g.category === category);
+  }
+
+  copyPromptText() {
+    const prompt = `Please convert my exam questions below to match the Moodle Question Bank DOCX structure.
+
+Rules:
+1. Output questions numbered: "1. Question text" (do not use bold or italic formatting for numbers).
+2. Group them by Level headers if levels are specified (e.g. "Level 1:" or "Level 2:").
+3. Multiple choice options must use the prefix style: "A). text", "B). text", "C). text", "D). text".
+4. Add "Answer: [Correct Letter]" directly on the next line after options.
+
+Here are the questions to convert:
+[PASTE YOUR RAW QUESTIONS HERE]`;
+
+    navigator.clipboard.writeText(prompt).then(() => {
+      alert('AI Formatting Prompt copied to clipboard! You can now paste it into Gemini or ChatGPT.');
+    });
   }
 }
