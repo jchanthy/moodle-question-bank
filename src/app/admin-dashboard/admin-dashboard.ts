@@ -2,7 +2,7 @@ import { Component, inject, signal, computed, OnInit, effect, untracked, HostLis
 import { CommonModule, NgIf, NgFor, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SupabaseService } from '../services/supabase.service';
-import { ImportExportService } from '../services/import-export.service';
+import { ImportExportService, ParsedQuestion } from '../services/import-export.service';
 import { Router, RouterModule } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, firstValueFrom } from 'rxjs';
 import { NotificationService } from '../services/notification.service';
@@ -11,6 +11,7 @@ import { ToastModule } from 'primeng/toast';
 import { PaginatorModule } from 'primeng/paginator';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
+import { DialogModule } from 'primeng/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatButton } from '@angular/material/button';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -80,7 +81,7 @@ interface Category {
   imports: [
     CommonModule, RouterModule, FormsModule,
     AutoCompleteModule, ToastModule, PaginatorModule, ButtonModule,
-    MatIcon
+    DialogModule, MatIcon
   ],
   providers: [MessageService],
   templateUrl: './admin-dashboard.html',
@@ -306,6 +307,18 @@ export class AdminDashboardComponent implements OnInit {
     (sessionStorage.getItem('admin_active_tab') as any) || 'pending'
   );
   showTypeHelp = signal(false);
+
+  // Import properties
+  showImportModal = signal(false);
+  importFormat = signal<'moodle_xml' | 'gift' | 'aiken' | 'word_docx'>('moodle_xml');
+  importText = '';
+  importFileBuffer: ArrayBuffer | null = null;
+  importPreview = signal<ParsedQuestion[]>([]);
+  importLoading = signal(false);
+  importLogs = signal<string[]>([]);
+  importTargetCategoryId = signal<string | null>(null);
+  importNewCategoryName = signal<string>('');
+  importError = signal<string | null>(null);
 
   // Inline Editing variables
   editingTextQuestionId = signal<string | null>(null);
@@ -1883,6 +1896,184 @@ export class AdminDashboardComponent implements OnInit {
 
   showToast(detail: string, severity: 'success' | 'error' | 'info' = 'success', summary = 'Notification') {
     this.messageService.add({ severity, summary, detail });
+  }
+
+  // ====================================================
+  // IMPORT METHODS
+  // ====================================================
+  resetImport() {
+    this.importPreview.set([]);
+    this.importText = '';
+    this.importError.set(null);
+    this.importFileBuffer = null;
+    this.importLogs.set([]);
+  }
+
+  async onImportFileSelected(event: any) {
+    await this.onFileSelected(event);
+  }
+
+  async onFileSelected(event: any) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e: any) => {
+      this.importFileBuffer = e.target.result;
+      
+      if (file.name.endsWith('.xml')) {
+        this.importFormat.set('moodle_xml');
+        this.importText = new TextDecoder().decode(this.importFileBuffer!);
+        this.parseImportPreview();
+      } else if (file.name.endsWith('.docx')) {
+        this.importFormat.set('word_docx');
+        this.importLoading.set(true);
+        try {
+          const questions = await this.importExportService.parseDocx(this.importFileBuffer!);
+          this.importPreview.set(questions);
+        } catch (err) {
+          this.showToast('Failed to parse Word file', 'error');
+        } finally {
+          this.importLoading.set(false);
+        }
+      } else {
+        if (file.name.endsWith('.gift')) {
+          this.importFormat.set('gift');
+        } else if (file.name.endsWith('.aiken')) {
+          this.importFormat.set('aiken');
+        }
+        this.importText = new TextDecoder().decode(this.importFileBuffer!);
+        this.parseImportPreview();
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  parseImportPreview() {
+    if (!this.importText) return;
+    try {
+      let questions: ParsedQuestion[] = [];
+      if (this.importFormat() === 'moodle_xml') {
+        questions = this.importExportService.parseMoodleXML(this.importText);
+      } else if (this.importFormat() === 'gift') {
+        const giftQs = this.importExportService.parseGIFT(this.importText);
+        const smartQs = this.importExportService.parseSmart(this.importText);
+        questions = giftQs.length >= smartQs.length ? giftQs : smartQs;
+      } else if (this.importFormat() === 'aiken') {
+        const aikenQs = this.importExportService.parseAiken(this.importText);
+        const smartQs = this.importExportService.parseSmart(this.importText);
+        questions = smartQs.length >= aikenQs.length ? smartQs : aikenQs;
+      }
+      this.importPreview.set(questions);
+    } catch (err: any) {
+      this.showToast('Failed to parse import data', 'error');
+    }
+  }
+
+  async confirmImport() {
+    const questions = this.importPreview();
+    if (questions.length === 0) return;
+
+    this.importLoading.set(true);
+    let successCount = 0;
+    const user = this.supabaseService.currentUser();
+    if (!user) return;
+
+    let targetCategoryId = this.importTargetCategoryId();
+
+    // Default fallbacks to prevent RLS policy violation due to null category_id insertion
+    if (!targetCategoryId) {
+      targetCategoryId = this.filterCategory();
+    }
+    if (!targetCategoryId && this.flatCategories().length > 0) {
+      targetCategoryId = this.flatCategories()[0].id;
+    }
+
+    // Create a new category first if the user filled in the "Or Create New" input box
+    const newCatName = this.importNewCategoryName()?.trim();
+    if (!targetCategoryId && !newCatName) {
+      this.showToast('No subject category selected or available. Please configure or select a category before importing.', 'error');
+      this.importLoading.set(false);
+      return;
+    }
+
+    if (newCatName) {
+      try {
+        const { data: newCat, error: catErr } = await this.supabaseService.db
+          .from('question_categories')
+          .insert({
+            name: newCatName,
+            created_by: user.id,
+            sort_order: this.categories().length
+          })
+          .select()
+          .single();
+
+        if (catErr) throw catErr;
+        
+        targetCategoryId = newCat.id;
+        console.log('Automatically created category during import:', newCatName, targetCategoryId);
+      } catch (err: any) {
+        console.error('Failed to create category during import:', err);
+        this.showToast('Failed to create new category: ' + (err.message || err), 'error');
+        this.importLoading.set(false);
+        return;
+      }
+    }
+
+    for (const q of questions) {
+      try {
+        const { data: newQ, error: qErr } = await this.supabaseService.db
+          .from('questions')
+          .insert({
+            name: q.name,
+            question_text: q.question_text,
+            qtype: q.qtype,
+            status: 'draft',
+            created_by: user.id,
+            category_id: targetCategoryId,
+            metadata: {
+              author_id: user.id,
+              author_name: this.supabaseService.currentUserName,
+              author_email: user.email,
+              tags: q.metadata?.['tags'] || []
+            }
+          })
+          .select()
+          .single();
+
+        if (qErr) throw qErr;
+
+        if (q.answers && q.answers.length > 0) {
+          const answersToInsert = q.answers.map(a => ({
+            question_id: newQ.id,
+            answer_text: a.answer_text,
+            fraction: a.fraction,
+            feedback: a.feedback
+          }));
+          await this.supabaseService.db.from('answers').insert(answersToInsert);
+        }
+
+        // Sync tags in the tags and question_tags relational tables
+        const importTags = q.metadata?.['tags'] || [];
+        if (importTags.length > 0) {
+          await this.supabaseService.syncQuestionTags(newQ.id, importTags);
+        }
+
+        successCount++;
+      } catch (err: any) {
+        console.error('Import failed for', q.name, err);
+      }
+    }
+
+    this.showToast(`Imported ${successCount} questions as Draft`, 'success');
+    this.importLoading.set(false);
+    this.showImportModal.set(false);
+    this.resetImport();
+    
+    // Refresh admin data
+    this.loadQuestionsForActiveTab();
+    this.loadAllQuestionsData();
   }
 
 }
