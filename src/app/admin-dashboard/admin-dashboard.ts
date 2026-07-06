@@ -1931,7 +1931,14 @@ export class AdminDashboardComponent implements OnInit {
         try {
           const questions = await this.importExportService.parseDocx(this.importFileBuffer!);
           this.importPreview.set(questions);
+          if (questions.length === 0) {
+            this.importError.set('No questions matching the system structure were found. Please verify your Word file format.');
+            this.showToast('No valid questions detected in Word file. Check formatting.', 'error');
+          } else {
+            this.importError.set(null);
+          }
         } catch (err) {
+          this.importError.set('Failed to parse Word file');
           this.showToast('Failed to parse Word file', 'error');
         } finally {
           this.importLoading.set(false);
@@ -1965,8 +1972,15 @@ export class AdminDashboardComponent implements OnInit {
         questions = smartQs.length >= aikenQs.length ? smartQs : aikenQs;
       }
       this.importPreview.set(questions);
+      if (questions.length === 0) {
+        this.importError.set('No questions matching the system structure were found. Please check your file content format.');
+        this.showToast('No valid questions detected. Check formatting.', 'error');
+      } else {
+        this.importError.set(null);
+      }
     } catch (err: any) {
-      this.showToast('Failed to parse import data', 'error');
+      this.importError.set(err.message || 'Failed to parse import data');
+      this.showToast(err.message || 'Failed to parse import data', 'error');
     }
   }
 
