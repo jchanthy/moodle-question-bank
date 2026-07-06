@@ -2281,7 +2281,7 @@
     <!-- Format hint -->
     <div class="bg-blue-50 border border-blue-100 rounded-none p-3 text-xs text-blue-700 leading-relaxed">
       <span *ngIf="importFormat() === 'moodle_xml'">📄 <strong>Moodle XML</strong> — Upload a .xml file exported from Moodle or this system. Supports all question types with full metadata.</span>
-      <span *ngIf="importFormat() === 'gift'">🎁 <strong>GIFT</strong> — Plain text format. Example: <code class="bg-blue-100 px-1 rounded">::Name::What is 2+2? &#x7b;&#x7b; =4 ~3 ~5 &#x7d;&#x7d;</code></span>
+      <span *ngIf="importFormat() === 'gift'">🎁 <strong>GIFT</strong> — Plain text format. Example: <code class="bg-blue-100 px-1 rounded">::Name::What is 2+2? {{ '{{' }}=4 ~3 ~5{{ '}}' }}</code></span>
       <span *ngIf="importFormat() === 'aiken'">📋 <strong>Aiken</strong> — MC only. Choices as <code class="bg-blue-100 px-1 rounded">A. text</code>, answer line as <code class="bg-blue-100 px-1 rounded">ANSWER: A</code></span>
       <span *ngIf="importFormat() === 'word_docx'">📝 <strong>Word (.docx)</strong> — Import questions directly from a Word document. The system will extract text and look for Aiken or GIFT patterns.</span>
     </div>

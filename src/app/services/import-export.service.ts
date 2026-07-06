@@ -419,6 +419,51 @@ ${dropsXml}
     return `${header} {\n${parts}\n}`;
   }
 
+  private parseSimplifiedXML(doc: Document): ParsedQuestion[] {
+    const questions: ParsedQuestion[] = [];
+    doc.querySelectorAll('question').forEach(qEl => {
+      // Check if it matches this simplified format (has <text> and <options>)
+      const textEl = qEl.querySelector('text');
+      const optionsEl = qEl.querySelector('options');
+      if (!textEl || !optionsEl) return;
+
+      const text = textEl.textContent?.trim() || '';
+      const level = qEl.querySelector('level')?.textContent?.trim() || '';
+      const answerVal = qEl.querySelector('answer')?.textContent?.trim() || '';
+
+      const name = text.length > 60 ? text.substring(0, 60) + '...' : text;
+
+      const answers: ParsedAnswer[] = [];
+      qEl.querySelectorAll('option').forEach(optEl => {
+        const val = optEl.getAttribute('val') || '';
+        const optText = optEl.textContent?.trim() || '';
+        const isCorrect = val.toLowerCase() === answerVal.toLowerCase();
+
+        answers.push({
+          answer_text: optText,
+          fraction: isCorrect ? 100 : 0,
+          feedback: ''
+        });
+      });
+
+      questions.push({
+        name: name,
+        question_text: text,
+        qtype: 'multichoice',
+        default_grade: 1,
+        penalty: 0.3333333,
+        general_feedback: '',
+        answers: answers,
+        metadata: {
+          level: level,
+          tags: level ? [level] : []
+        }
+      });
+    });
+
+    return questions;
+  }
+
   // ============================================================
   // IMPORT: Moodle XML
   // ============================================================
@@ -428,6 +473,11 @@ ${dropsXml}
     const doc = parser.parseFromString(xmlString, 'text/xml');
     const parseErr = doc.querySelector('parsererror');
     if (parseErr) throw new Error('Invalid XML file. Please check the file format.');
+
+    const hasOptions = doc.querySelector('question > options');
+    if (hasOptions) {
+      return this.parseSimplifiedXML(doc);
+    }
 
     if (doc.querySelector('digital_economy_quiz') || doc.querySelector('multiple_choice_questions') || doc.querySelector('matching_exercises') || doc.querySelector('general_sections')) {
       return this.parseCustomXML(doc);
