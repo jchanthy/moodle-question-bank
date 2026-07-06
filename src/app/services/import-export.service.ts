@@ -983,6 +983,7 @@ ${dropsXml}
   parseSmart(text: string): ParsedQuestion[] {
     const questions: ParsedQuestion[] = [];
     const lines = text.split(/\n/).map(l => l.trim()).filter(l => l.length > 0);
+    let currentLevel = '';
     
     interface TempChoice {
       key: string;
@@ -1038,7 +1039,7 @@ ${dropsXml}
           default_grade: 1,
           penalty: qtype === 'truefalse' ? 0 : 0.3333333,
           general_feedback: '',
-          metadata: {},
+          metadata: currentLevel ? { level: currentLevel, tags: [currentLevel] } : {},
           answers
         });
       }
@@ -1052,6 +1053,13 @@ ${dropsXml}
 
     for (let idx = 0; idx < lines.length; idx++) {
       const line = lines[idx];
+
+      // Check for Level headers (e.g. "Level 1:" or "L1" or "Level 1")
+      const levelMatch = line.match(/^\s*(Level|L)\s*(\d+)[:.\-]?\s*$/i);
+      if (levelMatch) {
+        currentLevel = `Level ${levelMatch[2]}`;
+        continue;
+      }
 
       // 1. Answer line check
       const answerMatch = line.match(/^(ANSWER|Answer|ans|correct|key|correct\s+answer|correct\s+option|answer\s+key)[:\-=\s]+\s*([A-Za-z0-9])$/i);
@@ -1075,7 +1083,7 @@ ${dropsXml}
         isCorrectInline = ['x', 'X', '✔', '*'].includes(bracketMatch[1].trim());
       } else {
         // Option prefix check: *A. Text or A. *Text or A. Text
-        const prefixMatch = line.match(/^([*✔]?)\s*([A-Za-z])\s*[.)\-]\s*(.*)$/i);
+        const prefixMatch = line.match(/^([*✔]?)\s*([A-Za-z])\s*([.)\-]+)\s*(.*)$/i);
         if (prefixMatch) {
           isChoice = true;
           choiceKey = prefixMatch[2].toUpperCase();
