@@ -1177,15 +1177,20 @@ ${dropsXml}
       // 1. Level check
       const levelMatch = line.match(/^\s*(Level|L|កម្រិត)\s*(\d+)[:.\-៖]?\s*$/i);
       if (levelMatch) {
-        flushCurrent();
+        if (currentBlock && currentBlock.options.length > 0) {
+          flushCurrent();
+        }
         currentLevel = `Level ${levelMatch[2]}`;
+        if (currentBlock) {
+          currentBlock.level = currentLevel;
+        }
         continue;
       }
 
       // 2. Type check
       const typeMatch = line.match(/^\s*(Type|ប្រភេទ|ប្រភេទសំណួរ)[:\-៖\s]+\s*(.+)$/i);
       if (typeMatch) {
-        if (currentBlock && (currentBlock.stemLines.length > 0 || currentBlock.options.length > 0)) {
+        if (currentBlock && (currentBlock.options.length > 0 || currentBlock.type !== '')) {
           flushCurrent();
         }
         if (!currentBlock) currentBlock = createNewBlock();
