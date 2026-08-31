@@ -989,9 +989,28 @@ ${dropsXml}
     }
   }
 
+  private htmlToText(html: string): string {
+    return html
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<p[^>]*>/gi, '')
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<li[^>]*>/gi, '')
+      .replace(/<\/tr>/gi, '\n')
+      .replace(/<tr[^>]*>/gi, '')
+      .replace(/<\/td>/gi, '\n')
+      .replace(/<td[^>]*>/gi, ' ')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&');
+  }
+
   async extractDocxText(arrayBuffer: ArrayBuffer): Promise<string> {
-    const result = await mammoth.extractRawText({ arrayBuffer });
-    return this.normalizeWordText(result.value);
+    const result = await mammoth.convertToHtml({ arrayBuffer });
+    const text = this.htmlToText(result.value);
+    return this.normalizeWordText(text);
   }
 
   parseSmart(text: string): ParsedQuestion[] {
