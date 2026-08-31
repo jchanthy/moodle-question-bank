@@ -715,10 +715,8 @@ ${dropsXml}
 
   parseGIFT(giftText: string): ParsedQuestion[] {
     const questions: ParsedQuestion[] = [];
-    // Remove line comments
-    const cleaned = giftText.replace(/\/\/[^\n]*/g, '').trim();
     // Split on blank lines between questions
-    const blocks = cleaned.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+    const blocks = giftText.trim().split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
 
     let currentCategory = '';
     for (const block of blocks) {
@@ -726,9 +724,25 @@ ${dropsXml}
         currentCategory = block.replace('$CATEGORY:', '').trim();
         continue;
       }
-      const parsed = this.parseGIFTBlock(block);
+      
+      // Extract level comment if present before stripping comments
+      let level = '';
+      const levelMatch = block.match(/\/\/\s*(?:Level|Level\s+Header|កម្រិត)[:\s៖]+\s*(Level\s+\d+|\d+)/i);
+      if (levelMatch) {
+        level = levelMatch[1].toLowerCase().includes('level') ? levelMatch[1] : `Level ${levelMatch[1]}`;
+      }
+
+      // Remove line comments
+      const cleanedBlock = block.replace(/\/\/[^\n]*/g, '').trim();
+      const parsed = this.parseGIFTBlock(cleanedBlock);
       if (parsed) {
         parsed.category_path = currentCategory;
+        if (level) {
+          parsed.metadata = {
+            level: level,
+            tags: [level]
+          };
+        }
         questions.push(parsed);
       }
     }
@@ -813,11 +827,21 @@ ${dropsXml}
     // Multiple choice
     const parts = block.split(/(?=[=~])/).map(p => p.trim()).filter(Boolean);
     parts.forEach(part => {
-      const isCorrect = part.startsWith('=');
-      const text = part.slice(1).trim();
+      const isCorrectSymbol = part.startsWith('=');
+      let text = part.slice(1).trim();
+      
+      let fraction = 0;
+      const percentMatch = text.match(/^%(-?\d+(?:\.\d+)?)%\s*(.*)$/);
+      if (percentMatch) {
+        fraction = parseFloat(percentMatch[1]);
+        text = percentMatch[2].trim();
+      } else {
+        fraction = isCorrectSymbol ? 100 : 0;
+      }
+      
       // Strip inline feedback #...
       const cleanText = text.split('#')[0].trim();
-      answers.push({ answer_text: cleanText, fraction: isCorrect ? 100 : 0, feedback: '' });
+      answers.push({ answer_text: cleanText, fraction, feedback: '' });
     });
 
     return { qtype: 'multichoice', answers };
@@ -957,191 +981,363 @@ ${dropsXml}
   
   async parseDocx(arrayBuffer: ArrayBuffer): Promise<ParsedQuestion[]> {
     try {
-      const result = await mammoth.extractRawText({ arrayBuffer });
-      const text = this.normalizeWordText(result.value);
-      
-      // 1. Try Structured Export first (your custom format)
-      let questions = this.parseStructuredExport(text);
-      
-      // 2. If no structured questions found, use our robust smart layout-aware parser
-      if (questions.length === 0) {
-        questions = this.parseSmart(text);
-      }
-      
-      // 3. If still nothing, try GIFT as a final fallback
-      if (questions.length === 0) {
-        questions = this.parseGIFT(text);
-      }
-      
-      return questions;
+      const text = await this.extractDocxText(arrayBuffer);
+      return this.parseSmart(text);
     } catch (error) {
       console.error('Error parsing DOCX:', error);
       throw new Error('Failed to extract text from Word document. Ensure it is a valid .docx file.');
     }
   }
 
+  async extractDocxText(arrayBuffer: ArrayBuffer): Promise<string> {
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    return this.normalizeWordText(result.value);
+  }
+
   parseSmart(text: string): ParsedQuestion[] {
-    const questions: ParsedQuestion[] = [];
-    const lines = text.split(/\n/).map(l => l.trim()).filter(l => l.length > 0);
-    let currentLevel = '';
+    const giftText = this.convertRawTextToGIFT(text);
+    return this.parseGIFT(giftText);
+  }
+
+  convertRawTextToGIFT(text: string): string {
+    const lines = text.split(/\n/).map(l => l.trim());
     
-    interface TempChoice {
-      key: string;
-      text: string;
-      isCorrect: boolean;
+    interface RawQuestionBlock {
+      level: string;
+      type: string;
+      stemLines: string[];
+      options: { rawLine: string; cleanText: string; isCorrect: boolean }[];
+      correctKeys: Set<string>;
+      answersList: string[];
     }
 
-    let currentQuestion = {
-      question_text: [] as string[],
-      choices: [] as TempChoice[],
-      correctKey: null as string | null
-    };
+    const blocks: RawQuestionBlock[] = [];
+    let currentLevel = '';
+    let currentBlock: RawQuestionBlock | null = null;
+
+    const createNewBlock = (): RawQuestionBlock => ({
+      level: currentLevel,
+      type: '',
+      stemLines: [],
+      options: [],
+      correctKeys: new Set<string>(),
+      answersList: []
+    });
 
     const flushCurrent = () => {
-      if (currentQuestion.question_text.length > 0 && currentQuestion.choices.length > 0) {
-        const qText = currentQuestion.question_text.join('\n').trim();
-        const choices = currentQuestion.choices;
-        const correctKey = currentQuestion.correctKey;
-
-        const answers: ParsedAnswer[] = choices.map(c => {
-          let isCorrect = false;
-          if (correctKey) {
-            isCorrect = c.key.toUpperCase() === correctKey.toUpperCase();
-          } else {
-            isCorrect = c.isCorrect;
-          }
-          return {
-            answer_text: c.text,
-            fraction: isCorrect ? 100 : 0,
-            feedback: ''
-          };
-        });
-
-        // Ensure at least one correct answer exists
-        if (!answers.some(a => a.fraction > 0) && answers.length > 0) {
-          answers[0].fraction = 100;
+      if (currentBlock) {
+        if (currentBlock.stemLines.length > 0) {
+          blocks.push(currentBlock);
         }
+        currentBlock = null;
+      }
+    };
 
-        // True/False detection
-        let qtype = 'multichoice';
-        if (answers.length === 2) {
-          const t1 = answers[0].answer_text.toLowerCase();
-          const t2 = answers[1].answer_text.toLowerCase();
-          if ((t1 === 'true' && t2 === 'false') || (t1 === 'yes' && t2 === 'no')) {
-            qtype = 'truefalse';
-          }
+    const khmerToLatinOptionMap: { [key: string]: string } = {
+      'ក': 'A', 'ខ': 'B', 'គ': 'C', 'ឃ': 'D', 'ង': 'E',
+      'ច': 'F', 'ឆ': 'G', 'ជ': 'H', 'ឈ': 'I', 'ញ': 'J',
+      'ដ': 'K', 'ឋ': 'L', 'ឌ': 'M', 'ឍ': 'N', 'ណ': 'O',
+      'ត': 'P', 'ថ': 'Q', 'ទ': 'R', 'ធ': 'S', 'ន': 'T',
+      'ប': 'U', 'ផ': 'V', 'ព': 'W', 'ភ': 'X', 'ម': 'Y',
+      'យ': 'Z'
+    };
+
+    const khmerToLatin = (char: string): string => {
+      const mapped = khmerToLatinOptionMap[char];
+      return mapped || char.toUpperCase();
+    };
+
+    const isQuestionHeader = (line: string): boolean => {
+      const t = line.trim();
+      const englishRegex = /^(?:Question|Q|No|Num|L|Level)?\s*(?:\d+)\s*[:.)\-៖\s]/i;
+      const khmerRegex = /^(?:សំណួរទី|សំណួរ|លំហាត់ទី|លំហាត់)?\s*(?:[០-៩]+)\s*[:.)\-៖\s]/;
+      const romanRegex = /^(?:Question|Q|No|Num)?\s*(?:[IVXLCDMivxlcdm]+)\s*[:.)\-៖\s]/;
+      return englishRegex.test(t) || khmerRegex.test(t) || romanRegex.test(t);
+    };
+
+    const parseOptionLine = (line: string): { isOption: boolean; key: string; text: string; isCorrect: boolean } | null => {
+      let t = line.trim();
+      let isCorrect = false;
+
+      const correctIndicators = [
+        /\[CORRECT\]/i, /\[correct\]/i, /\(CORRECT\)/i, /\(correct\)/i,
+        /\[✔\]/, /\[x\]/i, /\[X\]/, /\[\*\]/,
+        /\(ចម្លើយត្រឹមត្រូវ\)/, /\(ចម្លើយពិត\)/, /\(ចម្លើយខុស\)/
+      ];
+
+      for (const pattern of correctIndicators) {
+        if (pattern.test(t)) {
+          isCorrect = true;
+          t = t.replace(pattern, '').trim();
         }
-
-        questions.push({
-          name: qText.substring(0, 60),
-          question_text: qText,
-          qtype,
-          default_grade: 1,
-          penalty: qtype === 'truefalse' ? 0 : 0.3333333,
-          general_feedback: '',
-          metadata: currentLevel ? { level: currentLevel, tags: [currentLevel] } : {},
-          answers
-        });
       }
 
-      currentQuestion = {
-        question_text: [] as string[],
-        choices: [] as TempChoice[],
-        correctKey: null
-      };
+      if (t.endsWith('*') || t.endsWith('✔')) {
+        isCorrect = true;
+        t = t.slice(0, -1).trim();
+      }
+      if (t.endsWith('(True)') || t.endsWith('(true)') || t.endsWith('(ចម្លើយត្រឹមត្រូវ)')) {
+        isCorrect = true;
+        t = t.replace(/\((?:True|true|ចម្លើយត្រឹមត្រូវ)\)$/, '').trim();
+      }
+
+      // Checkbox prefixes
+      const checkboxMatch = t.match(/^[-*\s✔]*\[([xX✔*\s]?)\]\s*(.*)$/);
+      if (checkboxMatch) {
+        const checked = checkboxMatch[1].trim();
+        const hasCorrectIndicator = ['x', 'X', '✔', '*'].includes(checked);
+        return {
+          isOption: true,
+          key: '',
+          text: checkboxMatch[2].trim(),
+          isCorrect: isCorrect || hasCorrectIndicator
+        };
+      }
+
+      const symbolBoxMatch = t.match(/^[-*\s✔]*(?:⃞|☐|☒|☑)\s*(.*)$/);
+      if (symbolBoxMatch) {
+        return {
+          isOption: true,
+          key: '',
+          text: symbolBoxMatch[1].trim(),
+          isCorrect: isCorrect || line.includes('☑') || line.includes('☒')
+        };
+      }
+
+      // Latin prefix
+      const latinMatch = t.match(/^([*\-✔]?)\s*\[?([A-Za-z])\]?\s*[.)\-៖\s]+\s*(.*)$/);
+      if (latinMatch) {
+        const prefix = latinMatch[1];
+        const key = latinMatch[2].toUpperCase();
+        const content = latinMatch[3].trim();
+        return {
+          isOption: true,
+          key,
+          text: content,
+          isCorrect: isCorrect || prefix === '*' || prefix === '✔'
+        };
+      }
+
+      // Khmer prefix
+      const khmerMatch = t.match(/^([*\-✔]?)\s*\[?([ក-ងច-ញត-នប-មយ-វស-ឡ])\]?\s*[.)\-៖\s]+\s*(.*)$/);
+      if (khmerMatch) {
+        const prefix = khmerMatch[1];
+        const key = khmerToLatin(khmerMatch[2]);
+        const content = khmerMatch[3].trim();
+        return {
+          isOption: true,
+          key,
+          text: content,
+          isCorrect: isCorrect || prefix === '*' || prefix === '✔'
+        };
+      }
+
+      // Trailing box
+      const trailingBoxMatch = t.match(/^[-*\s✔]*(.*?)\s*(?:⃞|☐|☒|☑|\[([xX✔*\s]?)\])$/);
+      if (trailingBoxMatch) {
+        const content = trailingBoxMatch[1].trim();
+        const checked = trailingBoxMatch[2] ? trailingBoxMatch[2].trim() : '';
+        const hasCorrectIndicator = ['x', 'X', '✔', '*'].includes(checked) || line.includes('☑') || line.includes('☒');
+        return {
+          isOption: true,
+          key: '',
+          text: content,
+          isCorrect: isCorrect || hasCorrectIndicator
+        };
+      }
+
+      return null;
+    };
+
+    const cleanQuestionStem = (stem: string): string => {
+      return stem
+        .replace(/^\s*(?:Question|Q|No|Num|L|Level)?\s*(?:\d+|[០-៩]+|[IVXLCDMivxlcdm]+)\s*[:.)\-៖\s]+/i, '')
+        .trim();
+    };
+
+    const inferTypeFromText = (qText: string, choicesCount: number, correctKeysCount: number): string => {
+      if (qText.includes('ចម្លើយមានតែ១')) {
+        return 'multichoice';
+      }
+      if (qText.includes('ចម្លើយអាចលើសពី១') || correctKeysCount > 1) {
+        return 'multichoice';
+      }
+      if (qText.includes('ខុស ឬ ត្រូវ') || qText.includes('ខុសឬត្រូវ') || qText.includes('ពិត ឬ មិនពិត')) {
+        return 'truefalse';
+      }
+      if (choicesCount === 2) {
+        return 'truefalse';
+      }
+      return 'multichoice';
     };
 
     for (let idx = 0; idx < lines.length; idx++) {
       const line = lines[idx];
+      if (line.length === 0) continue;
 
-      // Check for Level headers (e.g. "Level 1:" or "L1" or "Level 1")
-      const levelMatch = line.match(/^\s*(Level|L)\s*(\d+)[:.\-]?\s*$/i);
+      // 1. Level check
+      const levelMatch = line.match(/^\s*(Level|L|កម្រិត)\s*(\d+)[:.\-៖]?\s*$/i);
       if (levelMatch) {
+        flushCurrent();
         currentLevel = `Level ${levelMatch[2]}`;
         continue;
       }
 
-      // 1. Answer line check
-      const answerMatch = line.match(/^(ANSWER|Answer|ans|correct|key|correct\s+answer|correct\s+option|answer\s+key)[:\-=\s]+\s*([A-Za-z0-9])$/i);
+      // 2. Type check
+      const typeMatch = line.match(/^\s*(Type|ប្រភេទ|ប្រភេទសំណួរ)[:\-៖\s]+\s*(.+)$/i);
+      if (typeMatch) {
+        if (currentBlock && (currentBlock.stemLines.length > 0 || currentBlock.options.length > 0)) {
+          flushCurrent();
+        }
+        if (!currentBlock) currentBlock = createNewBlock();
+        
+        const t = typeMatch[2].toLowerCase().trim();
+        if (t.includes('true') || t.includes('false') || t.includes('ខុស') || t.includes('ត្រូវ') || t.includes('ពិត')) {
+          currentBlock.type = 'truefalse';
+        } else if (t.includes('short') || t.includes('ខ្លី')) {
+          currentBlock.type = 'shortanswer';
+        } else {
+          currentBlock.type = 'multichoice';
+        }
+        continue;
+      }
+
+      // 3. Answer key check
+      const answerMatch = line.match(/^(ANSWER|Answer|ans|correct|key|correct\s+answer|correct\s+option|answer\s+key|ចម្លើយ|ចម្លើយត្រឹមត្រូវ)[:\-=\s៖]+\s*([A-Za-z0-9ក-ងច-ញត-នប-មយ-វស-ឡ\s,;+]+)$/i);
       if (answerMatch) {
-        currentQuestion.correctKey = answerMatch[2].toUpperCase();
-        continue;
-      }
-
-      // 2. Choice option check
-      let isChoice = false;
-      let choiceKey = '';
-      let choiceText = '';
-      let isCorrectInline = false;
-
-      // Bracket style check: [x] A. Text or [ ] B. Text
-      const bracketMatch = line.match(/^\[([xX✔*\s]?)\]\s*([A-Za-z])[.)\-]?\s*(.+)$/i);
-      if (bracketMatch) {
-        isChoice = true;
-        choiceKey = bracketMatch[2].toUpperCase();
-        choiceText = bracketMatch[3].trim();
-        isCorrectInline = ['x', 'X', '✔', '*'].includes(bracketMatch[1].trim());
-      } else {
-        // Option prefix check: *A. Text or A. *Text or A. Text
-        const prefixMatch = line.match(/^([*✔]?)\s*([A-Za-z])\s*([.)\-]+)\s*(.*)$/i);
-        if (prefixMatch) {
-          isChoice = true;
-          choiceKey = prefixMatch[2].toUpperCase();
-          let remainingText = prefixMatch[3].trim();
-
-          const inlineCorrectMatch = remainingText.match(/^([*✔]|\[[xX✔*]\])\s*(.*)$/);
-          if (prefixMatch[1] || inlineCorrectMatch) {
-            isCorrectInline = true;
-            if (inlineCorrectMatch) {
-              remainingText = inlineCorrectMatch[2].trim();
-            }
-          }
-
-          const suffixCorrectMatch = remainingText.match(/^(.*?)\s*([*✔]|\(Correct\)|\(correct\))$/);
-          if (suffixCorrectMatch) {
-            isCorrectInline = true;
-            remainingText = suffixCorrectMatch[1].trim();
-          }
-
-          choiceText = remainingText;
-        }
-      }
-
-      if (isChoice) {
-        currentQuestion.choices.push({
-          key: choiceKey,
-          text: choiceText,
-          isCorrect: isCorrectInline
+        if (!currentBlock) currentBlock = createNewBlock();
+        const keys = answerMatch[2].split(/[\s,;+]+/).map(k => k.trim()).filter(Boolean);
+        keys.forEach(k => {
+          const lat = khmerToLatin(k);
+          currentBlock!.correctKeys.add(lat);
         });
-        if (isCorrectInline) {
-          currentQuestion.correctKey = choiceKey;
+        continue;
+      }
+
+      // 4. Option check
+      const optionParsed = parseOptionLine(line);
+      if (optionParsed) {
+        if (!currentBlock) currentBlock = createNewBlock();
+        
+        currentBlock.options.push({
+          rawLine: line,
+          cleanText: optionParsed.text,
+          isCorrect: optionParsed.isCorrect
+        });
+        
+        if (optionParsed.key) {
+          if (optionParsed.isCorrect) {
+            currentBlock.correctKeys.add(optionParsed.key);
+          }
         }
         continue;
       }
 
-      // 3. Question Header check
-      const qHeaderMatch = line.match(/^(Question|Q|No|Num)?\s*(\d+)[:.)\-]?\s+(.+)$/i);
-      const isNewQuestionHeader = !!qHeaderMatch || !!line.match(/^\s*\d+[\s.)\-]/);
-
-      if (isNewQuestionHeader) {
+      // 5. Question Header check
+      if (isQuestionHeader(line)) {
         flushCurrent();
-        if (qHeaderMatch) {
-          currentQuestion.question_text.push(qHeaderMatch[3].trim());
-        } else {
-          currentQuestion.question_text.push(line.trim());
-        }
+        currentBlock = createNewBlock();
+        currentBlock.stemLines.push(line);
+        continue;
+      }
+
+      // 6. General line
+      if (!currentBlock) currentBlock = createNewBlock();
+
+      if (currentBlock.options.length > 0) {
+        const lastOpt = currentBlock.options[currentBlock.options.length - 1];
+        lastOpt.cleanText = (lastOpt.cleanText + ' ' + line).trim();
       } else {
-        if (currentQuestion.choices.length > 0) {
-          const lastChoice = currentQuestion.choices[currentQuestion.choices.length - 1];
-          lastChoice.text = (lastChoice.text + ' ' + line.trim()).trim();
-        } else {
-          currentQuestion.question_text.push(line.trim());
-        }
+        currentBlock.stemLines.push(line);
       }
     }
-
     flushCurrent();
-    return questions;
+
+    const giftQuestions: string[] = [];
+    let qNumber = 1;
+
+    const escapeGIFT = (str: string): string => {
+      return (str || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/{/g, '\\{')
+        .replace(/}/g, '\\}')
+        .replace(/~/g, '\\~')
+        .replace(/=/g, '\\=')
+        .replace(/#/g, '\\#');
+    };
+
+    const isFalseText = (t: string): boolean => {
+      const l = t.toLowerCase().trim();
+      return l === 'false' || l === 'no' || l === 'មិនពិត' || l === 'ខុស';
+    };
+
+    for (const b of blocks) {
+      const rawStem = b.stemLines.join('\n').trim();
+      const stemText = cleanQuestionStem(rawStem);
+      if (stemText.length === 0) continue;
+
+      let correctCount = 0;
+      const optionsWithCorrectness = b.options.map((opt, optIdx) => {
+        let isCorrect = opt.isCorrect;
+        const letterKey = String.fromCharCode(65 + optIdx);
+        if (b.correctKeys.has(letterKey)) {
+          isCorrect = true;
+        }
+        if (isCorrect) correctCount++;
+        return {
+          text: opt.cleanText,
+          isCorrect
+        };
+      });
+
+      if (correctCount === 0 && optionsWithCorrectness.length > 0) {
+        optionsWithCorrectness[0].isCorrect = true;
+        correctCount = 1;
+      }
+
+      let finalType = b.type;
+      if (!finalType) {
+        finalType = inferTypeFromText(stemText, optionsWithCorrectness.length, correctCount);
+      }
+
+      const escapedStem = escapeGIFT(stemText);
+      const name = `Q${qNumber}`;
+      
+      let giftBlock = '';
+      if (b.level) {
+        giftBlock += `// Level: ${b.level}\n`;
+      }
+      giftBlock += `::${name}:: ${escapedStem} `;
+
+      if (finalType === 'truefalse') {
+        const correctOpt = optionsWithCorrectness.find(o => o.isCorrect);
+        const val = correctOpt && isFalseText(correctOpt.text) ? 'FALSE' : 'TRUE';
+        giftBlock += `{${val}}`;
+      } else if (finalType === 'shortanswer') {
+        const corrects = optionsWithCorrectness.filter(o => o.isCorrect).map(o => `=${escapeGIFT(o.text)}`).join(' ');
+        giftBlock += `{${corrects}}`;
+      } else {
+        if (correctCount > 1) {
+          const percent = parseFloat((100 / correctCount).toFixed(5));
+          const parts = optionsWithCorrectness.map(o => {
+            const fraction = o.isCorrect ? `%${percent}%` : `%-50%`;
+            return `  ~${fraction}${escapeGIFT(o.text)}`;
+          }).join('\n');
+          giftBlock += `{\n${parts}\n}`;
+        } else {
+          const parts = optionsWithCorrectness.map(o => {
+            const prefix = o.isCorrect ? '=' : '~';
+            return `  ${prefix}${escapeGIFT(o.text)}`;
+          }).join('\n');
+          giftBlock += `{\n${parts}\n}`;
+        }
+      }
+
+      giftQuestions.push(giftBlock);
+      qNumber++;
+    }
+
+    return giftQuestions.join('\n\n');
   }
 
   private normalizeWordText(text: string): string {

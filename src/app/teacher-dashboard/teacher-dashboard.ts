@@ -452,6 +452,7 @@ export class TeacherDashboardComponent implements OnInit {
   importText = '';
   importPreview = signal<ParsedQuestion[]>([]);
   importError = signal<string | null>(null);
+  importedGIFTText = signal<string>('');
   importLoading = signal(false);
   importLogs = signal<string[]>([]);
   importFileBuffer: ArrayBuffer | null = null;
@@ -2184,15 +2185,22 @@ export class TeacherDashboardComponent implements OnInit {
 
 
 
+  fileInputElement: HTMLInputElement | null = null;
+
   resetImport() {
     this.importText = '';
     this.importPreview.set([]);
     this.importError.set(null);
     this.importFileBuffer = null;
     this.importLogs.set([]);
+    this.importedGIFTText.set('');
+    if (this.fileInputElement) {
+      this.fileInputElement.value = '';
+    }
   }
 
-  async onImportFileSelected(event: any) {
+  async onImportFileSelected(event: any, element: HTMLInputElement) {
+    this.fileInputElement = element;
     await this.onFileSelected(event);
   }
 
@@ -2212,7 +2220,11 @@ export class TeacherDashboardComponent implements OnInit {
         this.importFormat.set('word_docx');
         this.importLoading.set(true);
         try {
-          const questions = await this.importExportService.parseDocx(this.importFileBuffer!);
+          const docxText = await this.importExportService.extractDocxText(this.importFileBuffer!);
+          const giftText = this.importExportService.convertRawTextToGIFT(docxText);
+          this.importedGIFTText.set(giftText);
+          
+          const questions = this.importExportService.parseGIFT(giftText);
           this.importPreview.set(questions);
           if (questions.length === 0) {
             this.importError.set('No questions matching the system structure were found. Please verify your Word file format.');
@@ -2233,10 +2245,27 @@ export class TeacherDashboardComponent implements OnInit {
           this.importFormat.set('aiken');
         }
         this.importText = new TextDecoder().decode(this.importFileBuffer!);
+        this.importedGIFTText.set(this.importText); // Populate for raw GIFT download if GIFT uploaded
         this.parseImportPreview();
       }
     };
     reader.readAsArrayBuffer(file);
+  }
+
+  downloadConvertedGIFT() {
+    const text = this.importedGIFTText();
+    if (text) {
+      this.importExportService.downloadFile(text, 'converted_questions.gift', 'text/plain;charset=utf-8');
+      this.showToast('Downloaded GIFT file successfully.', 'success');
+    }
+  }
+
+  copyConvertedGIFT() {
+    const text = this.importedGIFTText();
+    if (text) {
+      navigator.clipboard.writeText(text);
+      this.showToast('GIFT format copied to clipboard!', 'success');
+    }
   }
 
   parseImportPreview() {

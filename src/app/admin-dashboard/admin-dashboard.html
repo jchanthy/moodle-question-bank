@@ -2289,8 +2289,8 @@
     <!-- File upload -->
     <div *ngIf="importFormat() !== 'word_docx' || !importText">
       <label class="block text-sm font-bold text-gray-700 mb-2">Upload File</label>
-      <input type="file" [accept]="importFormat() === 'moodle_xml' ? '.xml' : (importFormat() === 'word_docx' ? '.docx' : '.txt,.gift')"
-             (change)="onImportFileSelected($event)"
+      <input type="file" #fileInput [accept]="importFormat() === 'moodle_xml' ? '.xml' : (importFormat() === 'word_docx' ? '.docx' : '.txt,.gift')"
+             (change)="onImportFileSelected($event, fileInput)"
              class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-none file:border-0 file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
     </div>
     <!-- Paste -->
@@ -2380,10 +2380,18 @@
   </div>
 
   <ng-template pTemplate="footer">
-    <p-button label="Cancel" severity="secondary" (click)="showImportModal.set(false)" text="true" />
-    <p-button [label]="importLoading() ? 'Importing...' : 'Import ' + importPreview().length + ' Questions'" 
-              [loading]="importLoading()" 
-              [disabled]="importPreview().length === 0 || importLoading()" 
-              (click)="confirmImport()" />
+    <div class="flex items-center justify-between w-full flex-wrap gap-2">
+      <div class="flex gap-2" *ngIf="importedGIFTText()">
+        <p-button label="Copy GIFT" severity="info" [outlined]="true" icon="pi pi-copy" (click)="copyConvertedGIFT()" size="small" />
+        <p-button label="Download GIFT" severity="success" [outlined]="true" icon="pi pi-download" (click)="downloadConvertedGIFT()" size="small" />
+      </div>
+      <div class="flex gap-2 ml-auto">
+        <p-button label="Cancel" severity="secondary" (click)="showImportModal.set(false)" text="true" />
+        <p-button [label]="importLoading() ? 'Importing...' : 'Import ' + importPreview().length + ' Questions'" 
+                  [loading]="importLoading()" 
+                  [disabled]="importPreview().length === 0 || importLoading()" 
+                  (click)="confirmImport()" />
+      </div>
+    </div>
   </ng-template>
 </p-dialog>
