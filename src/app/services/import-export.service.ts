@@ -1049,10 +1049,9 @@ ${dropsXml}
 
     const isQuestionHeader = (line: string): boolean => {
       const t = line.trim();
-      const englishRegex = /^(?:Question|Q|No|Num|L|Level)?\s*(?:\d+)\s*[:.)\-៖\s]/i;
-      const khmerRegex = /^(?:សំណួរទី|សំណួរ|លំហាត់ទី|លំហាត់)?\s*(?:[០-៩]+)\s*[:.)\-៖\s]/;
-      const romanRegex = /^(?:Question|Q|No|Num)?\s*(?:[IVXLCDMivxlcdm]+)\s*[:.)\-៖\s]/;
-      return englishRegex.test(t) || khmerRegex.test(t) || romanRegex.test(t);
+      const prefixPattern = /^\s*(?:Question|Q|No|Num|L|Level|សំណួរទី|សំណួរ|លំហាត់ទី|លំហាត់)[:\s\-៖]*(?:[a-zA-Z]*\d+|[០-៩]+|[IVXLCDMivxlcdm]+)/i;
+      const standaloneNumberPattern = /^\s*(?:\d+|[០-៩]+|[IVXLCDMivxlcdm]+)\s*[:.)\-៖]/;
+      return prefixPattern.test(t) || standaloneNumberPattern.test(t);
     };
 
     const parseOptionLine = (line: string): { isOption: boolean; key: string; text: string; isCorrect: boolean } | null => {
@@ -1151,7 +1150,7 @@ ${dropsXml}
 
     const cleanQuestionStem = (stem: string): string => {
       return stem
-        .replace(/^\s*(?:Question|Q|No|Num|L|Level)?\s*(?:\d+|[០-៩]+|[IVXLCDMivxlcdm]+)\s*[:.)\-៖\s]+/i, '')
+        .replace(/^\s*(?:Question|Q|No|Num|L|Level|សំណួរទី|សំណួរ|លំហាត់ទី|លំហាត់)[:\s\-៖]*(?:[a-zA-Z]*\d+|[០-៩]+|[IVXLCDMivxlcdm]+)[:.)\-៖\s]*/i, '')
         .trim();
     };
 
@@ -1301,7 +1300,24 @@ ${dropsXml}
       }
 
       const escapedStem = escapeGIFT(stemText);
-      const name = `Q${qNumber}`;
+      const extractQuestionNumber = (stem: string, defaultNum: number): string => {
+        const match = stem.match(/^\s*(?:Question|Q|No|Num|L|Level|សំណួរទី|សំណួរ|លំហាត់ទី|លំហាត់)[:\s\-៖]*([a-zA-Z]*\d+|[០-៩]+|[IVXLCDMivxlcdm]+)/i);
+        if (match) {
+          const numPart = match[1];
+          if (/^[a-zA-Z]/.test(numPart)) {
+            return numPart.toUpperCase();
+          }
+          return `Q${numPart}`;
+        }
+        const directNumberMatch = stem.match(/^\s*(?:\d+|[០-៩]+|[IVXLCDMivxlcdm]+)\s*[:.)\-៖]/);
+        if (directNumberMatch) {
+          const rawNum = directNumberMatch[0].replace(/[:.)\-៖\s]/g, '');
+          return `Q${rawNum}`;
+        }
+        return `Q${defaultNum}`;
+      };
+
+      const name = extractQuestionNumber(rawStem, qNumber);
       
       let giftBlock = '';
       if (b.level) {
