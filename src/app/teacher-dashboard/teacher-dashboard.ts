@@ -2356,48 +2356,69 @@ export class TeacherDashboardComponent implements OnInit {
       }
     }
 
-    for (const q of questions) {
+    const CHUNK_SIZE = 25;
+    for (let i = 0; i < questions.length; i += CHUNK_SIZE) {
+      const chunk = questions.slice(i, i + CHUNK_SIZE);
+      const questionsPayload = chunk.map(q => ({
+        name: q.name,
+        question_text: q.question_text,
+        qtype: q.qtype,
+        status: 'draft',
+        created_by: user.id,
+        category_id: targetCategoryId,
+        metadata: {
+          author_id: user.id,
+          author_name: this.supabaseService.currentUserName,
+          author_email: user.email,
+          tags: q.metadata?.['tags'] || []
+        }
+      }));
+
       try {
-        const { data: newQ, error: qErr } = await this.supabaseService.db
+        const { data: insertedQuestions, error: qErr } = await this.supabaseService.db
           .from('questions')
-          .insert({
-            name: q.name,
-            question_text: q.question_text,
-            qtype: q.qtype,
-            status: 'draft',
-            created_by: user.id,
-            category_id: targetCategoryId,
-            metadata: {
-              author_id: user.id,
-              author_name: this.supabaseService.currentUserName,
-              author_email: user.email,
-              tags: q.metadata?.['tags'] || []
+          .insert(questionsPayload)
+          .select('id, name');
+
+        if (qErr) {
+          console.error('Batch questions insert error:', qErr);
+          continue;
+        }
+
+        if (insertedQuestions && insertedQuestions.length > 0) {
+          const allAnswersToInsert: any[] = [];
+          const tagSyncPromises: Promise<any>[] = [];
+
+          insertedQuestions.forEach((newQ, idx) => {
+            const origQ = chunk[idx];
+            if (origQ && origQ.answers && origQ.answers.length > 0) {
+              origQ.answers.forEach(a => {
+                allAnswersToInsert.push({
+                  question_id: newQ.id,
+                  answer_text: a.answer_text,
+                  fraction: a.fraction,
+                  feedback: a.feedback
+                });
+              });
             }
-          })
-          .select()
-          .single();
 
-        if (qErr) throw qErr;
+            const importTags = origQ?.metadata?.['tags'] || [];
+            if (importTags.length > 0) {
+              tagSyncPromises.push(this.supabaseService.syncQuestionTags(newQ.id, importTags));
+            }
+          });
 
-        if (q.answers && q.answers.length > 0) {
-          const answersToInsert = q.answers.map(a => ({
-            question_id: newQ.id,
-            answer_text: a.answer_text,
-            fraction: a.fraction,
-            feedback: a.feedback
-          }));
-          await this.supabaseService.db.from('answers').insert(answersToInsert);
+          if (allAnswersToInsert.length > 0) {
+            await this.supabaseService.db.from('answers').insert(allAnswersToInsert);
+          }
+          if (tagSyncPromises.length > 0) {
+            await Promise.allSettled(tagSyncPromises);
+          }
+
+          successCount += insertedQuestions.length;
         }
-
-        // Sync tags in the tags and question_tags relational tables
-        const importTags = q.metadata?.['tags'] || [];
-        if (importTags.length > 0) {
-          await this.supabaseService.syncQuestionTags(newQ.id, importTags);
-        }
-
-        successCount++;
       } catch (err: any) {
-        console.error('Import failed for', q.name, err);
+        console.error('Batch import chunk error:', err);
       }
     }
 

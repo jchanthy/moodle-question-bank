@@ -254,6 +254,27 @@ export class NotificationService {
       return;
     }
 
+    // 1. Try invoking Supabase Edge Function (Secure server-side execution)
+    try {
+      const { data, error } = await this.supabase.db.functions.invoke('send-telegram-alert', {
+        body: {
+          title,
+          message,
+          type,
+          metadata,
+          origin: window.location.origin
+        }
+      });
+
+      if (!error && data) {
+        console.log('[NotificationService] Telegram alert dispatched via Edge Function successfully.');
+        return;
+      }
+    } catch (edgeErr) {
+      console.warn('[NotificationService] Edge Function unavailable, using fallback:', edgeErr);
+    }
+
+    // 2. Direct client-side fallback
     const token = environment.telegramBotToken;
     const chatId = environment.telegramChatId;
     if (!token || !chatId) {
