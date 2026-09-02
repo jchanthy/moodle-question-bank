@@ -1481,14 +1481,27 @@
       <div class="bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
         <div class="px-8 py-6 border-b border-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white sticky top-0 z-10">
           <div>
-            <h2 class="text-xl font-extrabold text-gray-900">Teacher Performance Tracking</h2>
-            <p class="text-xs text-gray-400 mt-1">Breakdown of content creation, peer reviews, and settlement eligibility</p>
+            <h2 class="text-xl font-extrabold text-gray-900">Teacher Performance & Monthly Settlement</h2>
+            <p class="text-xs text-gray-400 mt-1">Breakdown of content creation, peer reviews, and monthly billable settlement</p>
           </div>
-          <button (click)="openCostSettingsModal()"
-            class="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-black text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-2 shadow-sm">
-            <span>⚙️</span>
-            <span>Cost & Compensation Rates</span>
-          </button>
+          
+          <div class="flex items-center gap-3">
+            <!-- Billing Month Filter -->
+            <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl">
+              <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Period:</span>
+              <select [ngModel]="selectedBillingMonth()" (ngModelChange)="selectedBillingMonth.set($event)"
+                class="bg-transparent text-xs font-black text-slate-800 outline-none cursor-pointer">
+                <option value="all">All Time (Lifetime)</option>
+                <option *ngFor="let m of availableBillingMonths()" [value]="m">{{ m }}</option>
+              </select>
+            </div>
+
+            <button (click)="openCostSettingsModal()"
+              class="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-black text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-2 shadow-sm">
+              <span>⚙️</span>
+              <span>Cost Rates</span>
+            </button>
+          </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -1610,7 +1623,7 @@
 
       <!-- Report Header — matches Question Bank card style -->
       <div
-        class="bg-white rounded-none border border-gray-100 shadow-sm p-8 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        class="bg-white rounded-none border border-gray-100 shadow-sm p-8 mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div class="flex items-center gap-5">
           <div
             class="w-14 h-14 rounded-none bg-blue-600 flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-blue-100">
@@ -1619,16 +1632,45 @@
           <div>
             <h1 class="text-2xl font-black text-gray-900 tracking-tight">{{ availableTeachers().find(t => t.id ===
               selectedTeacherId())?.name }}</h1>
-            <p class="text-xs font-bold text-blue-500 uppercase tracking-[0.15em] mt-1">Performance & Settlement Report
+            <p class="text-xs font-bold text-blue-500 uppercase tracking-[0.15em] mt-1">Monthly Performance & Settlement Report
             </p>
           </div>
-        <button (click)="currentView.set('team'); selectedTeacherId.set(null)"
-          class="flex items-center gap-2 bg-gray-50 text-gray-600 border border-gray-200 px-5 py-2.5 rounded-none font-bold text-sm hover:bg-gray-100 transition">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          Back to Team
-        </button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          <!-- Billing Month Selector -->
+          <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2">
+            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Billing Period:</span>
+            <select [ngModel]="selectedBillingMonth()" (ngModelChange)="selectedBillingMonth.set($event)"
+              class="bg-transparent text-xs font-black text-slate-800 outline-none cursor-pointer">
+              <option value="all">All Periods (Lifetime)</option>
+              <option *ngFor="let m of availableBillingMonths()" [value]="m">{{ m }}</option>
+            </select>
+          </div>
+
+          <!-- Export CSV Statement Button -->
+          <button (click)="exportMonthlyStatement()"
+            class="flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2 font-bold text-xs uppercase tracking-wider transition shadow-sm">
+            <span>📄</span>
+            <span>Export CSV</span>
+          </button>
+
+          <!-- Batch Settle Button -->
+          <button (click)="batchSettleCurrentMonth()" [disabled]="batchSettling()"
+            class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white px-5 py-2 font-black text-xs uppercase tracking-wider transition shadow-md shadow-emerald-100">
+            <span *ngIf="!batchSettling()">💳</span>
+            <span *ngIf="batchSettling()" class="inline-block animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full"></span>
+            <span>{{ batchSettling() ? 'Settling...' : 'Settle Monthly Payroll' }}</span>
+          </button>
+
+          <button (click)="currentView.set('team'); selectedTeacherId.set(null)"
+            class="flex items-center gap-2 bg-gray-50 text-gray-600 border border-gray-200 px-4 py-2 rounded-none font-bold text-xs uppercase tracking-wider hover:bg-gray-100 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back
+          </button>
+        </div>
       </div>
 
       <!-- Quick Stats Strip -->
@@ -2460,20 +2502,38 @@
       Configure system-wide compensation rates for question authors, reviewers, and approvers. Changes take effect immediately across all teacher settlement calculations.
     </p>
 
-    <!-- Currency Selector -->
-    <div class="bg-slate-50 p-4 border border-slate-200">
-      <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Currency Format</label>
-      <div class="flex gap-3">
-        <button type="button" (click)="adminCostForm.currency = 'USD'; adminCostForm.currencySymbol = '$'"
-          [class]="adminCostForm.currency === 'USD' ? 'bg-blue-600 text-white font-black shadow' : 'bg-white text-slate-700 font-bold border border-slate-200'"
-          class="flex-1 py-2 text-xs uppercase tracking-wider transition text-center">
-          US Dollar ($ USD)
-        </button>
-        <button type="button" (click)="adminCostForm.currency = 'KHR'; adminCostForm.currencySymbol = '៛'"
-          [class]="adminCostForm.currency === 'KHR' ? 'bg-blue-600 text-white font-black shadow' : 'bg-white text-slate-700 font-bold border border-slate-200'"
-          class="flex-1 py-2 text-xs uppercase tracking-wider transition text-center">
-          Khmer Riel (៛ KHR)
-        </button>
+    <!-- Currency & Model Selector -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 border border-slate-200">
+      <div>
+        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Currency Format</label>
+        <div class="flex gap-2">
+          <button type="button" (click)="adminCostForm.currency = 'USD'; adminCostForm.currencySymbol = '$'"
+            [class]="adminCostForm.currency === 'USD' ? 'bg-blue-600 text-white font-black shadow' : 'bg-white text-slate-700 font-bold border border-slate-200'"
+            class="flex-1 py-1.5 text-xs uppercase tracking-wider transition text-center">
+            US Dollar ($ USD)
+          </button>
+          <button type="button" (click)="adminCostForm.currency = 'KHR'; adminCostForm.currencySymbol = '៛'"
+            [class]="adminCostForm.currency === 'KHR' ? 'bg-blue-600 text-white font-black shadow' : 'bg-white text-slate-700 font-bold border border-slate-200'"
+            class="flex-1 py-1.5 text-xs uppercase tracking-wider transition text-center">
+            Khmer Riel (៛ KHR)
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Pricing Model</label>
+        <div class="flex gap-2">
+          <button type="button" (click)="adminCostForm.rateMode = 'flat'"
+            [class]="adminCostForm.rateMode !== 'qtype' ? 'bg-emerald-600 text-white font-black shadow' : 'bg-white text-slate-700 font-bold border border-slate-200'"
+            class="flex-1 py-1.5 text-xs uppercase tracking-wider transition text-center">
+            Flat Rate Mode
+          </button>
+          <button type="button" (click)="adminCostForm.rateMode = 'qtype'"
+            [class]="adminCostForm.rateMode === 'qtype' ? 'bg-emerald-600 text-white font-black shadow' : 'bg-white text-slate-700 font-bold border border-slate-200'"
+            class="flex-1 py-1.5 text-xs uppercase tracking-wider transition text-center">
+            By Question Type
+          </button>
+        </div>
       </div>
     </div>
 
@@ -2511,7 +2571,7 @@
     </div>
 
     <!-- Question Format Specific Overrides -->
-    <div>
+    <div *ngIf="adminCostForm.rateMode === 'qtype'">
       <div class="flex items-center justify-between mb-2">
         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Question Type Specific Rates (Author Payout)</label>
         <span class="text-[9px] text-slate-400 font-bold">Overrides default creator rate</span>
@@ -2528,6 +2588,12 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <div *ngIf="adminCostForm.rateMode !== 'qtype'" class="p-4 bg-emerald-50/50 border border-emerald-100 text-center">
+      <p class="text-xs text-emerald-800 font-bold">
+        ⚡ Flat Rate Mode is active: Every approved question is paid uniformly at {{ adminCostForm.currencySymbol }}{{ adminCostForm.creatorBaseRate }} regardless of question format.
+      </p>
     </div>
 
   </div>

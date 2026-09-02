@@ -38,8 +38,12 @@ interface Question {
     assigned_to_name?: string;
     assigned_reviewers?: { id: string, name: string }[];
     paid_at?: string;
+    paid_by?: string;
+    settlement_period?: string;
+    settlement_notes?: string;
     comments?: { user: string; text: string; date: string }[];
     tags?: string[];
+    [key: string]: any;
   };
   created_at: string;
   updated_at?: string;
@@ -493,6 +497,33 @@ export class AdminDashboardComponent implements OnInit {
       .sort((a, b) => a.name.localeCompare(b.name));
   });
 
+  // Billing & Monthly Settlement State
+  selectedBillingMonth = signal<string>('all');
+  batchSettling = signal(false);
+
+  availableBillingMonths = computed(() => {
+    const months = new Set<string>();
+    const allQs = this.allQuestions();
+    
+    allQs.forEach(q => {
+      const dateStr = q.updated_at || q.created_at;
+      if (dateStr) {
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) {
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          months.add(`${yyyy}-${mm}`);
+        }
+      }
+    });
+
+    // Also include current month by default
+    const now = new Date();
+    months.add(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+
+    return Array.from(months).sort((a, b) => b.localeCompare(a));
+  });
+
   // Filter questions for the selected teacher (both authored and reviewed)
   selectedTeacherTasks = computed(() => {
     const tid = this.selectedTeacherId();
@@ -500,6 +531,7 @@ export class AdminDashboardComponent implements OnInit {
     
     const allQs = this.allQuestions();
     const assignments = this.allAssignments();
+    const billingMonth = this.selectedBillingMonth();
 
     // Deduplicate by family to only show latest version of each task
     const familyMap = new Map<string, Question>();
@@ -523,7 +555,18 @@ export class AdminDashboardComponent implements OnInit {
         a.assigned_to_id === tid
       );
       
-      return isAuthor || isReviewer;
+      if (!isAuthor && !isReviewer) return false;
+
+      // Filter by billing month if a specific month is selected
+      if (billingMonth !== 'all') {
+        const qDate = new Date(q.updated_at || q.created_at);
+        if (!isNaN(qDate.getTime())) {
+          const yyyyMm = `${qDate.getFullYear()}-${String(qDate.getMonth() + 1).padStart(2, '0')}`;
+          if (yyyyMm !== billingMonth) return false;
+        }
+      }
+
+      return true;
     })
       .map(q => {
         const isAuthor = q.created_by === tid || q.metadata?.author_id === tid;
@@ -550,7 +593,8 @@ export class AdminDashboardComponent implements OnInit {
           isAuthor,
           isReviewer,
           payoutAmount,
-          isPaid: !!q.metadata?.paid_at
+          isPaid: !!q.metadata?.paid_at,
+          settlementPeriod: q.metadata?.settlement_period
         };
       })
       .sort((a, b) => {
@@ -578,6 +622,7 @@ export class AdminDashboardComponent implements OnInit {
     const teachers = this.allRegisteredTeachers().filter(t => t.role !== 'admin');
     const assignments = this.allAssignments();
     const allQs = this.allQuestions();
+    const billingMonth = this.selectedBillingMonth();
     
     // Create a map of question IDs for quick lookup
     const qMap = new Map<string, any>();
@@ -585,7 +630,15 @@ export class AdminDashboardComponent implements OnInit {
 
     return teachers.map(t => {
       // 1. Authored stats - Deduplicate by family to count unique questions
-      const myAuthoredRaw = allQs.filter(q => q.created_by === t.id || q.metadata?.author_id === t.id);
+      let myAuthoredRaw = allQs.filter(q => q.created_by === t.id || q.metadata?.author_id === t.id);
+      
+      if (billingMonth !== 'all') {
+        myAuthoredRaw = myAuthoredRaw.filter(q => {
+          const d = new Date(q.updated_at || q.created_at);
+          return !isNaN(d.getTime()) && `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === billingMonth;
+        });
+      }
+
       const familyMap = new Map<string, Question>();
       myAuthoredRaw.forEach(q => {
         const familyId = q.parent_id || q.id;
@@ -598,12 +651,19 @@ export class AdminDashboardComponent implements OnInit {
       
       // 2. Review stats (from the assignments table)
       const myAssignments = assignments.filter(a => a.assigned_to_id === t.id);
-      const assigned = myAssignments.map(a => {
+      let assigned = myAssignments.map(a => {
         // Find the latest version of the question for this assignment
         const versions = allQs.filter(v => v.id === a.question_id || v.parent_id === a.question_id);
         return versions.sort((a, b) => b.version - a.version)[0];
       }).filter(q => !!q);
       
+      if (billingMonth !== 'all') {
+        assigned = assigned.filter(q => {
+          const d = new Date(q.updated_at || q.created_at);
+          return !isNaN(d.getTime()) && `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === billingMonth;
+        });
+      }
+
       const authoredReadyQs = authored.filter(q => q.status === 'approved');
       const reviewsCompletedQs = assigned.filter(q => q.status === 'approved' || q.status === 'rejected');
 
@@ -1401,6 +1461,126 @@ export class AdminDashboardComponent implements OnInit {
       this.loadQuestionsForActiveTab();
       this.loadAllQuestionsData();
     }
+  }
+
+  async batchSettleCurrentMonth(teacherId?: string) {
+    const tid = teacherId || this.selectedTeacherId();
+    if (!tid) return;
+
+    const teacher = this.availableTeachers().find(t => t.id === tid) || this.allRegisteredTeachers().find(t => t.id === tid);
+    const teacherName = teacher?.name || 'Teacher';
+    const month = this.selectedBillingMonth();
+    const periodLabel = month === 'all' ? 'All Unsettled Tasks' : `Month (${month})`;
+
+    const unpaidApprovedTasks = this.selectedTeacherTasks().filter(t => !t.isPaid && t.status === 'approved');
+    if (unpaidApprovedTasks.length === 0) {
+      this.showToast(`No unsettled approved questions found for ${periodLabel}.`, 'info');
+      return;
+    }
+
+    const totalPayout = unpaidApprovedTasks.reduce((sum, t) => sum + (t.payoutAmount || 0), 0);
+    const formattedTotal = this.supabaseService.formatCurrency(totalPayout);
+
+    const confirmMsg = `Confirm monthly payroll settlement for ${teacherName}?\n\nPeriod: ${periodLabel}\nTotal Approved Questions: ${unpaidApprovedTasks.length}\nTotal Payout: ${formattedTotal}`;
+    if (!confirm(confirmMsg)) return;
+
+    this.batchSettling.set(true);
+    try {
+      const qIds = unpaidApprovedTasks.map(t => t.id);
+      const settlementPeriod = month === 'all' ? new Date().toISOString().substring(0, 7) : month;
+      const ok = await this.supabaseService.batchSettleQuestions(qIds, settlementPeriod, `Monthly settlement for ${teacherName} (${periodLabel})`);
+
+      if (ok) {
+        this.showToast(`Successfully settled ${unpaidApprovedTasks.length} questions (${formattedTotal}) for ${teacherName}!`, 'success');
+        await this.loadAllQuestionsData();
+      } else {
+        throw new Error('Database update returned failure');
+      }
+    } catch (err: any) {
+      this.showToast('Batch settlement failed: ' + err.message, 'error');
+    } finally {
+      this.batchSettling.set(false);
+    }
+  }
+
+  exportMonthlyStatement(teacherId?: string) {
+    const tid = teacherId || this.selectedTeacherId();
+    if (!tid) return;
+
+    const teacher = this.availableTeachers().find(t => t.id === tid) || this.allRegisteredTeachers().find(t => t.id === tid);
+    const teacherName = teacher?.name || 'Teacher';
+    const teacherEmail = teacher?.email || 'N/A';
+    const month = this.selectedBillingMonth();
+    const periodLabel = month === 'all' ? 'All Time' : month;
+
+    const tasks = this.selectedTeacherTasks();
+    if (tasks.length === 0) {
+      this.showToast('No tasks to export.', 'info');
+      return;
+    }
+
+    // Build CSV Content
+    let csv = `\uFEFF`; // UTF-8 BOM for Excel compatibility
+    csv += `MONTHLY SETTLEMENT & PAYROLL STATEMENT\n`;
+    csv += `Teacher Name,${this.escapeCsv(teacherName)}\n`;
+    csv += `Teacher Email,${this.escapeCsv(teacherEmail)}\n`;
+    csv += `Billing Period,${this.escapeCsv(periodLabel)}\n`;
+    csv += `Generated Date,${new Date().toISOString()}\n`;
+    csv += `\n`;
+    csv += `Question ID,Question Title,Format,Role,Status,Payment Status,Settlement Period,Rate / Payout,Created Date,Updated Date\n`;
+
+    let totalBillable = 0;
+    let totalEarned = 0;
+
+    tasks.forEach(q => {
+      const isApproved = q.status === 'approved';
+      if (isApproved) {
+        totalBillable++;
+        totalEarned += (q.payoutAmount || 0);
+      }
+      const plainTitle = (q.name || q.question_text || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      const roleStr = q.isAuthor ? 'Author' : (q.isReviewer ? 'Reviewer' : 'Contributor');
+      const payStatus = q.isPaid ? 'Settled' : (isApproved ? 'Ready for Payout' : 'In Progress');
+      const period = q.settlementPeriod || (isApproved ? periodLabel : '---');
+
+      csv += [
+        this.escapeCsv(q.id),
+        this.escapeCsv(plainTitle),
+        this.escapeCsv(q.qtype),
+        this.escapeCsv(roleStr),
+        this.escapeCsv(q.status),
+        this.escapeCsv(payStatus),
+        this.escapeCsv(period),
+        this.escapeCsv(this.supabaseService.formatCurrency(q.payoutAmount || 0)),
+        this.escapeCsv(q.created_at ? new Date(q.created_at).toLocaleDateString() : ''),
+        this.escapeCsv(q.updated_at ? new Date(q.updated_at).toLocaleDateString() : '')
+      ].join(',') + '\n';
+    });
+
+    csv += `\n`;
+    csv += `SUMMARY\n`;
+    csv += `Total Tasks,${tasks.length}\n`;
+    csv += `Total Approved Billable Questions,${totalBillable}\n`;
+    csv += `Total Settlement Amount,${this.escapeCsv(this.supabaseService.formatCurrency(totalEarned))}\n`;
+
+    // Trigger download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Monthly_Statement_${teacherName.replace(/\s+/g, '_')}_${periodLabel}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    this.showToast(`Exported monthly statement for ${teacherName}`, 'success');
+  }
+
+  private escapeCsv(val: any): string {
+    if (val === null || val === undefined) return '""';
+    const str = String(val).replace(/"/g, '""');
+    return `"${str}"`;
   }
 
   async updateStatus(id: string, status: 'approved' | 'rejected') {

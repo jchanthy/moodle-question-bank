@@ -6,6 +6,9 @@ import { Router } from '@angular/router';
 export interface CompensationSettings {
   currency: 'USD' | 'KHR' | string;
   currencySymbol: string;
+  rateMode?: 'flat' | 'qtype';        // 'flat': single rate per approved question, 'qtype': custom rate per type
+  payoutCycle?: 'monthly' | 'biweekly' | 'per_question'; // Payment frequency
+  monthlyCutoffDay?: number;          // Day of month (e.g. 25, 30) for cutoff
   creatorBaseRate: number;            // Rate per created & approved question
   reviewerBaseRate: number;           // Rate per completed peer review
   approverBaseRate: number;           // Rate per admin approval
@@ -18,19 +21,22 @@ export interface CompensationSettings {
 export const DEFAULT_COMPENSATION_SETTINGS: CompensationSettings = {
   currency: 'USD',
   currencySymbol: '$',
-  creatorBaseRate: 0.50,
-  reviewerBaseRate: 0.25,
-  approverBaseRate: 0.10,
+  rateMode: 'flat',
+  payoutCycle: 'monthly',
+  monthlyCutoffDay: 30,
+  creatorBaseRate: 5.00,
+  reviewerBaseRate: 1.00,
+  approverBaseRate: 0.50,
   qtypeRates: {
-    multichoice: 0.50,
-    truefalse: 0.30,
-    shortanswer: 0.50,
-    match: 0.75,
-    gapfill: 0.80,
-    ddmarker: 1.00,
-    essay: 0.60
+    multichoice: 5.00,
+    truefalse: 3.00,
+    shortanswer: 5.00,
+    match: 7.00,
+    gapfill: 8.00,
+    ddmarker: 10.00,
+    essay: 6.00
   },
-  payoutNotes: 'Standard question bank compensation rate.'
+  payoutNotes: 'Standard monthly question bank payroll rate.'
 };
 
 @Injectable({
@@ -399,13 +405,50 @@ export class SupabaseService {
     let total = 0;
 
     if (isAuthor) {
-      const qRate = s.qtypeRates?.[qtype];
-      total += (qRate !== undefined && qRate !== null && !isNaN(Number(qRate))) ? Number(qRate) : Number(s.creatorBaseRate || 0);
+      if (s.rateMode === 'qtype' && s.qtypeRates?.[qtype] !== undefined && s.qtypeRates?.[qtype] !== null && !isNaN(Number(s.qtypeRates[qtype]))) {
+        total += Number(s.qtypeRates[qtype]);
+      } else {
+        total += Number(s.creatorBaseRate || 0);
+      }
     }
     if (isReviewer) {
       total += Number(s.reviewerBaseRate || 0);
     }
     return Math.round(total * 100) / 100;
+  }
+
+  async batchSettleQuestions(questionIds: string[], settlementPeriod: string, notes?: string): Promise<boolean> {
+    if (!questionIds || questionIds.length === 0) return true;
+    try {
+      const nowIso = new Date().toISOString();
+      const currentAdmin = this.currentUserName || 'Admin';
+
+      // Fetch questions to merge metadata safely
+      const { data: questions, error: fetchErr } = await this.supabase
+        .from('questions')
+        .select('id, metadata')
+        .in('id', questionIds);
+
+      if (fetchErr) throw fetchErr;
+
+      // Update in parallel chunks
+      const updates = (questions || []).map(q => {
+        const metadata = {
+          ...(q.metadata || {}),
+          paid_at: nowIso,
+          paid_by: currentAdmin,
+          settlement_period: settlementPeriod,
+          settlement_notes: notes || 'Monthly payroll settlement batch'
+        };
+        return this.supabase.from('questions').update({ metadata }).eq('id', q.id);
+      });
+
+      await Promise.all(updates);
+      return true;
+    } catch (err) {
+      console.error('Failed to batch settle questions:', err);
+      return false;
+    }
   }
 
   formatCurrency(amount: number): string {

@@ -246,24 +246,59 @@
             </div>
             <h2 class="text-2xl font-black tracking-tight">Question Bank Compensation & Cost Rates</h2>
             <p class="text-xs text-slate-300 font-medium mt-1 leading-relaxed">
-              Define the payment and cost calculations for question authors, peer reviewers, and approvers. These rates automatically determine settlement totals and performance payouts across the platform.
+              Define the payment calculations and monthly settlement cycle for question creators, reviewers, and approvers. Payouts are calculated strictly on QA approved questions and batched monthly.
             </p>
           </div>
           
-          <div class="bg-white/10 backdrop-blur-sm border border-white/10 p-4 min-w-[240px]">
-            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Selected Currency</div>
-            <div class="flex gap-2">
-              <button type="button" (click)="onCurrencyChange('USD')"
-                [class]="compensationForm.currency === 'USD' ? 'bg-emerald-500 text-white font-black' : 'bg-white/5 text-slate-300 hover:bg-white/20'"
-                class="flex-1 py-2 px-3 text-xs uppercase tracking-wider transition border border-white/10 text-center font-bold">
-                USD ($)
-              </button>
-              <button type="button" (click)="onCurrencyChange('KHR')"
-                [class]="compensationForm.currency === 'KHR' ? 'bg-emerald-500 text-white font-black' : 'bg-white/5 text-slate-300 hover:bg-white/20'"
-                class="flex-1 py-2 px-3 text-xs uppercase tracking-wider transition border border-white/10 text-center font-bold">
-                KHR (៛)
-              </button>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <!-- Currency selector -->
+            <div class="bg-white/10 backdrop-blur-sm border border-white/10 p-4 min-w-[180px]">
+              <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Currency</div>
+              <div class="flex gap-2">
+                <button type="button" (click)="onCurrencyChange('USD')"
+                  [class]="compensationForm.currency === 'USD' ? 'bg-emerald-500 text-white font-black' : 'bg-white/5 text-slate-300 hover:bg-white/20'"
+                  class="flex-1 py-1.5 px-2 text-xs uppercase tracking-wider transition border border-white/10 text-center font-bold">
+                  USD ($)
+                </button>
+                <button type="button" (click)="onCurrencyChange('KHR')"
+                  [class]="compensationForm.currency === 'KHR' ? 'bg-emerald-500 text-white font-black' : 'bg-white/5 text-slate-300 hover:bg-white/20'"
+                  class="flex-1 py-1.5 px-2 text-xs uppercase tracking-wider transition border border-white/10 text-center font-bold">
+                  KHR (៛)
+                </button>
+              </div>
             </div>
+
+            <!-- Rate Mode selector -->
+            <div class="bg-white/10 backdrop-blur-sm border border-white/10 p-4 min-w-[210px]">
+              <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Rate Model</div>
+              <div class="flex gap-2">
+                <button type="button" (click)="compensationForm.rateMode = 'flat'"
+                  [class]="compensationForm.rateMode !== 'qtype' ? 'bg-blue-600 text-white font-black' : 'bg-white/5 text-slate-300 hover:bg-white/20'"
+                  class="flex-1 py-1.5 px-2 text-xs uppercase tracking-wider transition border border-white/10 text-center font-bold">
+                  Flat Rate
+                </button>
+                <button type="button" (click)="compensationForm.rateMode = 'qtype'"
+                  [class]="compensationForm.rateMode === 'qtype' ? 'bg-blue-600 text-white font-black' : 'bg-white/5 text-slate-300 hover:bg-white/20'"
+                  class="flex-1 py-1.5 px-2 text-xs uppercase tracking-wider transition border border-white/10 text-center font-bold">
+                  By Type
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Monthly Payroll Schedule Notice -->
+        <div class="mt-6 pt-6 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+          <div class="flex items-center gap-3">
+            <span class="p-2 bg-emerald-500/20 text-emerald-300 text-base border border-emerald-500/30">🗓️</span>
+            <div>
+              <div class="font-black text-white uppercase tracking-wider text-[11px]">Monthly Payout & Settlement Cycle Active</div>
+              <div class="text-slate-400 text-[11px]">Approved questions accumulate each calendar month and are settled in batches at month-end.</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 bg-white/5 px-4 py-2 border border-white/10">
+            <span class="text-slate-400 text-[10px] uppercase tracking-wider font-bold">Monthly Cut-off:</span>
+            <span class="text-emerald-400 font-black text-xs">Last Day of Each Month (Day {{ compensationForm.monthlyCutoffDay || 30 }})</span>
           </div>
         </div>
       </div>
@@ -345,15 +380,27 @@
           <div>
             <h3 class="text-base font-black text-gray-900 uppercase tracking-wider">Question Type Specific Rate Overrides</h3>
             <p class="text-xs text-gray-400 font-medium mt-0.5">
-              Set custom payout rates for complex question formats (e.g. higher rates for Drag & Drop or Cloze questions).
+              {{ compensationForm.rateMode === 'flat' ? 'Flat rate mode is currently active: all approved questions are paid at the uniform base rate (' + compensationForm.currencySymbol + compensationForm.creatorBaseRate + '/question).' : 'Set custom payout rates for complex question formats (e.g. higher rates for Drag & Drop or Cloze questions).' }}
             </p>
           </div>
-          <span class="text-[10px] text-blue-600 font-black uppercase tracking-widest bg-blue-50 px-3 py-1 border border-blue-100">
-            Optional Overrides
+          <span class="text-[10px] font-black uppercase tracking-widest px-3 py-1 border"
+            [ngClass]="compensationForm.rateMode === 'flat' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200'">
+            {{ compensationForm.rateMode === 'flat' ? 'Flat Rate Mode (Active)' : 'Custom Type Overrides (Active)' }}
           </span>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6">
+        <div *ngIf="compensationForm.rateMode === 'flat'" class="py-8 text-center bg-slate-50 border border-slate-100 mt-6">
+          <div class="text-3xl mb-2">⚡</div>
+          <h4 class="text-sm font-black text-slate-800 uppercase tracking-wider">Flat Pricing Active</h4>
+          <p class="text-xs text-slate-500 max-w-md mx-auto mt-1">
+            Every approved question is credited at a flat rate of <strong class="text-slate-900">{{ compensationForm.currencySymbol }}{{ compensationForm.creatorBaseRate }}</strong> regardless of question type.
+          </p>
+          <button type="button" (click)="compensationForm.rateMode = 'qtype'" class="mt-4 px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs uppercase tracking-wider">
+            Switch to Custom Rates Per Type
+          </button>
+        </div>
+
+        <div *ngIf="compensationForm.rateMode === 'qtype'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6">
           <div *ngFor="let qkey of questionTypeKeys" class="p-4 bg-slate-50 border border-slate-100 flex flex-col justify-between">
             <div>
               <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Question Format</span>
