@@ -63,17 +63,22 @@
 /* Custom Global Font & Typography */
 :root {
   --app-font-family: 'Niradei', 'CustomFont', 'Kantumruy Pro', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--app-font-family);
+}
+
+*, ::before, ::after {
+  font-family: inherit;
 }
 
 body, html {
   margin: 0;
-  font-family: var(--app-font-family);
+  font-family: var(--app-font-family) !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-button, input, optgroup, select, textarea, .p-component {
-  font-family: var(--app-font-family);
+span, p, a, div, label, li, ul, ol, td, th, button, input, optgroup, select, textarea, .p-component, .font-mono {
+  font-family: var(--app-font-family) !important;
 }
 
 .rounded-full {

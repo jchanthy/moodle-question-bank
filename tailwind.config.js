@@ -7,6 +7,8 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: ['Niradei', 'CustomFont', 'Kantumruy Pro', 'Inter', 'sans-serif'],
+        mono: ['Niradei', 'CustomFont', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+        serif: ['Niradei', 'CustomFont', 'Georgia', 'serif'],
       },
       colors: {
         'brand': {

@@ -1061,7 +1061,7 @@
 
                 <!-- Name & Tags -->
                 <div class="flex items-center gap-3 flex-wrap">
-                  <span class="text-xs font-bold text-slate-400 tracking-wider font-mono">{{ question.name }}</span>
+                  <span class="text-xs font-bold text-slate-400 tracking-wider">{{ question.name }}</span>
                   <div *ngIf="question.metadata?.tags?.length" class="flex flex-wrap gap-1">
                     <span *ngFor="let tag of (question.metadata?.tags || [])" 
                           class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200/60 shadow-sm">
@@ -1548,7 +1548,7 @@
           </span>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-xs font-black uppercase text-blue-600 tracking-wider font-mono">{{ q.qtype }}</span>
+              <span class="text-xs font-black uppercase text-blue-600 tracking-wider">{{ q.qtype }}</span>
               <span class="text-xs font-bold text-slate-800 truncate max-w-md">{{ q.name }}</span>
             </div>
             <p class="text-[11px] text-slate-400 truncate mt-1" [innerHTML]="q.question_text"></p>
