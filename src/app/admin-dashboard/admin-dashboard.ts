@@ -1,4 +1,5 @@
 import { Component, inject, signal, computed, OnInit, effect, untracked, HostListener, ElementRef, ViewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule, NgIf, NgFor, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SupabaseService } from '../services/supabase.service';
@@ -710,7 +711,8 @@ export class AdminDashboardComponent implements OnInit {
     // Setup debouncing for search
     this.searchSubject.pipe(
       debounceTime(400),
-      distinctUntilChanged()
+      distinctUntilChanged(),
+      takeUntilDestroyed()
     ).subscribe(val => {
       untracked(() => {
         this.debouncedSearch.set(val);

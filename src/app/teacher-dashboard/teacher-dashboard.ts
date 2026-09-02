@@ -1,4 +1,5 @@
 import { Component, inject, signal, computed, OnInit, effect, untracked, HostListener, ElementRef, ViewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule, NgIf, NgFor, DatePipe } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { SupabaseService } from '../services/supabase.service';
@@ -662,7 +663,8 @@ export class TeacherDashboardComponent implements OnInit {
     // Setup debouncing for search keyword
     this.keywordSubject.pipe(
       debounceTime(400),
-      distinctUntilChanged()
+      distinctUntilChanged(),
+      takeUntilDestroyed()
     ).subscribe(val => {
       // Use untracked to prevent this update from triggering other effects prematurely
       untracked(() => {
