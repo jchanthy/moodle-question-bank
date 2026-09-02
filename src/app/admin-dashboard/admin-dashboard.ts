@@ -2,7 +2,7 @@ import { Component, inject, signal, computed, OnInit, effect, untracked, HostLis
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule, NgIf, NgFor, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SupabaseService } from '../services/supabase.service';
+import { SupabaseService, DEFAULT_COMPENSATION_SETTINGS, CompensationSettings } from '../services/supabase.service';
 import { ImportExportService, ParsedQuestion } from '../services/import-export.service';
 import { Router, RouterModule } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, firstValueFrom } from 'rxjs';
@@ -532,6 +532,8 @@ export class AdminDashboardComponent implements OnInit {
           a.assigned_to_id === tid
         );
 
+        const payoutAmount = this.supabaseService.calculateQuestionPayout(q.qtype, isAuthor, isReviewer, q.status);
+
         return {
           id: q.id,
           name: q.name,
@@ -547,6 +549,7 @@ export class AdminDashboardComponent implements OnInit {
           parent_id: q.parent_id,
           isAuthor,
           isReviewer,
+          payoutAmount,
           isPaid: !!q.metadata?.paid_at
         };
       })
@@ -601,13 +604,23 @@ export class AdminDashboardComponent implements OnInit {
         return versions.sort((a, b) => b.version - a.version)[0];
       }).filter(q => !!q);
       
+      const authoredReadyQs = authored.filter(q => q.status === 'approved');
+      const reviewsCompletedQs = assigned.filter(q => q.status === 'approved' || q.status === 'rejected');
+
+      const authoredEarnings = authoredReadyQs.reduce((sum, q) => sum + this.supabaseService.calculateQuestionPayout(q.qtype, true, false, 'approved'), 0);
+      const reviewsEarnings = reviewsCompletedQs.reduce((sum, q) => sum + this.supabaseService.calculateQuestionPayout(q.qtype, false, true, 'approved'), 0);
+      const totalEarningsReady = Math.round((authoredEarnings + reviewsEarnings) * 100) / 100;
+
       return {
         ...t,
         stats: {
-          authoredReady: authored.filter(q => q.status === 'approved').length,
+          authoredReady: authoredReadyQs.length,
           authoredPending: authored.filter(q => q.status !== 'approved').length,
-          reviewsCompleted: assigned.filter(q => q.status === 'approved' || q.status === 'rejected').length,
-          reviewsPending: assigned.filter(q => q.status !== 'approved' && q.status !== 'rejected').length
+          reviewsCompleted: reviewsCompletedQs.length,
+          reviewsPending: assigned.filter(q => q.status !== 'approved' && q.status !== 'rejected').length,
+          authoredEarnings,
+          reviewsEarnings,
+          totalEarningsReady
         }
       };
     })
@@ -959,7 +972,57 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
-  ngOnInit() {
+  // Cost Settings Dialog State
+  showCostSettingsModal = signal(false);
+  savingCostSettings = signal(false);
+  adminCostForm: any = { ...DEFAULT_COMPENSATION_SETTINGS };
+  questionTypeKeys: string[] = ['multichoice', 'truefalse', 'shortanswer', 'match', 'gapfill', 'ddmarker', 'essay'];
+  questionTypeLabels: Record<string, string> = {
+    multichoice: 'Multiple Choice',
+    truefalse: 'True / False',
+    shortanswer: 'Short Answer',
+    match: 'Matching',
+    gapfill: 'Cloze / Gapfill',
+    ddmarker: 'Drag & Drop Markers',
+    essay: 'Essay / Descriptive'
+  };
+
+  async ngOnInit() {
+    await this.supabaseService.getCompensationSettings();
+  }
+
+  async openCostSettingsModal() {
+    const s = await this.supabaseService.getCompensationSettings();
+    this.adminCostForm = {
+      ...s,
+      qtypeRates: {
+        ...DEFAULT_COMPENSATION_SETTINGS.qtypeRates,
+        ...(s.qtypeRates || {})
+      }
+    };
+    this.showCostSettingsModal.set(true);
+  }
+
+  async saveAdminCostSettings() {
+    this.savingCostSettings.set(true);
+    try {
+      if (this.adminCostForm.currency === 'USD') {
+        this.adminCostForm.currencySymbol = '$';
+      } else if (this.adminCostForm.currency === 'KHR') {
+        this.adminCostForm.currencySymbol = '៛';
+      }
+      const ok = await this.supabaseService.saveCompensationSettings(this.adminCostForm);
+      if (ok) {
+        this.showToast('Compensation & Cost rates updated successfully!', 'success');
+        this.showCostSettingsModal.set(false);
+      } else {
+        throw new Error('Save failed');
+      }
+    } catch (err: any) {
+      this.showToast('Failed to save rates: ' + err.message, 'error');
+    } finally {
+      this.savingCostSettings.set(false);
+    }
   }
 
   onSearchChange(value: string) {

@@ -3,6 +3,36 @@ import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
 import { Router } from '@angular/router';
 
+export interface CompensationSettings {
+  currency: 'USD' | 'KHR' | string;
+  currencySymbol: string;
+  creatorBaseRate: number;            // Rate per created & approved question
+  reviewerBaseRate: number;           // Rate per completed peer review
+  approverBaseRate: number;           // Rate per admin approval
+  qtypeRates?: Record<string, number>; // Custom rate overrides per question type
+  payoutNotes?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export const DEFAULT_COMPENSATION_SETTINGS: CompensationSettings = {
+  currency: 'USD',
+  currencySymbol: '$',
+  creatorBaseRate: 0.50,
+  reviewerBaseRate: 0.25,
+  approverBaseRate: 0.10,
+  qtypeRates: {
+    multichoice: 0.50,
+    truefalse: 0.30,
+    shortanswer: 0.50,
+    match: 0.75,
+    gapfill: 0.80,
+    ddmarker: 1.00,
+    essay: 0.60
+  },
+  payoutNotes: 'Standard question bank compensation rate.'
+};
+
 @Injectable({
   providedIn: 'root'
 })
@@ -14,6 +44,7 @@ export class SupabaseService {
   currentUserRole = signal<'teacher' | 'admin' | 'assistant_teacher' | 'super_admin' | null>(null);
   currentUserProfile = signal<any | null>(null);
   isRecoveryMode = signal(false);
+  compensationSettings = signal<CompensationSettings>(DEFAULT_COMPENSATION_SETTINGS);
 
   get currentUserName(): string {
     const user = this.currentUser();
@@ -320,6 +351,70 @@ export class SupabaseService {
     } catch (err) {
       console.error('saveSystemMetadata failed:', err);
     }
+  }
+
+  async getCompensationSettings(): Promise<CompensationSettings> {
+    try {
+      const meta = await this.getSystemMetadata();
+      if (meta && meta.compensationSettings) {
+        const merged: CompensationSettings = {
+          ...DEFAULT_COMPENSATION_SETTINGS,
+          ...meta.compensationSettings,
+          qtypeRates: {
+            ...DEFAULT_COMPENSATION_SETTINGS.qtypeRates,
+            ...(meta.compensationSettings.qtypeRates || {})
+          }
+        };
+        this.compensationSettings.set(merged);
+        return merged;
+      }
+    } catch (err) {
+      console.warn('Failed to load compensation settings from system metadata:', err);
+    }
+    this.compensationSettings.set(DEFAULT_COMPENSATION_SETTINGS);
+    return DEFAULT_COMPENSATION_SETTINGS;
+  }
+
+  async saveCompensationSettings(settings: CompensationSettings): Promise<boolean> {
+    try {
+      const meta = await this.getSystemMetadata();
+      const updatedSettings = {
+        ...settings,
+        updatedAt: new Date().toISOString(),
+        updatedBy: this.currentUser()?.email || 'admin'
+      };
+      meta.compensationSettings = updatedSettings;
+      await this.saveSystemMetadata(meta);
+      this.compensationSettings.set(updatedSettings);
+      return true;
+    } catch (err) {
+      console.error('Failed to save compensation settings:', err);
+      return false;
+    }
+  }
+
+  calculateQuestionPayout(qtype: string, isAuthor: boolean, isReviewer: boolean, status: string = 'approved'): number {
+    if (status !== 'approved') return 0;
+    const s = this.compensationSettings();
+    let total = 0;
+
+    if (isAuthor) {
+      const qRate = s.qtypeRates?.[qtype];
+      total += (qRate !== undefined && qRate !== null && !isNaN(Number(qRate))) ? Number(qRate) : Number(s.creatorBaseRate || 0);
+    }
+    if (isReviewer) {
+      total += Number(s.reviewerBaseRate || 0);
+    }
+    return Math.round(total * 100) / 100;
+  }
+
+  formatCurrency(amount: number): string {
+    const s = this.compensationSettings();
+    const symbol = s.currencySymbol || '$';
+    if (s.currency === 'KHR') {
+      return `${Math.round(amount).toLocaleString()} ${symbol}`;
+    }
+    return `${symbol}${amount.toFixed(2)}`;
   }
 
   private async fetchUserRole(userId: string) {

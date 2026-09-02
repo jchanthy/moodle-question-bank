@@ -139,6 +139,33 @@
             </p>
           </div>
         </div>
+
+        <!-- Rates & Compensation Overview Card -->
+        <div class="bg-white border border-gray-100 shadow-sm p-6 rounded-none space-y-4">
+          <div class="flex items-center gap-2 pb-3 border-b border-gray-100">
+            <span class="text-base">💰</span>
+            <div>
+              <h3 class="text-xs font-black text-gray-900 uppercase tracking-wider">Active Rates</h3>
+              <p class="text-[9px] text-gray-400 font-bold">System-wide compensation</p>
+            </div>
+          </div>
+          
+          <div class="space-y-2.5 text-xs">
+            <div class="flex justify-between items-center py-1 border-b border-gray-50">
+              <span class="text-gray-500 font-medium">Author Base Rate</span>
+              <span class="font-black text-emerald-600">{{ supabase.compensationSettings().currencySymbol }}{{ supabase.compensationSettings().creatorBaseRate }}</span>
+            </div>
+            <div class="flex justify-between items-center py-1 border-b border-gray-50">
+              <span class="text-gray-500 font-medium">Reviewer Base Rate</span>
+              <span class="font-black text-emerald-600">{{ supabase.compensationSettings().currencySymbol }}{{ supabase.compensationSettings().reviewerBaseRate }}</span>
+            </div>
+            <div class="flex justify-between items-center py-1">
+              <span class="text-gray-500 font-medium">QA Approver</span>
+              <span class="font-black text-emerald-600">{{ supabase.compensationSettings().currencySymbol }}{{ supabase.compensationSettings().approverBaseRate }}</span>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- Right Column: Form Fields -->

@@ -66,7 +66,8 @@ export class TeacherProfileComponent implements OnInit {
     try {
       await Promise.all([
         this.loadRootCategories(),
-        this.loadProfile()
+        this.loadProfile(),
+        this.supabase.getCompensationSettings()
       ]);
     } catch (e: any) {
       console.error('Error initializing profile settings:', e);

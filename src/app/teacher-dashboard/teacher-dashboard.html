@@ -767,6 +767,25 @@
         </div>
         <h4 class="text-2xl font-black text-slate-800 leading-none pl-1 mb-1">{{ dashboardStats().assistantPending }}</h4>
       </div>
+
+      <!-- Estimated Earnings Card -->
+      <div class="bg-gradient-to-br from-emerald-50 to-teal-50 p-4 rounded-3xl border border-emerald-200/60 shadow-sm flex flex-col justify-between h-[92px] relative overflow-hidden group hover:border-emerald-300 transition-colors">
+        <div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
+        <div class="flex items-center justify-between pl-1">
+          <span class="text-[10px] font-black text-emerald-700 uppercase tracking-widest leading-none flex items-center gap-1">
+            <span>💰</span> Earnings Ready
+          </span>
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        </div>
+        <div class="flex items-baseline justify-between pl-1">
+          <h4 class="text-2xl font-black text-emerald-800 leading-none mb-1">
+            {{ supabaseService.formatCurrency(earningsStats().totalEarnings) }}
+          </h4>
+          <span class="text-[9px] font-bold text-emerald-600">
+            {{ earningsStats().readyQuestionsCount }} Authored
+          </span>
+        </div>
+      </div>
     </div>
 
     <!-- Admin Style Question Bank Cards List -->

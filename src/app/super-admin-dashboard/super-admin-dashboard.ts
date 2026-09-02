@@ -2,7 +2,7 @@ import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import { SupabaseService } from '../services/supabase.service';
+import { SupabaseService, CompensationSettings, DEFAULT_COMPENSATION_SETTINGS } from '../services/supabase.service';
 import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
 
@@ -36,8 +36,51 @@ export class SuperAdminDashboardComponent implements OnInit {
   private router = inject(Router);
 
   // States
-  currentView = signal<'users' | 'roles'>('users');
+  currentView = signal<'users' | 'roles' | 'compensation'>('users');
   loading = signal(false);
+  savingCompensation = signal(false);
+  
+  // Compensation Settings State
+  compensationForm: CompensationSettings = {
+    ...DEFAULT_COMPENSATION_SETTINGS,
+    qtypeRates: { ...DEFAULT_COMPENSATION_SETTINGS.qtypeRates }
+  };
+
+  questionTypeKeys: string[] = ['multichoice', 'truefalse', 'shortanswer', 'match', 'gapfill', 'ddmarker', 'essay'];
+  questionTypeLabels: Record<string, string> = {
+    multichoice: 'Multiple Choice (MCQ)',
+    truefalse: 'True / False',
+    shortanswer: 'Short Answer / Fill-in',
+    match: 'Matching',
+    gapfill: 'Cloze / Gapfill',
+    ddmarker: 'Drag & Drop Markers',
+    essay: 'Essay / Descriptive'
+  };
+
+  // Live Simulator State
+  simAuthorCount = signal(20);
+  simReviewCount = signal(10);
+  simQType = signal('multichoice');
+
+  simulatedAuthorEarnings = computed(() => {
+    const count = this.simAuthorCount();
+    const qtype = this.simQType();
+    const qRate = this.compensationForm.qtypeRates?.[qtype];
+    const rate = (qRate !== undefined && qRate !== null && !isNaN(Number(qRate)))
+      ? Number(qRate)
+      : Number(this.compensationForm.creatorBaseRate || 0);
+    return Math.round(count * rate * 100) / 100;
+  });
+
+  simulatedReviewEarnings = computed(() => {
+    const count = this.simReviewCount();
+    const rate = Number(this.compensationForm.reviewerBaseRate || 0);
+    return Math.round(count * rate * 100) / 100;
+  });
+
+  simulatedTotalEarnings = computed(() => {
+    return Math.round((this.simulatedAuthorEarnings() + this.simulatedReviewEarnings()) * 100) / 100;
+  });
   
   // Dynamic Lists loaded from System config
   allProfiles = signal<any[]>([]);
@@ -120,12 +163,66 @@ export class SuperAdminDashboardComponent implements OnInit {
     try {
       await Promise.all([
         this.loadUsersAndConfig(),
-        this.loadCategories()
+        this.loadCategories(),
+        this.loadCompensationSettings()
       ]);
     } catch (err: any) {
       this.showToast('Failed to load system data: ' + err.message, 'error');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  async loadCompensationSettings() {
+    try {
+      const settings = await this.supabaseService.getCompensationSettings();
+      this.compensationForm = {
+        ...settings,
+        qtypeRates: {
+          ...DEFAULT_COMPENSATION_SETTINGS.qtypeRates,
+          ...(settings.qtypeRates || {})
+        }
+      };
+    } catch (e) {
+      console.warn('Failed to load compensation settings in super-admin:', e);
+    }
+  }
+
+  async saveCompensationSettings() {
+    this.savingCompensation.set(true);
+    try {
+      // Auto-update currency symbol based on chosen currency code
+      if (this.compensationForm.currency === 'USD') {
+        this.compensationForm.currencySymbol = '$';
+      } else if (this.compensationForm.currency === 'KHR') {
+        this.compensationForm.currencySymbol = '៛';
+      }
+
+      const success = await this.supabaseService.saveCompensationSettings(this.compensationForm);
+      if (success) {
+        this.showToast('Compensation & Cost rates updated successfully!', 'success');
+      } else {
+        throw new Error('Database save returned failure.');
+      }
+    } catch (err: any) {
+      this.showToast('Failed to save compensation rates: ' + err.message, 'error');
+    } finally {
+      this.savingCompensation.set(false);
+    }
+  }
+
+  onCurrencyChange(newCurrency: string) {
+    this.compensationForm.currency = newCurrency;
+    if (newCurrency === 'USD') {
+      this.compensationForm.currencySymbol = '$';
+      if (this.compensationForm.creatorBaseRate > 100) this.compensationForm.creatorBaseRate = 0.50;
+      if (this.compensationForm.reviewerBaseRate > 100) this.compensationForm.reviewerBaseRate = 0.25;
+      if (this.compensationForm.approverBaseRate > 100) this.compensationForm.approverBaseRate = 0.10;
+    } else if (newCurrency === 'KHR') {
+      this.compensationForm.currencySymbol = '៛';
+      if (this.compensationForm.creatorBaseRate < 10) this.compensationForm.creatorBaseRate = 2000;
+      if (this.compensationForm.reviewerBaseRate < 10) this.compensationForm.reviewerBaseRate = 1000;
+      if (this.compensationForm.approverBaseRate < 10) this.compensationForm.approverBaseRate = 500;
     }
   }
 

@@ -652,6 +652,38 @@ export class TeacherDashboardComponent implements OnInit {
     };
   });
 
+  earningsStats = computed(() => {
+    const user = this.supabaseService.currentUser();
+    if (!user) return { authoredEarnings: 0, reviewsEarnings: 0, totalEarnings: 0, readyQuestionsCount: 0, completedReviewsCount: 0 };
+    
+    const authored = this.allQuestions().filter(q => q.created_by === user.id || q.metadata?.author_id === user.id);
+    const familyMap = new Map<string, Question>();
+    authored.forEach(q => {
+      const familyId = q.parent_id || q.id;
+      const existing = familyMap.get(familyId);
+      if (!existing || q.version > existing.version) {
+        familyMap.set(familyId, q);
+      }
+    });
+    const uniqueAuthored = Array.from(familyMap.values());
+    const approvedAuthored = uniqueAuthored.filter(q => q.status === 'approved');
+    
+    const assigned = this.assignedQuestions();
+    const completedReviews = assigned.filter(q => q.status === 'approved' || q.status === 'rejected');
+
+    const authoredEarnings = approvedAuthored.reduce((sum, q) => sum + this.supabaseService.calculateQuestionPayout(q.qtype, true, false, 'approved'), 0);
+    const reviewsEarnings = completedReviews.reduce((sum, q) => sum + this.supabaseService.calculateQuestionPayout(q.qtype, false, true, 'approved'), 0);
+    const totalEarnings = Math.round((authoredEarnings + reviewsEarnings) * 100) / 100;
+
+    return {
+      authoredEarnings,
+      reviewsEarnings,
+      totalEarnings,
+      readyQuestionsCount: approvedAuthored.length,
+      completedReviewsCount: completedReviews.length
+    };
+  });
+
   pendingAssistantSubmissionsCount = computed(() => {
     return this.assistantSubmissions().length;
   });
@@ -771,6 +803,7 @@ export class TeacherDashboardComponent implements OnInit {
   ngOnInit() {
     // Initial load handled by effects
     this.notificationService.loadNotifications();
+    this.supabaseService.getCompensationSettings();
   }
 
   onKeywordChange(value: string) {

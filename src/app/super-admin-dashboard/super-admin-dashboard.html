@@ -38,6 +38,13 @@
           class="tab-btn px-6 py-3 font-bold text-xs uppercase tracking-widest text-gray-500 hover:text-gray-900 transition">
           Roles & Permissions
         </button>
+        <button (click)="currentView.set('compensation')" [class.active]="currentView() === 'compensation'"
+          class="tab-btn px-6 py-3 font-bold text-xs uppercase tracking-widest text-gray-500 hover:text-gray-900 transition flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Compensation & Cost Setup
+        </button>
       </div>
 
       <!-- Add Action button -->
@@ -48,6 +55,14 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4" />
           </svg>
           Add Custom Role
+        </button>
+        <button *ngIf="currentView() === 'compensation'" (click)="saveCompensationSettings()" [disabled]="savingCompensation()"
+          class="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest rounded-none shadow-lg shadow-emerald-200 transition-all flex items-center gap-2">
+          <svg *ngIf="!savingCompensation()" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          <span *ngIf="savingCompensation()" class="inline-block animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+          {{ savingCompensation() ? 'Saving Rates...' : 'Save Cost Settings' }}
         </button>
       </div>
     </div>
@@ -212,6 +227,209 @@
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- COMPENSATION & COST SETUP VIEW -->
+    <div *ngIf="currentView() === 'compensation' && !loading()" class="space-y-8 animate-in fade-in duration-300">
+      
+      <!-- Top Banner Summary -->
+      <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-8 border border-slate-800 shadow-md">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div class="max-w-2xl">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-black uppercase tracking-widest">
+                Financial Configuration
+              </span>
+              <span class="text-xs text-slate-400 font-bold" *ngIf="compensationForm.updatedAt">
+                Last updated: {{ compensationForm.updatedAt | date:'medium' }}
+              </span>
+            </div>
+            <h2 class="text-2xl font-black tracking-tight">Question Bank Compensation & Cost Rates</h2>
+            <p class="text-xs text-slate-300 font-medium mt-1 leading-relaxed">
+              Define the payment and cost calculations for question authors, peer reviewers, and approvers. These rates automatically determine settlement totals and performance payouts across the platform.
+            </p>
+          </div>
+          
+          <div class="bg-white/10 backdrop-blur-sm border border-white/10 p-4 min-w-[240px]">
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Selected Currency</div>
+            <div class="flex gap-2">
+              <button type="button" (click)="onCurrencyChange('USD')"
+                [class]="compensationForm.currency === 'USD' ? 'bg-emerald-500 text-white font-black' : 'bg-white/5 text-slate-300 hover:bg-white/20'"
+                class="flex-1 py-2 px-3 text-xs uppercase tracking-wider transition border border-white/10 text-center font-bold">
+                USD ($)
+              </button>
+              <button type="button" (click)="onCurrencyChange('KHR')"
+                [class]="compensationForm.currency === 'KHR' ? 'bg-emerald-500 text-white font-black' : 'bg-white/5 text-slate-300 hover:bg-white/20'"
+                class="flex-1 py-2 px-3 text-xs uppercase tracking-wider transition border border-white/10 text-center font-bold">
+                KHR (៛)
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Core Base Rates Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Creator Base Rate -->
+        <div class="bg-white border border-gray-100 p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 bg-blue-50 text-blue-600 flex items-center justify-center font-black text-lg border border-blue-100">
+                ✍️
+              </div>
+              <span class="text-[9px] font-black px-2 py-0.5 bg-blue-50 text-blue-700 uppercase tracking-wider">Per Approved Question</span>
+            </div>
+            <h3 class="text-sm font-black text-gray-900 uppercase tracking-wider">Author / Creator Rate</h3>
+            <p class="text-xs text-gray-400 font-medium mt-1">Compensation for drafting a question that passes QA.</p>
+          </div>
+          <div class="mt-6 pt-4 border-t border-gray-100">
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Base Rate</label>
+            <div class="relative">
+              <span class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-gray-400 text-sm">{{ compensationForm.currencySymbol }}</span>
+              <input type="number" step="0.05" [(ngModel)]="compensationForm.creatorBaseRate"
+                class="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 font-black text-lg text-gray-900 focus:bg-white focus:border-blue-500 outline-none">
+            </div>
+          </div>
+        </div>
+
+        <!-- Reviewer Base Rate -->
+        <div class="bg-white border border-gray-100 p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-lg border border-emerald-100">
+                🔍
+              </div>
+              <span class="text-[9px] font-black px-2 py-0.5 bg-emerald-50 text-emerald-700 uppercase tracking-wider">Per Completed Review</span>
+            </div>
+            <h3 class="text-sm font-black text-gray-900 uppercase tracking-wider">Peer Reviewer Rate</h3>
+            <p class="text-xs text-gray-400 font-medium mt-1">Compensation for reviewing and validating a question.</p>
+          </div>
+          <div class="mt-6 pt-4 border-t border-gray-100">
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Base Rate</label>
+            <div class="relative">
+              <span class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-gray-400 text-sm">{{ compensationForm.currencySymbol }}</span>
+              <input type="number" step="0.05" [(ngModel)]="compensationForm.reviewerBaseRate"
+                class="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 font-black text-lg text-gray-900 focus:bg-white focus:border-emerald-500 outline-none">
+            </div>
+          </div>
+        </div>
+
+        <!-- Approver Base Rate -->
+        <div class="bg-white border border-gray-100 p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 bg-purple-50 text-purple-600 flex items-center justify-center font-black text-lg border border-purple-100">
+                🛡️
+              </div>
+              <span class="text-[9px] font-black px-2 py-0.5 bg-purple-50 text-purple-700 uppercase tracking-wider">Per QA Approval</span>
+            </div>
+            <h3 class="text-sm font-black text-gray-900 uppercase tracking-wider">Admin / Approver Rate</h3>
+            <p class="text-xs text-gray-400 font-medium mt-1">Cost for final supervisory verification and publishing.</p>
+          </div>
+          <div class="mt-6 pt-4 border-t border-gray-100">
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Base Rate</label>
+            <div class="relative">
+              <span class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-gray-400 text-sm">{{ compensationForm.currencySymbol }}</span>
+              <input type="number" step="0.05" [(ngModel)]="compensationForm.approverBaseRate"
+                class="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 font-black text-lg text-gray-900 focus:bg-white focus:border-purple-500 outline-none">
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Question Type Specific Overrides -->
+      <div class="bg-white border border-gray-100 p-8 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-gray-100">
+          <div>
+            <h3 class="text-base font-black text-gray-900 uppercase tracking-wider">Question Type Specific Rate Overrides</h3>
+            <p class="text-xs text-gray-400 font-medium mt-0.5">
+              Set custom payout rates for complex question formats (e.g. higher rates for Drag & Drop or Cloze questions).
+            </p>
+          </div>
+          <span class="text-[10px] text-blue-600 font-black uppercase tracking-widest bg-blue-50 px-3 py-1 border border-blue-100">
+            Optional Overrides
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6">
+          <div *ngFor="let qkey of questionTypeKeys" class="p-4 bg-slate-50 border border-slate-100 flex flex-col justify-between">
+            <div>
+              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Question Format</span>
+              <div class="text-sm font-black text-slate-800">{{ questionTypeLabels[qkey] }}</div>
+            </div>
+            <div class="mt-4">
+              <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Author Rate Override</label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 font-black text-gray-400 text-xs">{{ compensationForm.currencySymbol }}</span>
+                <input type="number" step="0.05"
+                  [ngModel]="compensationForm.qtypeRates ? compensationForm.qtypeRates[qkey] : compensationForm.creatorBaseRate"
+                  (ngModelChange)="compensationForm.qtypeRates && (compensationForm.qtypeRates[qkey] = $event)"
+                  class="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 font-black text-sm text-slate-900 focus:border-blue-500 outline-none">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Real-Time Simulator & Payout Calculator -->
+      <div class="bg-slate-900 text-white p-8 border border-slate-800 shadow-md">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-[10px] font-black uppercase tracking-widest text-emerald-400">Interactive Settlement Estimator</span>
+        </div>
+        <h3 class="text-lg font-black tracking-tight mb-6">Live Payout Simulator</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+          <div>
+            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Approved Questions Authored</label>
+            <input type="number" min="0" [ngModel]="simAuthorCount()" (ngModelChange)="simAuthorCount.set($event)"
+              class="w-full px-4 py-3 bg-white/10 border border-white/20 text-white font-black text-base outline-none focus:border-emerald-400">
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Question Type Format</label>
+            <select [ngModel]="simQType()" (ngModelChange)="simQType.set($event)"
+              class="w-full px-4 py-3 bg-slate-800 border border-white/20 text-white font-bold text-sm outline-none focus:border-emerald-400">
+              <option *ngFor="let qkey of questionTypeKeys" [value]="qkey">{{ questionTypeLabels[qkey] }}</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Peer Reviews Completed</label>
+            <input type="number" min="0" [ngModel]="simReviewCount()" (ngModelChange)="simReviewCount.set($event)"
+              class="w-full px-4 py-3 bg-white/10 border border-white/20 text-white font-black text-base outline-none focus:border-emerald-400">
+          </div>
+
+          <div class="bg-white/10 border border-emerald-500/30 p-4 text-center">
+            <span class="text-[10px] font-black uppercase tracking-widest text-emerald-300 block mb-1">Calculated Total Payout</span>
+            <div class="text-2xl font-black text-emerald-400">
+              {{ compensationForm.currencySymbol }}{{ simulatedTotalEarnings() | number:'1.2-2' }}
+            </div>
+            <span class="text-[9px] text-slate-400 font-medium mt-0.5 block">
+              ({{ simAuthorCount() }} authored @ {{ compensationForm.currencySymbol }}{{ compensationForm.qtypeRates?.[simQType()] || compensationForm.creatorBaseRate }} + {{ simReviewCount() }} reviews @ {{ compensationForm.currencySymbol }}{{ compensationForm.reviewerBaseRate }})
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Button Bar -->
+      <div class="flex justify-end gap-4 p-6 bg-white border border-gray-100 shadow-sm">
+        <button type="button" (click)="loadCompensationSettings()"
+          class="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-black text-xs uppercase tracking-widest transition">
+          Reset to Saved
+        </button>
+        <button type="button" (click)="saveCompensationSettings()" [disabled]="savingCompensation()"
+          class="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-200 transition flex items-center gap-2">
+          <svg *ngIf="!savingCompensation()" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          <span *ngIf="savingCompensation()" class="inline-block animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+          {{ savingCompensation() ? 'Saving Rates...' : 'Save & Publish Rates' }}
+        </button>
+      </div>
+
     </div>
 
   </main>
