@@ -803,6 +803,13 @@ export class AdminDashboardComponent implements OnInit {
     this.editingTextValue = text;
   }
 
+  getTextareaRows(text: string, defaultRows: number = 4): number {
+    if (!text) return defaultRows;
+    const lines = text.split('\n').length;
+    const wrappedLines = Math.ceil(text.length / 50);
+    return Math.max(lines, wrappedLines, defaultRows);
+  }
+
   async saveInlineText(q: Question) {
     if (!this.editingTextValue.trim()) return;
     this.savingInline.set(true);
