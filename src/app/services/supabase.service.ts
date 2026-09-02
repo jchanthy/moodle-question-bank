@@ -9,6 +9,7 @@ export interface CompensationSettings {
   rateMode?: 'flat' | 'qtype';        // 'flat': single rate per approved question, 'qtype': custom rate per type
   payoutCycle?: 'monthly' | 'biweekly' | 'per_question'; // Payment frequency
   monthlyCutoffDay?: number;          // Day of month (e.g. 25, 30) for cutoff
+  showEarningsToTeachers?: boolean;   // false (default): private/admin-only, true: visible to teachers
   creatorBaseRate: number;            // Rate per created & approved question
   reviewerBaseRate: number;           // Rate per completed peer review
   approverBaseRate: number;           // Rate per admin approval
@@ -24,6 +25,7 @@ export const DEFAULT_COMPENSATION_SETTINGS: CompensationSettings = {
   rateMode: 'flat',
   payoutCycle: 'monthly',
   monthlyCutoffDay: 30,
+  showEarningsToTeachers: false,
   creatorBaseRate: 5.00,
   reviewerBaseRate: 1.00,
   approverBaseRate: 0.50,

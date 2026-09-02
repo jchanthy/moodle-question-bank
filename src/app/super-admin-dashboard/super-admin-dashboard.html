@@ -252,7 +252,7 @@
           
           <div class="flex flex-col sm:flex-row gap-3">
             <!-- Currency selector -->
-            <div class="bg-white/10 backdrop-blur-sm border border-white/10 p-4 min-w-[180px]">
+            <div class="bg-white/10 backdrop-blur-sm border border-white/10 p-4 min-w-[170px]">
               <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Currency</div>
               <div class="flex gap-2">
                 <button type="button" (click)="onCurrencyChange('USD')"
@@ -269,7 +269,7 @@
             </div>
 
             <!-- Rate Mode selector -->
-            <div class="bg-white/10 backdrop-blur-sm border border-white/10 p-4 min-w-[210px]">
+            <div class="bg-white/10 backdrop-blur-sm border border-white/10 p-4 min-w-[190px]">
               <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Rate Model</div>
               <div class="flex gap-2">
                 <button type="button" (click)="compensationForm.rateMode = 'flat'"
@@ -284,6 +284,16 @@
                 </button>
               </div>
             </div>
+
+            <!-- Teacher Visibility Toggle -->
+            <div class="bg-white/10 backdrop-blur-sm border border-white/10 p-4 min-w-[210px]">
+              <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Teacher Dashboard</div>
+              <button type="button" (click)="compensationForm.showEarningsToTeachers = !compensationForm.showEarningsToTeachers"
+                [class]="compensationForm.showEarningsToTeachers ? 'bg-emerald-600 text-white' : 'bg-white/10 text-slate-300'"
+                class="w-full py-1.5 px-3 text-xs uppercase tracking-wider transition border border-white/10 text-center font-bold flex items-center justify-center gap-1.5">
+                <span>{{ compensationForm.showEarningsToTeachers ? '👁️ Visible to Teachers' : '🔒 Hidden (Admin Only)' }}</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -293,7 +303,12 @@
             <span class="p-2 bg-emerald-500/20 text-emerald-300 text-base border border-emerald-500/30">🗓️</span>
             <div>
               <div class="font-black text-white uppercase tracking-wider text-[11px]">Monthly Payout & Settlement Cycle Active</div>
-              <div class="text-slate-400 text-[11px]">Approved questions accumulate each calendar month and are settled in batches at month-end.</div>
+              <div class="text-slate-400 text-[11px]">
+                Approved questions accumulate each calendar month and are settled in batches at month-end. 
+                <span [class]="compensationForm.showEarningsToTeachers ? 'text-emerald-300 font-bold' : 'text-amber-300 font-bold'">
+                  ({{ compensationForm.showEarningsToTeachers ? 'Rates currently visible to teachers' : 'Rates strictly hidden from teachers' }})
+                </span>
+              </div>
             </div>
           </div>
           <div class="flex items-center gap-3 bg-white/5 px-4 py-2 border border-white/10">

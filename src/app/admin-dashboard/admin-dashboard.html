@@ -2502,20 +2502,20 @@
       Configure system-wide compensation rates for question authors, reviewers, and approvers. Changes take effect immediately across all teacher settlement calculations.
     </p>
 
-    <!-- Currency & Model Selector -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 border border-slate-200">
+    <!-- Currency, Model & Visibility Selector -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 border border-slate-200">
       <div>
         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Currency Format</label>
         <div class="flex gap-2">
           <button type="button" (click)="adminCostForm.currency = 'USD'; adminCostForm.currencySymbol = '$'"
             [class]="adminCostForm.currency === 'USD' ? 'bg-blue-600 text-white font-black shadow' : 'bg-white text-slate-700 font-bold border border-slate-200'"
             class="flex-1 py-1.5 text-xs uppercase tracking-wider transition text-center">
-            US Dollar ($ USD)
+            USD ($)
           </button>
           <button type="button" (click)="adminCostForm.currency = 'KHR'; adminCostForm.currencySymbol = '៛'"
             [class]="adminCostForm.currency === 'KHR' ? 'bg-blue-600 text-white font-black shadow' : 'bg-white text-slate-700 font-bold border border-slate-200'"
             class="flex-1 py-1.5 text-xs uppercase tracking-wider transition text-center">
-            Khmer Riel (៛ KHR)
+            KHR (៛)
           </button>
         </div>
       </div>
@@ -2526,14 +2526,23 @@
           <button type="button" (click)="adminCostForm.rateMode = 'flat'"
             [class]="adminCostForm.rateMode !== 'qtype' ? 'bg-emerald-600 text-white font-black shadow' : 'bg-white text-slate-700 font-bold border border-slate-200'"
             class="flex-1 py-1.5 text-xs uppercase tracking-wider transition text-center">
-            Flat Rate Mode
+            Flat Rate
           </button>
           <button type="button" (click)="adminCostForm.rateMode = 'qtype'"
             [class]="adminCostForm.rateMode === 'qtype' ? 'bg-emerald-600 text-white font-black shadow' : 'bg-white text-slate-700 font-bold border border-slate-200'"
             class="flex-1 py-1.5 text-xs uppercase tracking-wider transition text-center">
-            By Question Type
+            By Type
           </button>
         </div>
+      </div>
+
+      <div>
+        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Teacher Visibility</label>
+        <button type="button" (click)="adminCostForm.showEarningsToTeachers = !adminCostForm.showEarningsToTeachers"
+          [class]="adminCostForm.showEarningsToTeachers ? 'bg-emerald-600 text-white font-black shadow' : 'bg-white text-slate-700 font-bold border border-slate-200'"
+          class="w-full py-1.5 px-2 text-xs uppercase tracking-wider transition text-center flex items-center justify-center gap-1">
+          <span>{{ adminCostForm.showEarningsToTeachers ? '👁️ Visible' : '🔒 Hidden (Private)' }}</span>
+        </button>
       </div>
     </div>
 

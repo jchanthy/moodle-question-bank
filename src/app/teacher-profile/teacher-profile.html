@@ -140,8 +140,8 @@
           </div>
         </div>
 
-        <!-- Rates & Compensation Overview Card -->
-        <div class="bg-white border border-gray-100 shadow-sm p-6 rounded-none space-y-4">
+        <!-- Rates & Compensation Overview Card (Conditionally shown if Admin enables visibility) -->
+        <div *ngIf="supabase.compensationSettings().showEarningsToTeachers" class="bg-white border border-gray-100 shadow-sm p-6 rounded-none space-y-4 animate-in fade-in duration-300">
           <div class="flex items-center gap-2 pb-3 border-b border-gray-100">
             <span class="text-base">💰</span>
             <div>
