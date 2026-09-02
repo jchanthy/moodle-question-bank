@@ -76,6 +76,10 @@ button, input, optgroup, select, textarea, .p-component {
   font-family: var(--app-font-family);
 }
 
+.rounded-full {
+  border-radius: 9999px !important;
+}
+
 /* Disable number input arrows (spinners) */
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {

@@ -534,9 +534,14 @@
                     <!-- Toggle Correct Button -->
                     <button (click)="toggleChoiceCorrect(ans, q)"
                             [title]="ans.fraction > 0 ? 'Click to make Incorrect' : 'Click to make Correct'"
-                            class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm transition-all transform hover:scale-110 active:scale-95" 
-                            [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800 hover:bg-emerald-300' : 'bg-slate-200 text-slate-400 hover:bg-slate-300 hover:text-slate-600'">
-                      {{ ans.fraction > 0 ? '✓' : '✗' }}
+                            class="mt-0.5 inline-flex items-center justify-center w-6 h-6 rounded-full shrink-0 shadow-sm transition-all transform hover:scale-110 active:scale-95 cursor-pointer" 
+                            [class]="ans.fraction > 0 ? 'bg-emerald-500 text-white hover:bg-emerald-600 ring-2 ring-emerald-200' : 'bg-slate-200 text-slate-400 hover:bg-slate-300 hover:text-slate-600'">
+                      <svg *ngIf="ans.fraction > 0" class="w-3.5 h-3.5 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      <svg *ngIf="ans.fraction <= 0" class="w-3 h-3 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
                     </button>
                     <div class="flex-1 min-w-0">
                       <!-- Choice text display -->
@@ -907,9 +912,14 @@
                     <!-- Toggle Correct Button -->
                     <button (click)="toggleChoiceCorrect(ans, q)"
                             [title]="ans.fraction > 0 ? 'Click to make Incorrect' : 'Click to make Correct'"
-                            class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm transition-all transform hover:scale-110 active:scale-95" 
-                            [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800 hover:bg-emerald-300' : 'bg-slate-200 text-slate-400 hover:bg-slate-300 hover:text-slate-600'">
-                      {{ ans.fraction > 0 ? '✓' : '✗' }}
+                            class="mt-0.5 inline-flex items-center justify-center w-6 h-6 rounded-full shrink-0 shadow-sm transition-all transform hover:scale-110 active:scale-95 cursor-pointer" 
+                            [class]="ans.fraction > 0 ? 'bg-emerald-500 text-white hover:bg-emerald-600 ring-2 ring-emerald-200' : 'bg-slate-200 text-slate-400 hover:bg-slate-300 hover:text-slate-600'">
+                      <svg *ngIf="ans.fraction > 0" class="w-3.5 h-3.5 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      <svg *ngIf="ans.fraction <= 0" class="w-3 h-3 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
                     </button>
                     <div class="flex-1 min-w-0">
                       <!-- Choice text display -->
@@ -1138,9 +1148,14 @@
                     <!-- Toggle Correct Button -->
                     <button (click)="toggleChoiceCorrect(ans, q)"
                             [title]="ans.fraction > 0 ? 'Click to make Incorrect' : 'Click to make Correct'"
-                            class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm transition-all transform hover:scale-110 active:scale-95" 
-                            [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800 hover:bg-emerald-300' : 'bg-slate-200 text-slate-400 hover:bg-slate-300 hover:text-slate-600'">
-                      {{ ans.fraction > 0 ? '✓' : '✗' }}
+                            class="mt-0.5 inline-flex items-center justify-center w-6 h-6 rounded-full shrink-0 shadow-sm transition-all transform hover:scale-110 active:scale-95 cursor-pointer" 
+                            [class]="ans.fraction > 0 ? 'bg-emerald-500 text-white hover:bg-emerald-600 ring-2 ring-emerald-200' : 'bg-slate-200 text-slate-400 hover:bg-slate-300 hover:text-slate-600'">
+                      <svg *ngIf="ans.fraction > 0" class="w-3.5 h-3.5 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      <svg *ngIf="ans.fraction <= 0" class="w-3 h-3 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
                     </button>
                     <div class="flex-1 min-w-0">
                       <!-- Choice text display -->
@@ -1358,9 +1373,14 @@
                     <!-- Toggle Correct Button -->
                     <button (click)="toggleChoiceCorrect(ans, q)"
                             [title]="ans.fraction > 0 ? 'Click to make Incorrect' : 'Click to make Correct'"
-                            class="mt-0.5 inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-xs font-bold shrink-0 shadow-sm transition-all transform hover:scale-110 active:scale-95" 
-                            [class]="ans.fraction > 0 ? 'bg-emerald-200 text-emerald-800 hover:bg-emerald-300' : 'bg-slate-200 text-slate-400 hover:bg-slate-300 hover:text-slate-600'">
-                      {{ ans.fraction > 0 ? '✓' : '✗' }}
+                            class="mt-0.5 inline-flex items-center justify-center w-6 h-6 rounded-full shrink-0 shadow-sm transition-all transform hover:scale-110 active:scale-95 cursor-pointer" 
+                            [class]="ans.fraction > 0 ? 'bg-emerald-500 text-white hover:bg-emerald-600 ring-2 ring-emerald-200' : 'bg-slate-200 text-slate-400 hover:bg-slate-300 hover:text-slate-600'">
+                      <svg *ngIf="ans.fraction > 0" class="w-3.5 h-3.5 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      <svg *ngIf="ans.fraction <= 0" class="w-3 h-3 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
                     </button>
                     <div class="flex-1 min-w-0">
                       <!-- Choice text display -->
