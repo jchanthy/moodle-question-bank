@@ -1,46 +1,42 @@
-/* Custom Default Font (supports fonts in /fonts/ and /font/ directories) */
+/* Niradei Font (Uploaded Custom Default Font) */
 @font-face {
-  font-family: 'CustomFont';
-  src: url('/fonts/custom-font.woff2') format('woff2'),
-       url('/fonts/custom-font.woff') format('woff'),
-       url('/fonts/custom-font.ttf') format('truetype'),
-       url('/fonts/custom-font.otf') format('opentype'),
-       url('/font/custom-font.woff2') format('woff2'),
-       url('/font/custom-font.woff') format('woff'),
-       url('/font/custom-font.ttf') format('truetype'),
-       url('/font/custom-font.otf') format('opentype');
-  font-weight: normal;
+  font-family: 'Niradei';
+  src: url('/fonts/Niradei-Regular.ttf') format('truetype'),
+       url('/font/Niradei-Regular.ttf') format('truetype');
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'CustomFont';
-  src: url('/fonts/custom-font-bold.woff2') format('woff2'),
-       url('/fonts/custom-font-bold.woff') format('woff'),
-       url('/fonts/custom-font-bold.ttf') format('truetype'),
-       url('/fonts/custom-font-bold.otf') format('opentype'),
-       url('/font/custom-font-bold.woff2') format('woff2'),
-       url('/font/custom-font-bold.woff') format('woff'),
-       url('/font/custom-font-bold.ttf') format('truetype'),
-       url('/font/custom-font-bold.otf') format('opentype');
+  font-family: 'Niradei';
+  src: url('/fonts/Niradei-Bold.ttf') format('truetype'),
+       url('/font/Niradei-Bold.ttf') format('truetype');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 
+/* CustomFont Fallback & Alias */
 @font-face {
   font-family: 'CustomFont';
-  src: url('/fonts/custom-font-italic.woff2') format('woff2'),
-       url('/fonts/custom-font-italic.woff') format('woff'),
-       url('/fonts/custom-font-italic.ttf') format('truetype'),
-       url('/fonts/custom-font-italic.otf') format('opentype'),
-       url('/font/custom-font-italic.woff2') format('woff2'),
-       url('/font/custom-font-italic.woff') format('woff'),
-       url('/font/custom-font-italic.ttf') format('truetype'),
-       url('/font/custom-font-italic.otf') format('opentype');
-  font-weight: normal;
-  font-style: italic;
+  src: url('/fonts/Niradei-Regular.ttf') format('truetype'),
+       url('/font/Niradei-Regular.ttf') format('truetype'),
+       url('/fonts/custom-font.woff2') format('woff2'),
+       url('/fonts/custom-font.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'CustomFont';
+  src: url('/fonts/Niradei-Bold.ttf') format('truetype'),
+       url('/font/Niradei-Bold.ttf') format('truetype'),
+       url('/fonts/custom-font-bold.woff2') format('woff2'),
+       url('/fonts/custom-font-bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
   font-display: swap;
 }
 
@@ -66,7 +62,7 @@
 
 /* Custom Global Font & Typography */
 :root {
-  --app-font-family: 'CustomFont', 'Kantumruy Pro', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --app-font-family: 'Niradei', 'CustomFont', 'Kantumruy Pro', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 body, html {
