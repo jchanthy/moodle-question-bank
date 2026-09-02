@@ -6,7 +6,7 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Kantumruy Pro', 'Inter', 'sans-serif'],
+        sans: ['CustomFont', 'Kantumruy Pro', 'Inter', 'sans-serif'],
       },
       colors: {
         'brand': {
