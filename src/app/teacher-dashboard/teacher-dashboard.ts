@@ -1778,6 +1778,8 @@ export class TeacherDashboardComponent implements OnInit {
     );
 
     if (token) {
+      event.preventDefault();
+      event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
       const popupWidth = 280;
       let x = event.clientX;

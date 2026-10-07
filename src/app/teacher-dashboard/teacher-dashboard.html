@@ -1122,16 +1122,8 @@
                       <div *ngIf="spellCheckActive()"
                            #backdropRef
                            class="absolute inset-0 p-4 text-xl md:text-2xl font-bold leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
-                           style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 2px solid transparent;"
-                           aria-hidden="true">
-                        <ng-container *ngFor="let token of spellCheckReport()?.tokens">
-                          <span *ngIf="token.isValid">{{ token.text }}</span>
-                          <span *ngIf="!token.isValid"
-                                class="text-transparent bg-rose-100/80 border-b-2 border-dashed border-rose-500 underline decoration-wavy decoration-rose-500 decoration-2 rounded px-0.5">
-                            {{ token.text }}
-                          </span>
-                        </ng-container>
-                      </div>
+                           style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 2px solid transparent; letter-spacing: normal; word-spacing: normal;"
+                           aria-hidden="true"><ng-container *ngFor="let token of spellCheckReport()?.tokens"><span *ngIf="!token.isValid; else validTdToken" class="text-transparent bg-rose-200/70 underline decoration-wavy decoration-rose-500 decoration-2 select-none" style="text-underline-offset: 3px;">{{ token.text }}</span><ng-template #validTdToken><span>{{ token.text }}</span></ng-template></ng-container></div>
 
                       <!-- Native Textarea: Handles typing, mouse clicks, and contextmenu for inline spellcheck -->
                       <textarea #editorTextarea

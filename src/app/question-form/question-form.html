@@ -650,17 +650,9 @@
                 <!-- Backdrop Layer: Displays red wavy underlines and highlights behind transparent textarea -->
                 <div *ngIf="spellCheckActive()"
                      #formBackdropRef
-                     class="absolute inset-0 p-3 text-base font-medium leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
-                     style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 1px solid transparent;"
-                     aria-hidden="true">
-                  <ng-container *ngFor="let token of spellCheckReport()?.tokens">
-                    <span *ngIf="token.isValid">{{ token.text }}</span>
-                    <span *ngIf="!token.isValid"
-                          class="text-transparent bg-rose-100/80 border-b-2 border-dashed border-rose-500 underline decoration-wavy decoration-rose-500 decoration-2 rounded px-0.5">
-                      {{ token.text }}
-                    </span>
-                  </ng-container>
-                </div>
+                     class="spell-backdrop absolute inset-0 p-3 text-base leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
+                     style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 1px solid transparent; letter-spacing: normal; word-spacing: normal;"
+                     aria-hidden="true"><ng-container *ngFor="let token of spellCheckReport()?.tokens"><span *ngIf="!token.isValid; else validToken" class="text-transparent bg-rose-200/70 underline decoration-wavy decoration-rose-500 decoration-2 select-none" style="text-underline-offset: 3px;">{{ token.text }}</span><ng-template #validToken><span>{{ token.text }}</span></ng-template></ng-container></div>
 
                 <!-- Native Textarea: Handles typing, mouse clicks, and contextmenu for inline spellcheck -->
                 <textarea formControlName="question_text" rows="4"
@@ -668,8 +660,8 @@
                   (click)="onEditorClick($event)"
                   (contextmenu)="onEditorContextMenu($event)"
                   [placeholder]="questionForm.get('qtype')?.value === 'ddwtos' ? 'Use [[1]], [[2]] for the gaps. e.g. The capital of [[1]] is [[2]].' : 'What is the primary cause of...'"
-                  class="relative z-10 block w-full p-3 bg-transparent font-medium leading-relaxed outline-none resize-y"
-                  style="box-sizing: border-box; margin: 0; border: 1px solid transparent;"></textarea>
+                  class="relative z-10 block w-full p-3 bg-transparent text-base leading-relaxed outline-none resize-y"
+                  style="box-sizing: border-box; margin: 0; border: 1px solid transparent; letter-spacing: normal; word-spacing: normal;"></textarea>
               </div>
             </div>
 
@@ -1068,16 +1060,8 @@
                       <!-- Backdrop Layer -->
                       <div *ngIf="spellCheckActive()"
                            class="answer-backdrop absolute inset-0 p-2.5 text-sm md:text-base font-semibold leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
-                           style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 1px solid transparent;"
-                           aria-hidden="true">
-                        <ng-container *ngFor="let token of getAnswerSpellReport(i)?.tokens">
-                          <span *ngIf="token.isValid">{{ token.text }}</span>
-                          <span *ngIf="!token.isValid"
-                                class="text-transparent bg-rose-100/80 border-b-2 border-dashed border-rose-500 underline decoration-wavy decoration-rose-500 decoration-2 rounded px-0.5">
-                            {{ token.text }}
-                          </span>
-                        </ng-container>
-                      </div>
+                           style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 1px solid transparent; letter-spacing: normal; word-spacing: normal;"
+                           aria-hidden="true"><ng-container *ngFor="let token of getAnswerSpellReport(i)?.tokens"><span *ngIf="!token.isValid; else validAnsToken" class="text-transparent bg-rose-200/70 underline decoration-wavy decoration-rose-500 decoration-2 select-none" style="text-underline-offset: 3px;">{{ token.text }}</span><ng-template #validAnsToken><span>{{ token.text }}</span></ng-template></ng-container></div>
 
                       <!-- Native Textarea (supports comfortable multi-line and long Khmer choice text) -->
                       <textarea formControlName="answer_text"
@@ -1087,7 +1071,7 @@
                         (contextmenu)="onAnswerEditorContextMenu($event, i)"
                         [placeholder]="questionForm.get('qtype')?.value === 'ddimageortext' ? 'e.g. Brain' : (questionForm.get('qtype')?.value === 'ddwtos' ? 'e.g. Option ' + (i + 1) + ' for [[' + (i + 1) + ']]' : 'Enter option text...')"
                         class="relative z-10 block w-full p-2.5 bg-transparent font-semibold text-sm md:text-base leading-relaxed outline-none resize-y"
-                        style="box-sizing: border-box; margin: 0; border: 1px solid transparent;"></textarea>
+                        style="box-sizing: border-box; margin: 0; border: 1px solid transparent; letter-spacing: normal; word-spacing: normal;"></textarea>
                     </div>
                   </div>
                   <!-- Choice Image Upload (Optional for MCQ) -->

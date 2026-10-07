@@ -198,9 +198,16 @@ th, .p-column-title {
 .question-text,
 [innerHTML*="question_text"],
 [innerHTML*="question.question_text"],
-textarea[formControlName="question_text"] {
+textarea[formControlName="question_text"],
+.spell-backdrop,
+#formBackdropRef {
   font-family: var(--app-font-family) !important;
   font-weight: var(--question-font-weight, 700) !important;
+}
+
+.answer-backdrop {
+  font-family: var(--app-font-family) !important;
+  font-weight: 600 !important;
 }
 
 /* Inline Edit Textarea - Matches Full Rendered Preview Size and Auto-Expands */
