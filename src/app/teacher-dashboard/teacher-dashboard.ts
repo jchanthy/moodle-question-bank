@@ -18,6 +18,7 @@ import { ButtonModule } from 'primeng/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatButton } from '@angular/material/button';
 import { MatTooltip } from '@angular/material/tooltip';
+import { KhmerSpellCheckService, SpellCheckToken, SpellCheckReport } from '../services/khmer-spellcheck.service';
 
 export interface Question {
   id: string;
@@ -99,7 +100,16 @@ export class TeacherDashboardComponent implements OnInit {
   messageService = inject(MessageService);
   notificationService = inject(NotificationService);
   elementRef = inject(ElementRef);
+  spellCheckService = inject(KhmerSpellCheckService);
   Math = Math;
+
+  // Inline Khmer spell check state
+  spellCheckActive = signal(false);
+  spellCheckReport = signal<SpellCheckReport | null>(null);
+  choiceSpellReport = signal<SpellCheckReport | null>(null);
+  activeSpellSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; isChoice?: boolean } | null>(null);
+  spellCheckErrorsCount = computed(() => this.spellCheckReport()?.errorCount || 0);
+  choiceSpellErrorsCount = computed(() => this.choiceSpellReport()?.errorCount || 0);
 
   myQuestions = signal<Question[]>([]);
   assignedQuestions = signal<Question[]>([]);
@@ -1624,6 +1634,9 @@ export class TeacherDashboardComponent implements OnInit {
     q.isEditingName = false;
   }
 
+  // Undo history stack for spell correction
+  spellUndoHistory: string[] = [];
+
   startEditingText(q: Question) {
     this.editingTextQuestionId.set(q.id);
     let text = q.question_text || '';
@@ -1631,6 +1644,193 @@ export class TeacherDashboardComponent implements OnInit {
       text = text.substring(3, text.length - 4);
     }
     this.editingTextValue = text;
+    this.spellUndoHistory = [];
+    if (this.spellCheckActive()) {
+      this.runInlineSpellCheck();
+    }
+  }
+
+  toggleInlineSpellCheck() {
+    const next = !this.spellCheckActive();
+    this.spellCheckActive.set(next);
+    if (next) {
+      this.runInlineSpellCheck();
+    } else {
+      this.activeSpellSuggestion.set(null);
+    }
+  }
+
+  private inlineSpellDebounceTimer: any = null;
+  onEditingTextChange(val: string) {
+    this.editingTextValue = val;
+    if (this.spellCheckActive()) {
+      clearTimeout(this.inlineSpellDebounceTimer);
+      this.inlineSpellDebounceTimer = setTimeout(() => {
+        this.runInlineSpellCheck();
+      }, 250);
+    }
+  }
+
+  runInlineSpellCheck() {
+    const report = this.spellCheckService.checkText(this.editingTextValue);
+    this.spellCheckReport.set(report);
+  }
+
+  onSpellWordAction(token: SpellCheckToken, event: MouseEvent) {
+    if (token.isValid || !token.isKhmer) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const suggestions = this.spellCheckService.getSuggestions(token.text);
+    const popupWidth = 280;
+    let x = rect.left;
+    if (x + popupWidth > window.innerWidth - 20) {
+      x = Math.max(10, window.innerWidth - popupWidth - 20);
+    }
+    const y = rect.bottom + 6;
+
+    this.activeSpellSuggestion.set({
+      token,
+      x,
+      y,
+      suggestions
+    });
+  }
+
+  applySpellSuggestion(token: SpellCheckToken, suggestion: string) {
+    const active = this.activeSpellSuggestion();
+    if (active && active.isChoice) {
+      this.applyChoiceSpellSuggestion(token, suggestion);
+      return;
+    }
+    const current = this.editingTextValue || '';
+    this.spellUndoHistory.push(current);
+    const before = current.substring(0, token.startIndex);
+    const after = current.substring(token.endIndex);
+    this.editingTextValue = before + suggestion + after;
+    this.activeSpellSuggestion.set(null);
+    this.runInlineSpellCheck();
+  }
+
+  undoSpellCorrection() {
+    if (this.spellUndoHistory.length > 0) {
+      this.editingTextValue = this.spellUndoHistory.pop()!;
+      this.activeSpellSuggestion.set(null);
+      this.runInlineSpellCheck();
+      this.showToast('បានត្រឡប់ពាក្យដើមវិញ (Undone)', 'info');
+    }
+  }
+
+  addWordToDictionary(token: SpellCheckToken) {
+    this.spellCheckService.addToCustomDictionary(token.text);
+    this.activeSpellSuggestion.set(null);
+    this.runInlineSpellCheck();
+  }
+
+  ignoreSpellWord(token: SpellCheckToken) {
+    this.spellCheckService.ignoreWord(token.text);
+    this.activeSpellSuggestion.set(null);
+    this.runInlineSpellCheck();
+  }
+
+  onEditorClick(event: MouseEvent) {
+    if (!this.spellCheckActive()) return;
+    const textarea = event.target as HTMLTextAreaElement;
+    const pos = textarea.selectionStart;
+    
+    const token = this.spellCheckReport()?.tokens.find(
+      t => !t.isValid && t.isKhmer && (
+        (pos >= t.startIndex && pos <= t.endIndex) ||
+        (pos === t.startIndex - 1 && pos >= 0)
+      )
+    );
+
+    if (token) {
+      const suggestions = this.spellCheckService.getSuggestions(token.text);
+      const popupWidth = 280;
+      let x = event.clientX;
+      if (x + popupWidth > window.innerWidth - 20) {
+        x = Math.max(10, window.innerWidth - popupWidth - 20);
+      }
+      const y = event.clientY + 12;
+
+      this.activeSpellSuggestion.set({
+        token,
+        x,
+        y,
+        suggestions
+      });
+    } else {
+      this.activeSpellSuggestion.set(null);
+    }
+  }
+
+  onEditorContextMenu(event: MouseEvent) {
+    if (!this.spellCheckActive()) return;
+    const textarea = event.target as HTMLTextAreaElement;
+    const pos = textarea.selectionStart;
+    
+    const token = this.spellCheckReport()?.tokens.find(
+      t => !t.isValid && t.isKhmer && (
+        (pos >= t.startIndex && pos <= t.endIndex) ||
+        (pos === t.startIndex - 1 && pos >= 0)
+      )
+    );
+
+    if (token) {
+      event.preventDefault();
+      event.stopPropagation();
+      const suggestions = this.spellCheckService.getSuggestions(token.text);
+      const popupWidth = 280;
+      let x = event.clientX;
+      if (x + popupWidth > window.innerWidth - 20) {
+        x = Math.max(10, window.innerWidth - popupWidth - 20);
+      }
+      const y = event.clientY + 12;
+
+      this.activeSpellSuggestion.set({
+        token,
+        x,
+        y,
+        suggestions
+      });
+    }
+  }
+
+  @ViewChild('backdropRef') backdropRef?: ElementRef<HTMLDivElement>;
+
+  syncBackdropScroll(event: Event) {
+    if (this.backdropRef?.nativeElement) {
+      this.backdropRef.nativeElement.scrollTop = (event.target as HTMLElement).scrollTop;
+    }
+  }
+
+  getInvalidTokens(): SpellCheckToken[] {
+    const tokens = this.spellCheckReport()?.tokens || [];
+    const seen = new Set<string>();
+    const res: SpellCheckToken[] = [];
+    for (const t of tokens) {
+      if (!t.isValid && t.isKhmer && !seen.has(t.text)) {
+        seen.add(t.text);
+        res.push(t);
+      }
+    }
+    return res;
+  }
+
+  getPrimarySuggestion(word: string): string | null {
+    const sugs = this.spellCheckService.getSuggestions(word, 1);
+    return sugs.length > 0 ? sugs[0] : null;
+  }
+
+  quickFixToken(token: SpellCheckToken, suggestion: string) {
+    this.applySpellSuggestion(token, suggestion);
+    this.showToast(`បានកែតម្រូវ «${token.text}» ➔ «${suggestion}»`, 'success');
+  }
+
+  closeSpellSuggestion() {
+    this.activeSpellSuggestion.set(null);
   }
 
   getTextareaRows(text: string, defaultRows: number = 4): number {
@@ -1657,14 +1857,16 @@ export class TeacherDashboardComponent implements OnInit {
 
       if (error) throw error;
 
-      // Update in memory state
-      const updated = this.allQuestions().map(item => {
-        if (item.id === q.id) {
-          return { ...item, question_text: finalValue };
-        }
-        return item;
-      });
-      this.allQuestions.set(updated);
+      // Update question in-place directly on object
+      q.question_text = finalValue;
+
+      // Update in memory state across all collections
+      const updater = (list: Question[]) => list.map(item => item.id === q.id ? { ...item, question_text: finalValue } : item);
+      this.allQuestions.set(updater(this.allQuestions()));
+      this.myQuestions.set(updater(this.myQuestions()));
+      this.assignedQuestions.set(updater(this.assignedQuestions()));
+      this.assistantSubmissions.set(updater(this.assistantSubmissions()));
+
       this.showToast('Question text updated successfully', 'success');
       this.editingTextQuestionId.set(null);
     } catch (e: any) {
@@ -1681,6 +1883,119 @@ export class TeacherDashboardComponent implements OnInit {
       text = text.substring(3, text.length - 4);
     }
     this.editingChoiceText = text;
+    if (this.spellCheckActive()) {
+      this.runChoiceSpellCheck();
+    }
+  }
+
+  runChoiceSpellCheck() {
+    const report = this.spellCheckService.checkText(this.editingChoiceText);
+    this.choiceSpellReport.set(report);
+  }
+
+  private choiceSpellDebounceTimer: any = null;
+  onEditingChoiceTextChange(val: string) {
+    this.editingChoiceText = val;
+    if (this.spellCheckActive()) {
+      clearTimeout(this.choiceSpellDebounceTimer);
+      this.choiceSpellDebounceTimer = setTimeout(() => {
+        this.runChoiceSpellCheck();
+      }, 250);
+    }
+  }
+
+  getChoiceInvalidTokens(): SpellCheckToken[] {
+    const tokens = this.choiceSpellReport()?.tokens || [];
+    const seen = new Set<string>();
+    const res: SpellCheckToken[] = [];
+    for (const t of tokens) {
+      if (!t.isValid && t.isKhmer && !seen.has(t.text)) {
+        seen.add(t.text);
+        res.push(t);
+      }
+    }
+    return res;
+  }
+
+  applyChoiceSpellSuggestion(token: SpellCheckToken, suggestion: string) {
+    const current = this.editingChoiceText || '';
+    this.spellUndoHistory.push(current);
+    const before = current.substring(0, token.startIndex);
+    const after = current.substring(token.endIndex);
+    this.editingChoiceText = before + suggestion + after;
+    this.activeSpellSuggestion.set(null);
+    this.runChoiceSpellCheck();
+  }
+
+  quickFixChoiceToken(token: SpellCheckToken, suggestion: string) {
+    this.applyChoiceSpellSuggestion(token, suggestion);
+    this.showToast(`បានកែតម្រូវ «${token.text}» ➔ «${suggestion}»`, 'success');
+  }
+
+  onChoiceEditorClick(event: MouseEvent) {
+    if (!this.spellCheckActive()) return;
+    const textarea = event.target as HTMLTextAreaElement;
+    const pos = textarea.selectionStart;
+
+    const token = this.choiceSpellReport()?.tokens.find(
+      t => !t.isValid && t.isKhmer && (
+        (pos >= t.startIndex && pos <= t.endIndex) ||
+        (pos === t.startIndex - 1 && pos >= 0)
+      )
+    );
+
+    if (token) {
+      const suggestions = this.spellCheckService.getSuggestions(token.text);
+      const popupWidth = 280;
+      let x = event.clientX;
+      if (x + popupWidth > window.innerWidth - 20) {
+        x = Math.max(10, window.innerWidth - popupWidth - 20);
+      }
+      const y = event.clientY + 12;
+
+      this.activeSpellSuggestion.set({
+        token,
+        isChoice: true,
+        x,
+        y,
+        suggestions
+      });
+    } else {
+      this.activeSpellSuggestion.set(null);
+    }
+  }
+
+  onChoiceEditorContextMenu(event: MouseEvent) {
+    if (!this.spellCheckActive()) return;
+    const textarea = event.target as HTMLTextAreaElement;
+    const pos = textarea.selectionStart;
+
+    const token = this.choiceSpellReport()?.tokens.find(
+      t => !t.isValid && t.isKhmer && (
+        (pos >= t.startIndex && pos <= t.endIndex) ||
+        (pos === t.startIndex - 1 && pos >= 0)
+      )
+    );
+
+    if (token) {
+      event.preventDefault();
+      event.stopPropagation();
+      const suggestions = this.spellCheckService.getSuggestions(token.text);
+      const popupWidth = 280;
+      let x = event.clientX;
+      if (x + popupWidth > window.innerWidth - 20) {
+        x = Math.max(10, window.innerWidth - popupWidth - 20);
+      }
+      const y = event.clientY + 12;
+
+      this.activeSpellSuggestion.set({
+        token,
+        isChoice: true,
+        x,
+        y,
+        suggestions
+      });
+    }
   }
 
   async saveChoiceText(ans: any, q: Question) {
@@ -1756,11 +2071,12 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   onBlurText() {
+    // Only close if not interacting with spell suggestion popup
     setTimeout(() => {
-      if (!this.savingInline()) {
+      if (!this.savingInline() && !this.activeSpellSuggestion() && !this.spellCheckActive()) {
         this.editingTextQuestionId.set(null);
       }
-    }, 200);
+    }, 250);
   }
 
   onBlurChoice() {

@@ -1056,14 +1056,143 @@
                       ✏️ Click to Edit Text
                     </span>
                   </div>
-                  <div *ngIf="editingTextQuestionId() === question.id" class="flex flex-col gap-2 mt-1">
-                    <textarea [ngModel]="editingTextValue"
-                              (ngModelChange)="editingTextValue = $event"
-                              [rows]="getTextareaRows(editingTextValue, 4)"
-                              class="w-full text-xl md:text-2xl font-bold text-gray-900 border-2 border-blue-400 p-4 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white leading-relaxed inline-edit-textarea"
-                              (keydown)="onTextKeyDown($event, question)"
-                              (blur)="onBlurText()"
-                              placeholder="Edit question text..."></textarea>
+                  <div *ngIf="editingTextQuestionId() === question.id" class="flex flex-col gap-2 mt-1 relative">
+                    <!-- Inline Spell Check Trigger Bar -->
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-gray-500">Edit Question Text</span>
+                        <!-- Undo Spell Correction Button -->
+                        <button *ngIf="spellUndoHistory.length > 0"
+                          type="button"
+                          (click)="undoSpellCorrection()"
+                          class="text-[11px] px-2.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-full transition flex items-center gap-1 shadow-sm"
+                          title="ត្រឡប់ពាក្យកែតម្រូវចុងក្រោយវិញ">
+                          <span>↩️</span> ត្រឡប់វិញ (Undo)
+                        </button>
+                      </div>
+
+                      <button type="button" (click)="toggleInlineSpellCheck()"
+                        class="text-xs px-3 py-1 font-bold rounded-full transition-all flex items-center gap-1.5 cursor-pointer border shadow-sm"
+                        [ngClass]="{
+                          'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300': spellCheckActive(),
+                          'bg-white text-gray-700 border-gray-300 hover:border-blue-500 hover:text-blue-600': !spellCheckActive()
+                        }">
+                        <span>🔍 ពិនិត្យអក្ខរាវិរុទ្ធ (Khmer Spell Check)</span>
+                        <span *ngIf="spellCheckActive() && spellCheckErrorsCount() > 0" 
+                          class="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black animate-pulse">
+                          {{ spellCheckErrorsCount() }} កំហុស
+                        </span>
+                        <span *ngIf="spellCheckActive() && spellCheckErrorsCount() === 0" 
+                          class="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">
+                          ✓ ត្រឹមត្រូវ
+                        </span>
+                      </button>
+                    </div>
+
+                    <!-- Quick-fix Chips Bar (Shown right above the text when typos are found) -->
+                    <div *ngIf="spellCheckActive() && spellCheckErrorsCount() > 0" 
+                         class="flex items-center gap-1.5 flex-wrap p-2 bg-rose-50/70 border border-rose-200/80 rounded-xl animate-in fade-in duration-150">
+                      <span class="text-[11px] font-black text-rose-700 flex items-center gap-1 shrink-0">
+                        <span>⚠️</span> {{ spellCheckErrorsCount() }} ពាក្យសង្ស័យខុស:
+                      </span>
+                      <ng-container *ngFor="let token of getInvalidTokens()">
+                        <button type="button"
+                          *ngIf="getPrimarySuggestion(token.text); else noSugChip"
+                          (click)="quickFixToken(token, getPrimarySuggestion(token.text)!)"
+                          class="text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-rose-300 bg-white text-rose-800 hover:bg-rose-100 hover:border-rose-400 transition flex items-center gap-1 shadow-2xs group cursor-pointer"
+                          [title]="'ចុចដើម្បីកែ «' + token.text + '» ➔ «' + getPrimarySuggestion(token.text) + '» ភ្លាមៗ'">
+                          <span class="line-through opacity-75">{{ token.text }}</span>
+                          <span class="text-emerald-700 font-extrabold group-hover:scale-105 transition-transform">➔ {{ getPrimarySuggestion(token.text) }}</span>
+                          <span class="text-[9px] bg-emerald-100 text-emerald-800 px-1 rounded-sm ml-0.5">កែ ✓</span>
+                        </button>
+                        <ng-template #noSugChip>
+                          <button type="button"
+                            (click)="onSpellWordAction(token, $event)"
+                            class="text-[11px] font-bold px-2 py-0.5 rounded-full border border-rose-300 bg-white text-rose-700 hover:bg-rose-100 transition cursor-pointer">
+                            <span>{{ token.text }}</span>
+                            <span class="text-gray-400 text-[10px]">?</span>
+                          </button>
+                        </ng-template>
+                      </ng-container>
+                    </div>
+
+                    <!-- Single Direct Text Editor Container (Directly on original text, no other box) -->
+                    <div class="relative w-full rounded-2xl border-2 border-blue-400 bg-white shadow-sm overflow-hidden focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-500 min-h-[140px]">
+                      <!-- Backdrop Layer: Displays red wavy underlines and highlights behind transparent textarea -->
+                      <div *ngIf="spellCheckActive()"
+                           #backdropRef
+                           class="absolute inset-0 p-4 text-xl md:text-2xl font-bold leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
+                           style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 2px solid transparent;"
+                           aria-hidden="true">
+                        <ng-container *ngFor="let token of spellCheckReport()?.tokens">
+                          <span *ngIf="token.isValid">{{ token.text }}</span>
+                          <span *ngIf="!token.isValid"
+                                class="text-transparent bg-rose-100/80 border-b-2 border-dashed border-rose-500 underline decoration-wavy decoration-rose-500 decoration-2 rounded px-0.5">
+                            {{ token.text }}
+                          </span>
+                        </ng-container>
+                      </div>
+
+                      <!-- Native Textarea: Handles typing, mouse clicks, and contextmenu for inline spellcheck -->
+                      <textarea #editorTextarea
+                                [ngModel]="editingTextValue"
+                                (ngModelChange)="onEditingTextChange($event)"
+                                (scroll)="syncBackdropScroll($event)"
+                                (click)="onEditorClick($event)"
+                                (contextmenu)="onEditorContextMenu($event)"
+                                (keydown)="onTextKeyDown($event, question)"
+                                (blur)="onBlurText()"
+                                [rows]="getTextareaRows(editingTextValue, 4)"
+                                class="relative z-10 w-full p-4 text-xl md:text-2xl font-bold text-gray-900 bg-transparent leading-relaxed outline-none resize-y inline-edit-textarea"
+                                style="box-sizing: border-box; margin: 0; border: 2px solid transparent;"
+                                placeholder="Edit question text..."></textarea>
+                    </div>
+
+                    <!-- Floating Suggestion Context Menu Popup -->
+                    <div *ngIf="activeSpellSuggestion()"
+                      class="fixed z-[9999] bg-white border border-gray-200 rounded-2xl shadow-2xl p-2 w-72 animate-in fade-in zoom-in-95 duration-150"
+                      [style.left.px]="activeSpellSuggestion()?.x"
+                      [style.top.px]="activeSpellSuggestion()?.y"
+                      (click)="$event.stopPropagation()">
+                      
+                      <div class="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
+                        <div>
+                          <span class="text-[10px] font-black uppercase tracking-wider text-gray-400 block">ពាក្យខុស (Typo)</span>
+                          <span class="text-sm font-bold text-rose-600">{{ activeSpellSuggestion()?.token?.text }}</span>
+                        </div>
+                        <button type="button" (click)="closeSpellSuggestion()" class="text-gray-400 hover:text-gray-600 text-sm font-bold p-1">✕</button>
+                      </div>
+
+                      <div class="p-1 space-y-0.5">
+                        <span class="text-[10px] font-black uppercase tracking-wider text-gray-400 px-2 py-1 block">ពាក្យកែតម្រូវ (Suggestions)</span>
+                        <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noSuggestions">
+                          <button *ngFor="let sug of activeSpellSuggestion()?.suggestions"
+                            type="button"
+                            (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug)"
+                            class="w-full text-left px-3 py-2 text-sm font-bold text-gray-800 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors flex items-center justify-between group">
+                            <span>{{ sug }}</span>
+                            <span class="text-[10px] text-blue-500 opacity-0 group-hover:opacity-100 font-medium">ជ្រើសរើស ✓</span>
+                          </button>
+                        </ng-container>
+                        <ng-template #noSuggestions>
+                          <div class="px-3 py-2 text-xs text-gray-400 italic">មិនមានពាក្យស្នើសុំជិតស្និទ្ធទេ</div>
+                        </ng-template>
+                      </div>
+
+                      <div class="border-t border-gray-100 p-1 space-y-0.5">
+                        <button type="button"
+                          (click)="addWordToDictionary(activeSpellSuggestion()!.token)"
+                          class="w-full text-left px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-colors flex items-center gap-2">
+                          <span>➕</span> បន្ថែមទៅវចនានុក្រម (Add to Dictionary)
+                        </button>
+                        <button type="button"
+                          (click)="ignoreSpellWord(activeSpellSuggestion()!.token)"
+                          class="w-full text-left px-3 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2">
+                          <span>👁️</span> មិនអើពើ (Ignore Once)
+                        </button>
+                      </div>
+                    </div>
+
                     <div class="flex gap-2 justify-end">
                       <button (click)="editingTextQuestionId.set(null)" 
                               class="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition">
@@ -1097,7 +1226,21 @@
 
                 <!-- Inline Choices Preview -->
                 <div *ngIf="question.answers && question.answers.length > 0" class="border-t border-slate-100 pt-4 mt-3">
-                  <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Choices Preview</div>
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Choices Preview</div>
+                    <button type="button" (click)="toggleInlineSpellCheck()"
+                      class="text-[11px] px-2.5 py-0.5 font-bold rounded-full transition-all flex items-center gap-1.5 cursor-pointer border shadow-2xs"
+                      [ngClass]="{
+                        'bg-blue-600 text-white border-blue-600': spellCheckActive(),
+                        'bg-white text-gray-600 border-gray-300 hover:border-blue-500 hover:text-blue-600': !spellCheckActive()
+                      }">
+                      <span>🔍 ពិនិត្យអក្ខរាវិរុទ្ធ (Spell Check)</span>
+                      <span *ngIf="spellCheckActive()" class="text-[9px] px-1.5 py-0.2 rounded-full font-bold"
+                        [ngClass]="choiceSpellErrorsCount() > 0 ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'">
+                        {{ choiceSpellErrorsCount() > 0 ? choiceSpellErrorsCount() + ' កំហុស' : '✓ ត្រឹមត្រូវ' }}
+                      </span>
+                    </button>
+                  </div>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div *ngFor="let ans of question.answers" 
                          [class]="ans.fraction > 0 ? 'bg-emerald-50/50 text-emerald-800 border-emerald-200 font-bold' : 'bg-slate-50 text-slate-600 border-slate-200'"
@@ -1125,12 +1268,66 @@
                         
                         <!-- Choice text edit input -->
                         <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5">
-                          <textarea [ngModel]="editingChoiceText"
-                                    (ngModelChange)="editingChoiceText = $event"
-                                    [rows]="getTextareaRows(editingChoiceText, 2)"
-                                    class="w-full text-base font-bold text-slate-900 border border-slate-300 px-3 py-2 rounded-lg focus:border-blue-500 outline-none bg-white leading-relaxed inline-edit-choice-textarea"
-                                    (keydown)="onChoiceKeyDown($event, ans, question)"
-                                    (blur)="onBlurChoice()"></textarea>
+                          <!-- Quick-fix Chips for Choice -->
+                          <div *ngIf="spellCheckActive() && choiceSpellErrorsCount() > 0" 
+                               class="flex items-center gap-1.5 flex-wrap p-1.5 bg-rose-50/70 border border-rose-200/80 rounded-lg">
+                            <span class="text-[10px] font-black text-rose-700 flex items-center gap-1 shrink-0">
+                              <span>⚠️</span> {{ choiceSpellErrorsCount() }} កំហុស:
+                            </span>
+                            <ng-container *ngFor="let token of getChoiceInvalidTokens()">
+                              <button type="button"
+                                *ngIf="getPrimarySuggestion(token.text); else noChoiceSug"
+                                (click)="quickFixChoiceToken(token, getPrimarySuggestion(token.text)!)"
+                                class="text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-300 bg-white text-rose-800 hover:bg-rose-100 transition flex items-center gap-1 cursor-pointer"
+                                [title]="'ចុចដើម្បីកែ «' + token.text + '» ➔ «' + getPrimarySuggestion(token.text) + '»'">
+                                <span class="line-through opacity-75">{{ token.text }}</span>
+                                <span class="text-emerald-700 font-extrabold">➔ {{ getPrimarySuggestion(token.text) }}</span>
+                                <span class="text-[8px] bg-emerald-100 text-emerald-800 px-1 rounded-sm ml-0.5">កែ ✓</span>
+                              </button>
+                              <ng-template #noChoiceSug>
+                                <button type="button"
+                                  (click)="onSpellWordAction(token, $event)"
+                                  class="text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-300 bg-white text-rose-700 hover:bg-rose-100 transition cursor-pointer">
+                                  {{ token.text }}
+                                </button>
+                              </ng-template>
+                            </ng-container>
+                          </div>
+
+                          <!-- 0 Errors Positive Feedback -->
+                          <div *ngIf="spellCheckActive() && choiceSpellErrorsCount() === 0 && editingChoiceText.trim()"
+                               class="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-[10px] font-bold">
+                            <span>✓</span> អក្ខរាវិរុទ្ធត្រឹមត្រូវទាំងអស់ (0 errors)
+                          </div>
+
+                          <!-- Unified Direct Choice Input Container -->
+                          <div class="relative w-full rounded-lg border border-slate-300 bg-white shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 min-h-[60px]">
+                            <!-- Backdrop Layer -->
+                            <div *ngIf="spellCheckActive()"
+                                 class="absolute inset-0 p-3 text-base font-bold leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
+                                 style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 1px solid transparent;"
+                                 aria-hidden="true">
+                              <ng-container *ngFor="let token of choiceSpellReport()?.tokens">
+                                <span *ngIf="token.isValid">{{ token.text }}</span>
+                                <span *ngIf="!token.isValid"
+                                      class="text-transparent bg-rose-100/80 border-b-2 border-dashed border-rose-500 underline decoration-wavy decoration-rose-500 decoration-2 rounded px-0.5">
+                                  {{ token.text }}
+                                </span>
+                              </ng-container>
+                            </div>
+
+                            <!-- Native Textarea -->
+                            <textarea [ngModel]="editingChoiceText"
+                                      (ngModelChange)="onEditingChoiceTextChange($event)"
+                                      (click)="onChoiceEditorClick($event)"
+                                      (contextmenu)="onChoiceEditorContextMenu($event)"
+                                      [rows]="getTextareaRows(editingChoiceText, 2)"
+                                      class="relative z-10 w-full text-base font-bold text-slate-900 bg-transparent px-3 py-2 leading-relaxed outline-none resize-y inline-edit-choice-textarea"
+                                      style="box-sizing: border-box; margin: 0; border: 1px solid transparent;"
+                                      (keydown)="onChoiceKeyDown($event, ans, question)"
+                                      (blur)="onBlurChoice()"></textarea>
+                          </div>
+
                           <div class="flex gap-1 justify-end">
                             <button (click)="editingChoiceId.set(null)" 
                                     class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">

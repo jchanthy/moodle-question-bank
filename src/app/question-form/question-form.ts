@@ -1,10 +1,12 @@
-import { Component, inject, signal, OnInit, HostListener } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, HostListener, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators, FormArray, FormGroup } from '@angular/forms';
 import { SupabaseService } from '../services/supabase.service';
 import { ImportExportService } from '../services/import-export.service';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { NotificationService } from '../services/notification.service';
+import { KhmerSpellCheckService, SpellCheckToken, SpellCheckReport } from '../services/khmer-spellcheck.service';
+import { debounceTime } from 'rxjs/operators';
 
 import { AutoComplete } from 'primeng/autocomplete';
 
@@ -22,6 +24,7 @@ export class QuestionFormComponent implements OnInit {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private notificationService = inject(NotificationService);
+  public spellCheckService = inject(KhmerSpellCheckService);
 
   loading = signal(false);
   uploading = signal(false);
@@ -118,6 +121,17 @@ export class QuestionFormComponent implements OnInit {
   previewGapfillChoices = signal<string[]>([]);
   parsedGapfillSegments = signal<{ type: 'text' | 'gap'; content: string; gapIndex?: number; gapNumber?: number }[]>([]);
   previewResult = signal<{ isCorrect: boolean; feedback: string; grade: number } | null>(null);
+
+  // Khmer Spell Check State
+  spellCheckActive = signal(false);
+  spellCheckReport = signal<SpellCheckReport | null>(null);
+  answerSpellReports = signal<(SpellCheckReport | null)[]>([]);
+  activeSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; answerIndex?: number; answerField?: string } | null>(null);
+  spellCheckErrorsCount = computed(() => {
+    const qCount = this.spellCheckReport()?.errorCount || 0;
+    const aCount = this.answerSpellReports().reduce((acc, r) => acc + (r?.errorCount || 0), 0);
+    return qCount + aCount;
+  });
 
   questionTypes = [
     { value: 'multichoice', label: 'Multiple Choice', icon: 'pi pi-list', info: 'Best for standard MCQ. Support single or multiple correct answers.' },
@@ -365,6 +379,381 @@ export class QuestionFormComponent implements OnInit {
         this.difficulty.set('');
       }
     });
+
+    // Auto-update spell check with 250ms debounce for buttery-smooth typing
+    this.questionForm.get('question_text')?.valueChanges.pipe(
+      debounceTime(250)
+    ).subscribe(() => {
+      if (this.spellCheckActive()) {
+        this.runQuestionTextSpellCheck();
+      }
+    });
+
+    this.answers.valueChanges.pipe(
+      debounceTime(250)
+    ).subscribe(() => {
+      if (this.spellCheckActive()) {
+        this.runAnswersSpellCheck();
+      }
+    });
+  }
+
+  toggleSpellCheck() {
+    const next = !this.spellCheckActive();
+    this.spellCheckActive.set(next);
+    if (next) {
+      this.runSpellCheck();
+    } else {
+      this.activeSuggestion.set(null);
+    }
+  }
+
+  runQuestionTextSpellCheck() {
+    const text = this.questionForm.get('question_text')?.value || '';
+    const report = this.spellCheckService.checkText(text);
+    this.spellCheckReport.set(report);
+  }
+
+  runAnswersSpellCheck() {
+    const ansReports: (SpellCheckReport | null)[] = [];
+    for (let i = 0; i < this.answers.length; i++) {
+      const ansCtrl = this.answers.at(i);
+      const ansText = ansCtrl.get('answer_text')?.value || ansCtrl.get('match_answer')?.value || '';
+      ansReports.push(ansText ? this.spellCheckService.checkText(ansText) : null);
+    }
+    this.answerSpellReports.set(ansReports);
+  }
+
+  runSpellCheck() {
+    this.runQuestionTextSpellCheck();
+    this.runAnswersSpellCheck();
+  }
+
+  getAnswerSpellReport(index: number): SpellCheckReport | null {
+    const reports = this.answerSpellReports();
+    return reports[index] || null;
+  }
+
+  getAnswersTotalErrors(): number {
+    const reports = this.answerSpellReports();
+    return reports.reduce((acc, r) => acc + (r?.errorCount || 0), 0);
+  }
+
+  hasAnswerContent(index: number): boolean {
+    const ctrl = this.answers.at(index);
+    if (!ctrl) return false;
+    const txt = ctrl.get('answer_text')?.value || ctrl.get('match_answer')?.value || '';
+    return typeof txt === 'string' && txt.trim().length > 0;
+  }
+
+  syncAnswerBackdropScroll(event: Event, index: number) {
+    const textarea = event.target as HTMLTextAreaElement;
+    const parent = textarea.parentElement;
+    if (parent) {
+      const backdrop = parent.querySelector('.answer-backdrop') as HTMLElement;
+      if (backdrop) {
+        backdrop.scrollTop = textarea.scrollTop;
+      }
+    }
+  }
+
+  getAnswerInvalidTokens(index: number): SpellCheckToken[] {
+    const report = this.getAnswerSpellReport(index);
+    if (!report) return [];
+    const seen = new Set<string>();
+    const res: SpellCheckToken[] = [];
+    for (const t of report.tokens) {
+      if (!t.isValid && t.isKhmer && !seen.has(t.text)) {
+        seen.add(t.text);
+        res.push(t);
+      }
+    }
+    return res;
+  }
+
+  onWordAction(token: SpellCheckToken, event: MouseEvent) {
+    if (token.isValid || !token.isKhmer) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const suggestions = this.spellCheckService.getSuggestions(token.text);
+    const popupWidth = 288;
+    let x = rect.left;
+    if (x + popupWidth > window.innerWidth - 20) {
+      x = Math.max(10, window.innerWidth - popupWidth - 20);
+    }
+    const y = rect.bottom + 6;
+
+    this.activeSuggestion.set({
+      token,
+      x,
+      y,
+      suggestions
+    });
+  }
+
+  onAnswerWordAction(answerIndex: number, token: SpellCheckToken, event: MouseEvent, field: string = 'answer_text') {
+    if (token.isValid || !token.isKhmer) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const suggestions = this.spellCheckService.getSuggestions(token.text);
+    const popupWidth = 288;
+    let x = rect.left;
+    if (x + popupWidth > window.innerWidth - 20) {
+      x = Math.max(10, window.innerWidth - popupWidth - 20);
+    }
+    const y = rect.bottom + 6;
+
+    this.activeSuggestion.set({
+      token,
+      answerIndex,
+      answerField: field,
+      x,
+      y,
+      suggestions
+    });
+  }
+
+  onAnswerEditorClick(event: MouseEvent, answerIndex: number, field: string = 'answer_text') {
+    if (!this.spellCheckActive()) return;
+    const input = event.target as HTMLInputElement;
+    const pos = input.selectionStart || 0;
+
+    const report = this.getAnswerSpellReport(answerIndex);
+    const token = report?.tokens.find(
+      t => !t.isValid && t.isKhmer && (
+        (pos >= t.startIndex && pos <= t.endIndex) ||
+        (pos === t.startIndex - 1 && pos >= 0)
+      )
+    );
+
+    if (token) {
+      const suggestions = this.spellCheckService.getSuggestions(token.text);
+      const popupWidth = 288;
+      let x = event.clientX;
+      if (x + popupWidth > window.innerWidth - 20) {
+        x = Math.max(10, window.innerWidth - popupWidth - 20);
+      }
+      const y = event.clientY + 12;
+
+      this.activeSuggestion.set({
+        token,
+        answerIndex,
+        answerField: field,
+        x,
+        y,
+        suggestions
+      });
+    } else {
+      this.activeSuggestion.set(null);
+    }
+  }
+
+  onAnswerEditorContextMenu(event: MouseEvent, answerIndex: number, field: string = 'answer_text') {
+    if (!this.spellCheckActive()) return;
+    const input = event.target as HTMLInputElement;
+    const pos = input.selectionStart || 0;
+
+    const report = this.getAnswerSpellReport(answerIndex);
+    const token = report?.tokens.find(
+      t => !t.isValid && t.isKhmer && (
+        (pos >= t.startIndex && pos <= t.endIndex) ||
+        (pos === t.startIndex - 1 && pos >= 0)
+      )
+    );
+
+    if (token) {
+      event.preventDefault();
+      event.stopPropagation();
+      const suggestions = this.spellCheckService.getSuggestions(token.text);
+      const popupWidth = 288;
+      let x = event.clientX;
+      if (x + popupWidth > window.innerWidth - 20) {
+        x = Math.max(10, window.innerWidth - popupWidth - 20);
+      }
+      const y = event.clientY + 12;
+
+      this.activeSuggestion.set({
+        token,
+        answerIndex,
+        answerField: field,
+        x,
+        y,
+        suggestions
+      });
+    }
+  }
+
+  applyAnswerSpellSuggestion(answerIndex: number, token: SpellCheckToken, suggestion: string, field: string = 'answer_text') {
+    const control = this.answers.at(answerIndex).get(field);
+    if (!control) return;
+    const current = control.value || '';
+    this.spellUndoHistory.push(current);
+    const before = current.substring(0, token.startIndex);
+    const after = current.substring(token.endIndex);
+    const newText = before + suggestion + after;
+    control.patchValue(newText);
+    this.activeSuggestion.set(null);
+    this.runSpellCheck();
+  }
+
+  quickFixAnswerToken(answerIndex: number, token: SpellCheckToken, suggestion: string, field: string = 'answer_text') {
+    this.applyAnswerSpellSuggestion(answerIndex, token, suggestion, field);
+  }
+
+  applySuggestion(token: SpellCheckToken, suggestion: string) {
+    const active = this.activeSuggestion();
+    if (active && active.answerIndex !== undefined) {
+      this.applyAnswerSpellSuggestion(active.answerIndex, token, suggestion, active.answerField || 'answer_text');
+    } else {
+      this.applySpellSuggestion(token, suggestion);
+    }
+  }
+
+  spellUndoHistory: string[] = [];
+
+  applySpellSuggestion(token: SpellCheckToken, suggestion: string) {
+    const currentText = this.questionForm.get('question_text')?.value || '';
+    this.spellUndoHistory.push(currentText);
+    const before = currentText.substring(0, token.startIndex);
+    const after = currentText.substring(token.endIndex);
+    const newText = before + suggestion + after;
+
+    this.questionForm.patchValue({ question_text: newText });
+    this.activeSuggestion.set(null);
+    this.runSpellCheck();
+  }
+
+  undoSpellCorrection() {
+    if (this.spellUndoHistory.length > 0) {
+      const prev = this.spellUndoHistory.pop()!;
+      this.questionForm.patchValue({ question_text: prev });
+      this.activeSuggestion.set(null);
+      this.runSpellCheck();
+    }
+  }
+
+  addWordToDictionary(token: SpellCheckToken) {
+    this.spellCheckService.addToCustomDictionary(token.text);
+    this.activeSuggestion.set(null);
+    this.runSpellCheck();
+  }
+
+  ignoreSpellWord(token: SpellCheckToken) {
+    this.spellCheckService.ignoreWord(token.text);
+    this.activeSuggestion.set(null);
+    this.runSpellCheck();
+  }
+
+  closeSuggestionMenu() {
+    this.activeSuggestion.set(null);
+  }
+
+  onEditorClick(event: MouseEvent) {
+    if (!this.spellCheckActive()) return;
+    const textarea = event.target as HTMLTextAreaElement;
+    const pos = textarea.selectionStart;
+
+    const token = this.spellCheckReport()?.tokens.find(
+      t => !t.isValid && t.isKhmer && (
+        (pos >= t.startIndex && pos <= t.endIndex) ||
+        (pos === t.startIndex - 1 && pos >= 0)
+      )
+    );
+
+    if (token) {
+      const suggestions = this.spellCheckService.getSuggestions(token.text);
+      const popupWidth = 288;
+      let x = event.clientX;
+      if (x + popupWidth > window.innerWidth - 20) {
+        x = Math.max(10, window.innerWidth - popupWidth - 20);
+      }
+      const y = event.clientY + 12;
+
+      this.activeSuggestion.set({
+        token,
+        x,
+        y,
+        suggestions
+      });
+    } else {
+      this.activeSuggestion.set(null);
+    }
+  }
+
+  onEditorContextMenu(event: MouseEvent) {
+    if (!this.spellCheckActive()) return;
+    const textarea = event.target as HTMLTextAreaElement;
+    const pos = textarea.selectionStart;
+
+    const token = this.spellCheckReport()?.tokens.find(
+      t => !t.isValid && t.isKhmer && (
+        (pos >= t.startIndex && pos <= t.endIndex) ||
+        (pos === t.startIndex - 1 && pos >= 0)
+      )
+    );
+
+    if (token) {
+      event.preventDefault();
+      event.stopPropagation();
+      const suggestions = this.spellCheckService.getSuggestions(token.text);
+      const popupWidth = 288;
+      let x = event.clientX;
+      if (x + popupWidth > window.innerWidth - 20) {
+        x = Math.max(10, window.innerWidth - popupWidth - 20);
+      }
+      const y = event.clientY + 12;
+
+      this.activeSuggestion.set({
+        token,
+        x,
+        y,
+        suggestions
+      });
+    }
+  }
+
+  @ViewChild('formBackdropRef') formBackdropRef?: ElementRef<HTMLDivElement>;
+
+  syncBackdropScroll(event: Event) {
+    if (this.formBackdropRef?.nativeElement) {
+      this.formBackdropRef.nativeElement.scrollTop = (event.target as HTMLElement).scrollTop;
+    }
+  }
+
+  getInvalidTokens(): SpellCheckToken[] {
+    const tokens = this.spellCheckReport()?.tokens || [];
+    const seen = new Set<string>();
+    const res: SpellCheckToken[] = [];
+    for (const t of tokens) {
+      if (!t.isValid && t.isKhmer && !seen.has(t.text)) {
+        seen.add(t.text);
+        res.push(t);
+      }
+    }
+    return res;
+  }
+
+  getPrimarySuggestion(word: string): string | null {
+    const sugs = this.spellCheckService.getSuggestions(word, 1);
+    return sugs.length > 0 ? sugs[0] : null;
+  }
+
+  quickFixToken(token: SpellCheckToken, suggestion: string) {
+    this.applySpellSuggestion(token, suggestion);
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    if (this.activeSuggestion()) {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.spell-suggestion-popup') && !target.closest('.misspelled-word')) {
+        this.closeSuggestionMenu();
+      }
+    }
   }
 
   setDifficulty(level: string) {
@@ -566,6 +955,10 @@ export class QuestionFormComponent implements OnInit {
         this.setupAnswerGroup(group);
         answersArray.push(group);
       });
+
+      if (this.spellCheckActive()) {
+        this.runSpellCheck();
+      }
 
       // Reload categories now that category_id is set, so any assigned (non-owned) category
       // gets fetched and added to the dropdown (fixes imported question category visibility).

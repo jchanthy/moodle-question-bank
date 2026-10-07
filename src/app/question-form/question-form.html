@@ -587,10 +587,137 @@
             </div>
 
             <div>
-              <label class="block text-sm font-bold text-gray-700">Question Text</label>
-              <textarea formControlName="question_text" rows="4"
-                [placeholder]="questionForm.get('qtype')?.value === 'ddwtos' ? 'Use [[1]], [[2]] for the gaps. e.g. The capital of [[1]] is [[2]].' : 'What is the primary cause of...'"
-                class="mt-1 block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-3 border bg-gray-50/50 font-medium transition-all"></textarea>
+              <div class="flex items-center justify-between mb-1.5">
+                <div class="flex items-center gap-2">
+                  <label class="block text-sm font-bold text-gray-700">Question Text</label>
+                  <button *ngIf="spellUndoHistory.length > 0"
+                    type="button"
+                    (click)="undoSpellCorrection()"
+                    class="text-[11px] px-2.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-full transition flex items-center gap-1 shadow-sm"
+                    title="ត្រឡប់ពាក្យកែតម្រូវចុងក្រោយវិញ">
+                    <span>↩️</span> ត្រឡប់វិញ (Undo)
+                  </button>
+                </div>
+
+                <!-- Khmer Spell Check Trigger Button -->
+                <button type="button" (click)="toggleSpellCheck()"
+                  class="text-xs px-3 py-1 font-bold rounded-full transition-all flex items-center gap-1.5 cursor-pointer border shadow-sm"
+                  [ngClass]="{
+                    'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300': spellCheckActive(),
+                    'bg-white text-gray-700 border-gray-300 hover:border-blue-500 hover:text-blue-600': !spellCheckActive()
+                  }">
+                  <span>🔍 ពិនិត្យអក្ខរាវិរុទ្ធ (Khmer Spell Check)</span>
+                  <span *ngIf="spellCheckActive() && spellCheckErrorsCount() > 0" 
+                    class="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black animate-pulse">
+                    {{ spellCheckErrorsCount() }} កំហុស
+                  </span>
+                  <span *ngIf="spellCheckActive() && spellCheckErrorsCount() === 0" 
+                    class="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">
+                    ✓ ត្រឹមត្រូវទាំងអស់
+                  </span>
+                </button>
+              </div>
+
+              <!-- Quick-fix Chips Bar (Shown right above the text when typos are found) -->
+              <div *ngIf="spellCheckActive() && spellCheckErrorsCount() > 0" 
+                   class="mt-2 flex items-center gap-1.5 flex-wrap p-2 bg-rose-50/70 border border-rose-200/80 rounded-xl animate-in fade-in duration-150">
+                <span class="text-[11px] font-black text-rose-700 flex items-center gap-1 shrink-0">
+                  <span>⚠️</span> {{ spellCheckErrorsCount() }} ពាក្យសង្ស័យខុស:
+                </span>
+                <ng-container *ngFor="let token of getInvalidTokens()">
+                  <button type="button"
+                    *ngIf="getPrimarySuggestion(token.text); else noFormSugChip"
+                    (click)="quickFixToken(token, getPrimarySuggestion(token.text)!)"
+                    class="text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-rose-300 bg-white text-rose-800 hover:bg-rose-100 hover:border-rose-400 transition flex items-center gap-1 shadow-2xs group cursor-pointer"
+                    [title]="'ចុចដើម្បីកែ «' + token.text + '» ➔ «' + getPrimarySuggestion(token.text) + '» ភ្លាមៗ'">
+                    <span class="line-through opacity-75">{{ token.text }}</span>
+                    <span class="text-emerald-700 font-extrabold group-hover:scale-105 transition-transform">➔ {{ getPrimarySuggestion(token.text) }}</span>
+                    <span class="text-[9px] bg-emerald-100 text-emerald-800 px-1 rounded-sm ml-0.5">កែ ✓</span>
+                  </button>
+                  <ng-template #noFormSugChip>
+                    <button type="button"
+                      (click)="onWordAction(token, $event)"
+                      class="text-[11px] font-bold px-2 py-0.5 rounded-full border border-rose-300 bg-white text-rose-700 hover:bg-rose-100 transition cursor-pointer">
+                      <span>{{ token.text }}</span>
+                      <span class="text-gray-400 text-[10px]">?</span>
+                    </button>
+                  </ng-template>
+                </ng-container>
+              </div>
+
+              <!-- Single Direct Text Editor Container (No other box!) -->
+              <div class="relative w-full rounded-none border border-blue-300 bg-white shadow-sm overflow-hidden focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-500 min-h-[120px] mt-1">
+                <!-- Backdrop Layer: Displays red wavy underlines and highlights behind transparent textarea -->
+                <div *ngIf="spellCheckActive()"
+                     #formBackdropRef
+                     class="absolute inset-0 p-3 text-base font-medium leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
+                     style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 1px solid transparent;"
+                     aria-hidden="true">
+                  <ng-container *ngFor="let token of spellCheckReport()?.tokens">
+                    <span *ngIf="token.isValid">{{ token.text }}</span>
+                    <span *ngIf="!token.isValid"
+                          class="text-transparent bg-rose-100/80 border-b-2 border-dashed border-rose-500 underline decoration-wavy decoration-rose-500 decoration-2 rounded px-0.5">
+                      {{ token.text }}
+                    </span>
+                  </ng-container>
+                </div>
+
+                <!-- Native Textarea: Handles typing, mouse clicks, and contextmenu for inline spellcheck -->
+                <textarea formControlName="question_text" rows="4"
+                  (scroll)="syncBackdropScroll($event)"
+                  (click)="onEditorClick($event)"
+                  (contextmenu)="onEditorContextMenu($event)"
+                  [placeholder]="questionForm.get('qtype')?.value === 'ddwtos' ? 'Use [[1]], [[2]] for the gaps. e.g. The capital of [[1]] is [[2]].' : 'What is the primary cause of...'"
+                  class="relative z-10 block w-full p-3 bg-transparent font-medium leading-relaxed outline-none resize-y"
+                  style="box-sizing: border-box; margin: 0; border: 1px solid transparent;"></textarea>
+              </div>
+            </div>
+
+            <!-- Floating Suggestion Context Menu Popup -->
+            <div *ngIf="activeSuggestion()" 
+              class="spell-suggestion-popup fixed z-50 bg-white border border-gray-200 rounded-2xl shadow-2xl p-3 w-72 animate-in zoom-in-95 duration-150 backdrop-blur-md"
+              [style.left.px]="activeSuggestion()!.x"
+              [style.top.px]="activeSuggestion()!.y">
+              
+              <div class="flex items-center justify-between border-b border-gray-100 pb-2 mb-2">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-rose-500 font-black text-xs">❌</span>
+                  <span class="font-bold text-xs text-gray-800 font-mono">{{ activeSuggestion()!.token.text }}</span>
+                </div>
+                <button type="button" (click)="closeSuggestionMenu()" class="text-gray-400 hover:text-gray-600 text-xs font-bold">✕</button>
+              </div>
+
+              <!-- Suggestions List -->
+              <div class="mb-2">
+                <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-1.5">💡 តើអ្នកចង់សរសេរពាក្យនេះមែនទេ? (Suggestions):</span>
+                
+                <div *ngIf="activeSuggestion()!.suggestions.length === 0" class="text-xs text-gray-400 italic py-1">
+                  គ្មានសំណើកែតម្រូវជិតស្និទ្ធក្នុងវចនានុក្រម
+                </div>
+
+                <div class="space-y-1">
+                  <button *ngFor="let s of activeSuggestion()!.suggestions"
+                    type="button"
+                    (click)="applySuggestion(activeSuggestion()!.token, s)"
+                    class="w-full text-left px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50/60 hover:bg-blue-100 hover:text-blue-900 rounded-xl transition flex items-center justify-between group cursor-pointer">
+                    <span>{{ s }}</span>
+                    <span class="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity text-blue-500 uppercase font-black">កែតម្រូវ ✓</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Context Actions -->
+              <div class="border-t border-gray-100 pt-2 space-y-1">
+                <button type="button" (click)="addWordToDictionary(activeSuggestion()!.token)"
+                  class="w-full text-left px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 rounded-lg transition flex items-center gap-1.5 cursor-pointer">
+                  <span>➕ បន្ថែមទៅវចនានុក្រម (Add to Dictionary)</span>
+                </button>
+
+                <button type="button" (click)="ignoreSpellWord(activeSuggestion()!.token)"
+                  class="w-full text-left px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition flex items-center gap-1.5 cursor-pointer">
+                  <span>👁️ រំលងពាក្យនេះ (Ignore Once)</span>
+                </button>
+              </div>
             </div>
 
             <!-- Image Support -->
@@ -846,11 +973,29 @@
 
         <!-- Answers Section -->
         <section class="space-y-6" *ngIf="questionForm.get('qtype')?.value !== 'essay' && questionForm.get('qtype')?.value !== 'coderunner'">
-          <div class="flex justify-between items-center border-b border-blue-50">
+          <div class="flex flex-wrap justify-between items-center gap-3 border-b border-blue-50 pb-2">
             <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
               <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-none flex items-center justify-center text-[10px] font-black uppercase">04</span>
               {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Answers - Draggable Labels' : (questionForm.get('qtype')?.value === 'ddwtos' ? 'Answers - Draggable Choices (Choice 1 fills [[1]], Choice 2 fills [[2]], etc.)' : (questionForm.get('qtype')?.value === 'gapselect' ? 'Answers - Dropdown Choices (Choice 1 fills [[1]], Choice 2 fills [[2]], etc.)' : (questionForm.get('qtype')?.value === 'gapfill' ? 'Answers - Choices & Distractors' : 'Answers - Choices & Grading (Set Correct Answers Here)'))) }}
             </h2>
+
+            <!-- Dedicated Spell Check Button for Answers -->
+            <button type="button" (click)="toggleSpellCheck()"
+              class="text-xs px-3.5 py-1.5 font-bold rounded-full transition-all flex items-center gap-2 cursor-pointer border shadow-sm"
+              [ngClass]="{
+                'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300': spellCheckActive(),
+                'bg-white text-gray-700 border-gray-300 hover:border-blue-500 hover:text-blue-600': !spellCheckActive()
+              }">
+              <span>🔍 ពិនិត្យអក្ខរាវិរុទ្ធជម្រើស (Check Answers Spell)</span>
+              <span *ngIf="spellCheckActive() && getAnswersTotalErrors() > 0" 
+                class="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">
+                {{ getAnswersTotalErrors() }} កំហុស
+              </span>
+              <span *ngIf="spellCheckActive() && getAnswersTotalErrors() === 0" 
+                class="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black">
+                ✓ ត្រឹមត្រូវទាំងអស់
+              </span>
+            </button>
           </div>
 
           <!-- Correct Answer Selector for True/False -->
@@ -878,12 +1023,71 @@
               <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div class="md:col-span-3 space-y-3" *ngIf="questionForm.get('qtype')?.value !== 'match'">
                   <div>
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
-                      {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Label Text' : (questionForm.get('qtype')?.value === 'ddwtos' ? 'Choice [[' + (i + 1) + ']] Text (Draggable Word)' : (questionForm.get('qtype')?.value === 'gapselect' ? 'Choice [[' + (i + 1) + ']] Text (Dropdown Option)' : (questionForm.get('qtype')?.value === 'gapfill' ? 'Choice / Distractor Word' : 'Choice Text'))) }}
-                    </label>
-                    <input type="text" formControlName="answer_text"
-                      [placeholder]="questionForm.get('qtype')?.value === 'ddimageortext' ? 'e.g. Brain' : (questionForm.get('qtype')?.value === 'ddwtos' ? 'e.g. Option ' + (i + 1) + ' for [[' + (i + 1) + ']]' : 'Enter option text...')"
-                      class="block w-full border-blue-300 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none p-2.5 border bg-white transition-all font-semibold">
+                    <div class="flex items-center justify-between mb-1">
+                      <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                        {{ questionForm.get('qtype')?.value === 'ddimageortext' ? 'Label Text' : (questionForm.get('qtype')?.value === 'ddwtos' ? 'Choice [[' + (i + 1) + ']] Text (Draggable Word)' : (questionForm.get('qtype')?.value === 'gapselect' ? 'Choice [[' + (i + 1) + ']] Text (Dropdown Option)' : (questionForm.get('qtype')?.value === 'gapfill' ? 'Choice / Distractor Word' : 'Choice Text'))) }}
+                      </label>
+                      <div *ngIf="spellCheckActive()" class="flex items-center gap-1.5">
+                        <span *ngIf="getAnswerSpellReport(i)?.errorCount" 
+                              class="text-[10px] font-bold text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200 animate-pulse">
+                          ⚠️ {{ getAnswerSpellReport(i)?.errorCount }} កំហុសអក្ខរាវិរុទ្ធ
+                        </span>
+                        <span *ngIf="hasAnswerContent(i) && (!getAnswerSpellReport(i) || getAnswerSpellReport(i)?.errorCount === 0)" 
+                              class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                          <span>✓</span> ត្រឹមត្រូវ (0 errors)
+                        </span>
+                      </div>
+                    </div>
+
+                    <!-- Mini Quick-fix Chips for Choice i -->
+                    <div *ngIf="spellCheckActive() && getAnswerSpellReport(i)?.errorCount" 
+                         class="mb-1.5 flex items-center gap-1.5 flex-wrap p-1.5 bg-rose-50/70 border border-rose-200/80 rounded-lg">
+                      <ng-container *ngFor="let token of getAnswerInvalidTokens(i)">
+                        <button type="button"
+                          *ngIf="getPrimarySuggestion(token.text); else noAnsSug"
+                          (click)="quickFixAnswerToken(i, token, getPrimarySuggestion(token.text)!)"
+                          class="text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-300 bg-white text-rose-800 hover:bg-rose-100 transition flex items-center gap-1 cursor-pointer"
+                          [title]="'ចុចដើម្បីកែ «' + token.text + '» ➔ «' + getPrimarySuggestion(token.text) + '»'">
+                          <span class="line-through opacity-75">{{ token.text }}</span>
+                          <span class="text-emerald-700 font-extrabold">➔ {{ getPrimarySuggestion(token.text) }}</span>
+                          <span class="text-[8px] bg-emerald-100 text-emerald-800 px-1 rounded-sm ml-0.5">កែ ✓</span>
+                        </button>
+                        <ng-template #noAnsSug>
+                          <button type="button"
+                            (click)="onAnswerWordAction(i, token, $event)"
+                            class="text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-300 bg-white text-rose-700 hover:bg-rose-100 transition cursor-pointer">
+                            {{ token.text }}
+                          </button>
+                        </ng-template>
+                      </ng-container>
+                    </div>
+
+                    <!-- Unified Direct Input Box for Choice i -->
+                    <div class="relative w-full rounded-none border border-blue-300 bg-white shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 min-h-[48px]">
+                      <!-- Backdrop Layer -->
+                      <div *ngIf="spellCheckActive()"
+                           class="answer-backdrop absolute inset-0 p-2.5 text-sm md:text-base font-semibold leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
+                           style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 1px solid transparent;"
+                           aria-hidden="true">
+                        <ng-container *ngFor="let token of getAnswerSpellReport(i)?.tokens">
+                          <span *ngIf="token.isValid">{{ token.text }}</span>
+                          <span *ngIf="!token.isValid"
+                                class="text-transparent bg-rose-100/80 border-b-2 border-dashed border-rose-500 underline decoration-wavy decoration-rose-500 decoration-2 rounded px-0.5">
+                            {{ token.text }}
+                          </span>
+                        </ng-container>
+                      </div>
+
+                      <!-- Native Textarea (supports comfortable multi-line and long Khmer choice text) -->
+                      <textarea formControlName="answer_text"
+                        rows="2"
+                        (scroll)="syncAnswerBackdropScroll($event, i)"
+                        (click)="onAnswerEditorClick($event, i)"
+                        (contextmenu)="onAnswerEditorContextMenu($event, i)"
+                        [placeholder]="questionForm.get('qtype')?.value === 'ddimageortext' ? 'e.g. Brain' : (questionForm.get('qtype')?.value === 'ddwtos' ? 'e.g. Option ' + (i + 1) + ' for [[' + (i + 1) + ']]' : 'Enter option text...')"
+                        class="relative z-10 block w-full p-2.5 bg-transparent font-semibold text-sm md:text-base leading-relaxed outline-none resize-y"
+                        style="box-sizing: border-box; margin: 0; border: 1px solid transparent;"></textarea>
+                    </div>
                   </div>
                   <!-- Choice Image Upload (Optional for MCQ) -->
                   <div *ngIf="questionForm.get('qtype')?.value !== 'ddimageortext' && !isTrueFalse" class="mt-2">
