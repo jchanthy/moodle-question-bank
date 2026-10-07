@@ -6,7 +6,8 @@
     "start": "node scripts/git-version.js && ng serve",
     "build": "node scripts/git-version.js && ng build",
     "watch": "node scripts/git-version.js && ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "analyze-items": "node scripts/calculate-item-analysis.js"
   },
   "private": true,
   "packageManager": "npm@11.9.0",

@@ -18,13 +18,19 @@ import { MatButton } from '@angular/material/button';
 import { MatTooltip } from '@angular/material/tooltip';
 import { createClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
+import { PreTestService } from '../services/pre-test.service';
 
 interface Question {
   id: string;
   name: string;
   question_text: string;
   qtype: string;
-  status: 'draft' | 'pending_review' | 'approved' | 'rejected';
+  status: 'draft' | 'pending_review' | 'approved' | 'rejected' | 'testing';
+  total_attempts?: number;
+  correct_attempts?: number;
+  difficulty_index?: number | null;
+  discrimination_index?: number | null;
+  last_tested_at?: string | null;
   version: number;
   metadata?: {
     author_id?: string;
@@ -97,6 +103,7 @@ export class AdminDashboardComponent implements OnInit {
   router = inject(Router);
   messageService = inject(MessageService);
   notificationService = inject(NotificationService);
+  preTestService = inject(PreTestService);
   elementRef = inject(ElementRef);
   
   @ViewChild('notificationContainer') notificationContainer?: ElementRef;
@@ -308,9 +315,10 @@ export class AdminDashboardComponent implements OnInit {
   questionTypeCounts = signal<TypeCount[]>([]);
   totalQuestions = signal(0);
   // Tabs
-  activeTab = signal<'pending' | 'approved' | 'rejected' | 'draft'>(
+  activeTab = signal<'pending' | 'approved' | 'rejected' | 'draft' | 'testing'>(
     (sessionStorage.getItem('admin_active_tab') as any) || 'pending'
   );
+  selectedQuestionIds = signal<Set<string>>(new Set());
   showTypeHelp = signal(false);
 
   // Import properties
@@ -459,7 +467,8 @@ export class AdminDashboardComponent implements OnInit {
       pending: list.filter(q => q.status === 'pending_review').length,
       approved: list.filter(q => q.status === 'approved').length,
       rejected: list.filter(q => q.status === 'rejected').length,
-      draft: list.filter(q => q.status === 'draft').length
+      draft: list.filter(q => q.status === 'draft').length,
+      testing: list.filter(q => q.status === 'testing').length
     };
   });
 
@@ -1118,7 +1127,8 @@ export class AdminDashboardComponent implements OnInit {
         if (q) {
           const tab = q.status === 'pending_review' ? 'pending' : 
                       q.status === 'approved' ? 'approved' :
-                      q.status === 'rejected' ? 'rejected' : 'draft';
+                      q.status === 'rejected' ? 'rejected' :
+                      q.status === 'testing' ? 'testing' : 'draft';
           
           this.activeTab.set(tab);
 
@@ -1152,7 +1162,8 @@ export class AdminDashboardComponent implements OnInit {
     const allQs = this.allQuestions();
     const status = this.activeTab() === 'pending' ? 'pending_review' : 
                    this.activeTab() === 'approved' ? 'approved' :
-                   this.activeTab() === 'rejected' ? 'rejected' : 'draft';
+                   this.activeTab() === 'rejected' ? 'rejected' :
+                   this.activeTab() === 'testing' ? 'testing' : 'draft';
     
     // 1. Filter for latest versions in family
     const familyMap = new Map<string, Question>();
@@ -1583,7 +1594,11 @@ export class AdminDashboardComponent implements OnInit {
     return `"${str}"`;
   }
 
-  async updateStatus(id: string, status: 'approved' | 'rejected') {
+  clearSelection() {
+    this.selectedQuestionIds.set(new Set());
+  }
+
+  async updateStatus(id: string, status: 'approved' | 'rejected' | 'testing') {
     // Fetch the question to get details and current status
     const { data: question } = await this.supabaseService.db
       .from('questions')
@@ -1646,19 +1661,196 @@ export class AdminDashboardComponent implements OnInit {
         const authorId = question.metadata?.author_id || question.created_by;
         const adminName = this.supabaseService.currentUserName;
         
-        this.notificationService.createNotification(
-          authorId,
-          status === 'approved' ? 'question_approved' : 'question_rejected',
-          `Question ${status === 'approved' ? 'Approved' : 'Rejected'}`,
-          `${adminName} has ${status} your question "${question.name}".`,
-          { question_id: id, status, reviewed_by: adminName }
-        );
+        if (status === 'testing') {
+          this.notificationService.createNotification(
+            authorId,
+            'question_testing',
+            'Question in Testing Pool',
+            `${adminName} moved your question "${question.name}" to the practice & pre-testing pool.`,
+            { question_id: id, status, reviewed_by: adminName }
+          );
+        } else {
+          this.notificationService.createNotification(
+            authorId,
+            status === 'approved' ? 'question_approved' : 'question_rejected',
+            `Question ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+            `${adminName} has ${status} your question "${question.name}".`,
+            { question_id: id, status, reviewed_by: adminName }
+          );
+        }
       }
+
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: status === 'testing' ? 'Question moved to Pre-Testing Pool' :
+                status === 'approved' ? 'Question approved for production' :
+                status === 'rejected' ? 'Question marked as revision needed' : 'Status updated'
+      });
 
       this.loadQuestionsForActiveTab();
       this.loadAllQuestionsData();
       this.loadQuestionTypeCounts();
     }
+  }
+
+  // --- PRE-TESTING & QUALITY ANALYSIS ENGINE METHODS ---
+
+  isQuestionSelected(id: string): boolean {
+    return this.selectedQuestionIds().has(id);
+  }
+
+  toggleSelectQuestion(id: string) {
+    const current = new Set(this.selectedQuestionIds());
+    if (current.has(id)) {
+      current.delete(id);
+    } else {
+      current.add(id);
+    }
+    this.selectedQuestionIds.set(current);
+  }
+
+  toggleSelectAll() {
+    const visible = this.filteredQuestions();
+    const current = this.selectedQuestionIds();
+    const allSelected = visible.length > 0 && visible.every(q => current.has(q.id));
+    
+    if (allSelected) {
+      this.selectedQuestionIds.set(new Set());
+    } else {
+      const next = new Set(current);
+      visible.forEach(q => next.add(q.id));
+      this.selectedQuestionIds.set(next);
+    }
+  }
+
+  isAllSelected = computed(() => {
+    const visible = this.filteredQuestions();
+    if (visible.length === 0) return false;
+    const current = this.selectedQuestionIds();
+    return visible.every(q => current.has(q.id));
+  });
+
+  async bulkUpdateStatus(status: 'testing' | 'approved' | 'rejected') {
+    const ids = Array.from(this.selectedQuestionIds());
+    if (ids.length === 0) return;
+
+    const actionLabels: Record<string, string> = {
+      testing: 'Move to Test Pool',
+      approved: 'Approve for Production',
+      rejected: 'Reject / Revision Needed'
+    };
+
+    const confirmMsg = `Are you sure you want to "${actionLabels[status]}" for ${ids.length} selected question(s)?`;
+    if (!confirm(confirmMsg)) return;
+
+    this.loading.set(true);
+    try {
+      const { error } = await this.supabaseService.db
+        .from('questions')
+        .update({ status, updated_at: new Date().toISOString() })
+        .in('id', ids);
+
+      if (error) throw error;
+
+      if (status === 'testing') {
+        await this.preTestService.recalculateMetrics().catch(e => console.warn(e));
+      }
+
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Bulk Action Success',
+        detail: `Successfully updated ${ids.length} question(s) to "${status}"`
+      });
+
+      this.selectedQuestionIds.set(new Set());
+      await this.loadAllQuestionsData();
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Bulk Action Failed',
+        detail: err.message || 'Operation failed'
+      });
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  async recalculateQualityMetrics() {
+    this.loading.set(true);
+    try {
+      await this.preTestService.recalculateMetrics();
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Recalculation Complete',
+        detail: 'Item analysis & psychometric metrics recalculated successfully!'
+      });
+      await this.loadAllQuestionsData();
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Recalculation Error',
+        detail: err.message || 'Failed to recalculate metrics'
+      });
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  getAttemptsBadge(q: Question): { label: string; subLabel: string; badgeClass: string } {
+    const attempts = q.total_attempts || 0;
+    if (attempts >= 20) {
+      return {
+        label: `${attempts} (Ready)`,
+        subLabel: 'Data Threshold Met',
+        badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      };
+    }
+    return {
+      label: `${attempts}/20 (Collecting)`,
+      subLabel: `${20 - attempts} more attempts needed`,
+      badgeClass: 'bg-amber-50 text-amber-700 border-amber-200'
+    };
+  }
+
+  getDifficultyBadge(q: Question): { label: string; badgeClass: string; tooltip: string } {
+    const p = q.difficulty_index !== null && q.difficulty_index !== undefined ? Number(q.difficulty_index) : null;
+    if (p === null) {
+      return { label: 'p: N/A', badgeClass: 'bg-slate-100 text-slate-500 border-slate-200', tooltip: 'No attempt data available' };
+    }
+    const pStr = p.toFixed(2);
+    if (p >= 0.30 && p <= 0.85) {
+      return { label: `p = ${pStr}`, badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold', tooltip: 'Optimal difficulty (0.30 ≤ p ≤ 0.85)' };
+    }
+    if ((p >= 0.25 && p < 0.30) || (p > 0.85 && p <= 0.90)) {
+      return { label: `p = ${pStr}`, badgeClass: 'bg-amber-50 text-amber-700 border-amber-300 font-bold', tooltip: 'Borderline difficulty' };
+    }
+    return { label: `p = ${pStr}`, badgeClass: 'bg-rose-50 text-rose-700 border-rose-300 font-bold', tooltip: p < 0.25 ? 'Too Hard (p < 0.25)' : 'Too Easy (p > 0.90)' };
+  }
+
+  getDiscriminationBadge(q: Question): { label: string; badgeClass: string; tooltip: string; isMiskeyed: boolean } {
+    const d = q.discrimination_index !== null && q.discrimination_index !== undefined ? Number(q.discrimination_index) : null;
+    if (d === null) {
+      return { label: 'D: N/A', badgeClass: 'bg-slate-100 text-slate-500 border-slate-200', tooltip: 'Requires at least 4 test sessions', isMiskeyed: false };
+    }
+    const dStr = d.toFixed(2);
+    if (d < 0) {
+      return { label: `⚠️ D = ${dStr}`, badgeClass: 'bg-rose-100 text-rose-800 border-rose-400 font-black animate-pulse', tooltip: 'Warning: Miskeyed question! Lower scorers scored higher than top scorers.', isMiskeyed: true };
+    }
+    if (d <= 0.05) {
+      return { label: `D = ${dStr}`, badgeClass: 'bg-rose-50 text-rose-700 border-rose-300 font-bold', tooltip: 'Poor discrimination (D ≤ 0.05)', isMiskeyed: false };
+    }
+    if (d >= 0.25) {
+      return { label: `D = ${dStr}`, badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold', tooltip: 'Strong discrimination (D ≥ 0.25)', isMiskeyed: false };
+    }
+    return { label: `D = ${dStr}`, badgeClass: 'bg-amber-50 text-amber-700 border-amber-300 font-bold', tooltip: 'Moderate discrimination (0.05 < D < 0.25)', isMiskeyed: false };
+  }
+
+  getReadinessEvaluation(q: Question) {
+    const attempts = q.total_attempts || 0;
+    const p = q.difficulty_index !== null && q.difficulty_index !== undefined ? Number(q.difficulty_index) : null;
+    const d = q.discrimination_index !== null && q.discrimination_index !== undefined ? Number(q.discrimination_index) : null;
+    return this.preTestService.evaluateReadiness(attempts, p, d);
   }
 
   assigningQuestionId = signal<string | null>(null);

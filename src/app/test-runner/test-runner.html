@@ -1,0 +1,463 @@
+<div class="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
+  <!-- Top Navigation Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-lg shadow-md shadow-blue-500/20">
+          Q
+        </div>
+        <div>
+          <h1 class="text-base font-black text-slate-900 tracking-tight leading-tight">
+            Moodle Question Bank
+          </h1>
+          <p class="text-xs font-semibold text-blue-600 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            Practice & Pre-Testing Portal
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Live Timer (visible during active exam) -->
+        <div *ngIf="stage() === 'taking_test'" class="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-xl border border-slate-200 text-xs font-bold text-slate-700">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span class="font-mono text-sm font-black">{{ formattedTime() }}</span>
+        </div>
+
+        <a routerLink="/auth" class="text-xs font-bold text-slate-500 hover:text-slate-800 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition">
+          Teacher / Admin Login &rarr;
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Body Content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Global Error Alert -->
+    <div *ngIf="errorMessage()" class="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-3 shadow-sm animate-fade-in">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-rose-500 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+      </svg>
+      <div class="flex-1 text-sm font-medium">
+        {{ errorMessage() }}
+      </div>
+      <button (click)="errorMessage.set(null)" class="text-rose-400 hover:text-rose-600 font-bold">&times;</button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- STAGE 1: SUBJECT SELECTION -->
+    <!-- ========================================================================= -->
+    <div *ngIf="stage() === 'select_subject'" class="max-w-3xl mx-auto space-y-8 animate-fade-in">
+      <div class="text-center space-y-3">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-widest">
+          Candidate Practice Portal
+        </span>
+        <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+          Select Subject to Begin Pre-Test
+        </h2>
+        <p class="text-base text-slate-600 max-w-xl mx-auto">
+          Participate in anonymous practice sessions to help evaluate and calibrate high-quality questions for future university exams.
+        </p>
+      </div>
+
+      <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-6">
+        <div>
+          <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">
+            Available Testing Subjects
+          </label>
+          <div *ngIf="loading()" class="py-12 flex flex-col items-center justify-center gap-3">
+            <div class="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading testing subjects...</p>
+          </div>
+
+          <div *ngIf="!loading() && activeSubjects().length === 0" class="py-10 text-center space-y-3">
+            <div class="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+            </div>
+            <h3 class="text-base font-bold text-slate-700">No Active Testing Pools</h3>
+            <p class="text-sm text-slate-500 max-w-md mx-auto">
+              There are currently no questions marked as <strong>'Testing'</strong> in the question bank. Administrators can move questions to the test pool from the admin dashboard.
+            </p>
+            <button (click)="loadSubjects()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition">
+              Refresh Subjects
+            </button>
+          </div>
+
+          <div *ngIf="!loading() && activeSubjects().length > 0" class="space-y-4">
+            <select [ngModel]="selectedSubjectId()" (ngModelChange)="selectedSubjectId.set($event)"
+              class="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-800 font-bold text-base focus:bg-white focus:border-blue-500 focus:outline-none transition shadow-inner">
+              <option *ngFor="let sub of activeSubjects()" [value]="sub.id">
+                {{ sub.name }} ({{ sub.testing_questions_count }} questions ready)
+              </option>
+            </select>
+
+            <!-- Subject Detail Card -->
+            <div *ngIf="selectedSubject()" class="p-5 rounded-2xl bg-gradient-to-r from-blue-50/60 to-indigo-50/60 border border-blue-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div class="space-y-1">
+                <span class="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-100 px-2 py-0.5 rounded">Selected Subject</span>
+                <h4 class="text-lg font-bold text-slate-900">{{ selectedSubject()?.name }}</h4>
+                <p *ngIf="selectedSubject()?.description" class="text-xs text-slate-500 max-w-md">{{ selectedSubject()?.description }}</p>
+              </div>
+              <div class="text-right shrink-0">
+                <span class="text-2xl font-black text-blue-600">{{ selectedSubject()?.testing_questions_count }}</span>
+                <span class="text-xs font-bold text-slate-500 block">Questions</span>
+              </div>
+            </div>
+
+            <!-- Pre-test Guidelines -->
+            <div class="border-t border-slate-100 pt-5 space-y-3">
+              <h5 class="text-xs font-black uppercase tracking-wider text-slate-400">Exam Guidelines</h5>
+              <ul class="text-xs text-slate-600 space-y-2 list-disc pl-5">
+                <li>This test is <strong>100% anonymous</strong>. No personal data or credentials are required.</li>
+                <li>Questions and answer options are randomly shuffled for each attempt.</li>
+                <li>You can flag questions to review before submitting.</li>
+                <li>Upon submission, your answers will instantly be graded and feedback will be displayed.</li>
+              </ul>
+            </div>
+
+            <!-- Start Action Button -->
+            <div class="pt-4">
+              <button (click)="startExam()" [disabled]="loading() || !selectedSubjectId()"
+                class="w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-base rounded-2xl shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span>Start Practice Exam</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- STAGE 2: ACTIVE EXAM RUNNER -->
+    <!-- ========================================================================= -->
+    <div *ngIf="stage() === 'taking_test' && currentQuestion()" class="grid grid-cols-1 lg:grid-cols-4 gap-8 animate-fade-in">
+      
+      <!-- Left Column: Main Question View (3 cols) -->
+      <div class="lg:col-span-3 space-y-6">
+        
+        <!-- Progress Header Card -->
+        <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-3">
+              <span class="px-3 py-1 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-wider shadow-sm">
+                Question {{ currentIndex() + 1 }} of {{ questions().length }}
+              </span>
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                Type: {{ currentQuestion()!.qtype }}
+              </span>
+            </div>
+
+            <!-- Flag Button -->
+            <button (click)="toggleFlag(currentQuestion()!.id)"
+              [class.bg-amber-100]="isFlagged(currentQuestion()!.id)"
+              [class.text-amber-700]="isFlagged(currentQuestion()!.id)"
+              [class.border-amber-300]="isFlagged(currentQuestion()!.id)"
+              class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 transition flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" [class.fill-amber-500]="isFlagged(currentQuestion()!.id)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+              </svg>
+              <span>{{ isFlagged(currentQuestion()!.id) ? 'Flagged for Review' : 'Flag Question' }}</span>
+            </button>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between text-xs font-bold text-slate-500">
+              <span>Progress: {{ answeredCount() }} answered</span>
+              <span>{{ progressPercentage() }}%</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full transition-all duration-300"
+                [style.width.%]="progressPercentage()"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Question & Options Card -->
+        <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-8">
+          <!-- Question Title & Text -->
+          <div class="space-y-3">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">{{ currentQuestion()!.name }}</span>
+            <div class="text-xl sm:text-2xl font-bold text-slate-900 leading-relaxed question-content"
+              [innerHTML]="currentQuestion()!.question_text">
+            </div>
+          </div>
+
+          <!-- Multiple Choice Options -->
+          <div class="space-y-3">
+            <h4 class="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">Choose the correct answer:</h4>
+            
+            <div *ngFor="let opt of currentQuestion()!.options; let optIdx = index"
+              (click)="selectOption(currentQuestion()!.id, opt.id)"
+              [class.border-blue-600]="selectedAnswers()[currentQuestion()!.id] === opt.id"
+              [class.bg-blue-50]="selectedAnswers()[currentQuestion()!.id] === opt.id"
+              [class.ring-2]="selectedAnswers()[currentQuestion()!.id] === opt.id"
+              [class.ring-blue-500]="selectedAnswers()[currentQuestion()!.id] === opt.id"
+              class="p-4 rounded-2xl border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50/60 cursor-pointer transition-all flex items-start gap-4 group">
+              
+              <!-- Custom Radio Button Indicator -->
+              <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors"
+                [class.border-blue-600]="selectedAnswers()[currentQuestion()!.id] === opt.id"
+                [class.bg-blue-600]="selectedAnswers()[currentQuestion()!.id] === opt.id"
+                [class.border-slate-300]="selectedAnswers()[currentQuestion()!.id] !== opt.id">
+                <div *ngIf="selectedAnswers()[currentQuestion()!.id] === opt.id" class="w-2 h-2 rounded-full bg-white"></div>
+              </div>
+
+              <!-- Option Label & Text -->
+              <div class="flex-1">
+                <span class="inline-block text-xs font-black text-slate-400 group-hover:text-slate-600 mr-2 uppercase">
+                  Option {{ optIdx + 1 }}:
+                </span>
+                <span class="text-base font-semibold text-slate-800 leading-normal" [innerHTML]="opt.answer_text"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Navigation Controls -->
+          <div class="flex items-center justify-between pt-6 border-t border-slate-100 flex-wrap gap-3">
+            <div class="flex items-center gap-2">
+              <button (click)="prevQuestion()" [disabled]="currentIndex() === 0"
+                class="px-5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5">
+                &larr; Previous
+              </button>
+              
+              <button *ngIf="selectedAnswers()[currentQuestion()!.id]" (click)="clearSelection(currentQuestion()!.id)"
+                class="px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-rose-600 transition">
+                Clear Choice
+              </button>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <button *ngIf="currentIndex() < questions().length - 1" (click)="nextQuestion()"
+                class="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black transition flex items-center gap-1.5 shadow-sm">
+                Next Question &rarr;
+              </button>
+
+              <button (click)="promptSubmit()"
+                class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black transition shadow-lg shadow-emerald-600/20 flex items-center gap-1.5">
+                Submit Exam
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Navigation Palette (1 col) -->
+      <div class="lg:col-span-1 space-y-6">
+        <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6 sticky top-24">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-black uppercase tracking-wider text-slate-900">Question Palette</h4>
+            <span class="text-xs font-bold text-slate-400">{{ answeredCount() }}/{{ questions().length }} done</span>
+          </div>
+
+          <!-- Grid of Question Numbers -->
+          <div class="grid grid-cols-5 gap-2">
+            <button *ngFor="let q of questions(); let qIndex = index"
+              (click)="goToQuestion(qIndex)"
+              [class.ring-2]="currentIndex() === qIndex"
+              [class.ring-blue-600]="currentIndex() === qIndex"
+              [class.bg-blue-600]="selectedAnswers()[q.id] && currentIndex() === qIndex"
+              [class.text-white]="selectedAnswers()[q.id] && currentIndex() === qIndex"
+              [class.bg-emerald-500]="selectedAnswers()[q.id] && currentIndex() !== qIndex"
+              [class.text-white]="selectedAnswers()[q.id] && currentIndex() !== qIndex"
+              [class.bg-slate-100]="!selectedAnswers()[q.id] && currentIndex() !== qIndex"
+              [class.text-slate-700]="!selectedAnswers()[q.id] && currentIndex() !== qIndex"
+              class="relative h-10 rounded-xl font-black text-xs transition-all flex items-center justify-center hover:scale-105">
+              <span>{{ qIndex + 1 }}</span>
+              <!-- Flag Marker -->
+              <span *ngIf="isFlagged(q.id)" class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-white"></span>
+            </button>
+          </div>
+
+          <!-- Legend -->
+          <div class="space-y-2 pt-4 border-t border-slate-100 text-[11px] text-slate-500">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-md bg-emerald-500 shrink-0"></span>
+              <span>Answered</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-md bg-slate-100 border border-slate-200 shrink-0"></span>
+              <span>Not Answered</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-amber-500 shrink-0"></span>
+              <span>Flagged for Review</span>
+            </div>
+          </div>
+
+          <!-- Submit Action in Palette -->
+          <div class="pt-2">
+            <button (click)="promptSubmit()"
+              class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition">
+              Finish & Submit Test
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- STAGE 3: TEST RESULTS & PSYCHOMETRIC BREAKDOWN -->
+    <!-- ========================================================================= -->
+    <div *ngIf="stage() === 'submitted' && submitResult()" class="max-w-4xl mx-auto space-y-8 animate-fade-in">
+      
+      <!-- Big Score Banner -->
+      <div class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-3xl p-8 sm:p-10 shadow-xl relative overflow-hidden">
+        <div class="absolute right-0 top-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div class="space-y-3 text-center md:text-left">
+            <span class="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-widest">
+              Practice Exam Completed
+            </span>
+            <h2 class="text-3xl sm:text-4xl font-black tracking-tight">Your Performance Summary</h2>
+            <p class="text-sm text-slate-300 max-w-md">
+              Thank you for testing these questions. Your responses have been recorded and incorporated into the item analysis metrics.
+            </p>
+          </div>
+
+          <!-- Score Dial / Pill -->
+          <div class="flex flex-col items-center justify-center p-6 rounded-3xl bg-white/10 backdrop-blur border border-white/20 text-center shrink-0 w-48">
+            <span class="text-4xl sm:text-5xl font-black text-white leading-none">
+              {{ submitResult()?.percentage }}%
+            </span>
+            <span class="text-xs font-bold text-slate-300 uppercase tracking-wider mt-2">
+              {{ submitResult()?.score }} / {{ submitResult()?.total_questions }} Correct
+            </span>
+            <span class="mt-2 text-[10px] font-black px-2.5 py-0.5 rounded-full"
+              [class.bg-emerald-500]="(submitResult()?.percentage || 0) >= 70"
+              [class.bg-amber-500]="(submitResult()?.percentage || 0) >= 50 && (submitResult()?.percentage || 0) < 70"
+              [class.bg-rose-500]="(submitResult()?.percentage || 0) < 50">
+              {{ (submitResult()?.percentage || 0) >= 70 ? 'Passed' : 'Needs Practice' }}
+            </span>
+          </div>
+        </div>
+
+        <div class="mt-8 pt-6 border-t border-white/10 flex flex-wrap items-center justify-between gap-4 text-xs font-semibold text-slate-300">
+          <div class="flex items-center gap-2">
+            <span>Session ID:</span>
+            <code class="text-[11px] font-mono bg-white/10 px-2 py-0.5 rounded text-indigo-200">{{ submitResult()?.session_id }}</code>
+          </div>
+          <div class="flex items-center gap-3">
+            <button (click)="retakeCurrentExam()" class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition">
+              Retake Same Test
+            </button>
+            <button (click)="chooseAnotherSubject()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition shadow">
+              Select Another Subject
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Question-by-Question Breakdown -->
+      <div class="space-y-4">
+        <h3 class="text-xl font-black text-slate-900 tracking-tight flex items-center justify-between">
+          <span>Question Review & Feedback</span>
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">{{ questions().length }} Questions</span>
+        </h3>
+
+        <div *ngFor="let q of questions(); let qIdx = index"
+          class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4">
+          
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center text-xs font-black shrink-0">
+                #{{ qIdx + 1 }}
+              </span>
+              <span class="text-xs font-bold text-slate-400">{{ q.name }}</span>
+            </div>
+
+            <!-- Correctness Badge -->
+            <div *ngIf="getResultItem(q.id) as item">
+              <span *ngIf="item.is_correct" class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+                Correct
+              </span>
+              <span *ngIf="!item.is_correct && item.selected_option_id" class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 1.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+                Incorrect
+              </span>
+              <span *ngIf="!item.is_correct && !item.selected_option_id" class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-700 border border-amber-200">
+                Skipped
+              </span>
+            </div>
+          </div>
+
+          <!-- Question Text -->
+          <div class="text-base sm:text-lg font-bold text-slate-900 leading-relaxed"
+            [innerHTML]="q.question_text">
+          </div>
+
+          <!-- Answers Comparison -->
+          <div *ngIf="getResultItem(q.id) as item" class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-slate-100 text-xs">
+            <div class="p-3.5 rounded-xl border"
+              [class.bg-emerald-50]="item.is_correct"
+              [class.border-emerald-200]="item.is_correct"
+              [class.bg-rose-50]="!item.is_correct && item.selected_option_id"
+              [class.border-rose-200]="!item.is_correct && item.selected_option_id"
+              [class.bg-slate-50]="!item.selected_option_id"
+              [class.border-slate-200]="!item.selected_option_id">
+              <span class="font-black text-slate-500 block uppercase tracking-wider text-[10px] mb-1">Your Selection:</span>
+              <p class="font-semibold text-slate-800" [innerHTML]="getOptionText(q, item.selected_option_id)"></p>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
+              <span class="font-black text-emerald-700 block uppercase tracking-wider text-[10px] mb-1">Correct Answer:</span>
+              <p class="font-semibold text-emerald-950" [innerHTML]="item.correct_answer_text || '(Not provided)'"></p>
+            </div>
+
+            <!-- General Feedback if any -->
+            <div *ngIf="item.feedback" class="md:col-span-2 p-3 bg-blue-50/60 rounded-xl border border-blue-100 text-xs text-blue-900">
+              <span class="font-black uppercase tracking-wider text-[10px] text-blue-600 block mb-1">Feedback:</span>
+              <div [innerHTML]="item.feedback"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Confirm Submission Modal -->
+  <div *ngIf="showConfirmSubmitModal()" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6">
+      <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      </div>
+
+      <div class="space-y-2">
+        <h3 class="text-xl font-black text-slate-900">Submit Practice Exam?</h3>
+        <p class="text-sm text-slate-600">
+          You have answered <strong>{{ answeredCount() }}</strong> out of <strong>{{ questions().length }}</strong> questions.
+          <span *ngIf="unansweredCount() > 0" class="text-rose-600 font-bold block mt-1">
+            ⚠️ You have {{ unansweredCount() }} unanswered question(s). Unanswered questions will be scored as 0.
+          </span>
+        </p>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+        <button (click)="cancelSubmit()" class="px-5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition">
+          Return to Test
+        </button>
+        <button (click)="confirmSubmit()" [disabled]="loading()"
+          class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition shadow-md flex items-center gap-2">
+          <span *ngIf="loading()" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          <span>Yes, Submit Now</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

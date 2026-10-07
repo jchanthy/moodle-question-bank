@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard, adminGuard, superAdminGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
+  { path: 'test', loadComponent: () => import('./test-runner/test-runner').then(m => m.TestRunnerComponent) },
   { path: 'auth', loadComponent: () => import('./auth/auth').then(m => m.AuthComponent) },
   { 
     path: 'teacher', 

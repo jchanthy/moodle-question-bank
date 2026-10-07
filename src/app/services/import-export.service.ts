@@ -115,10 +115,110 @@ export class ImportExportService {
     if (q.qtype === 'ddmarker') {
       return this.ddMarkerToMoodleXML(q, answers);
     }
+    if (q.qtype === 'ddwtos') {
+      return this.ddwtosToMoodleXML(q, answers);
+    }
+    if (q.qtype === 'gapselect') {
+      return this.gapselectToMoodleXML(q, answers);
+    }
     if (q.qtype === 'gapfill') {
       return this.gapfillToMoodleXML(q, answers);
     }
     return this.genericToMoodleXML(q, answers);
+  }
+
+  private ddwtosToMoodleXML(q: any, answers: any[]): string {
+    const shuffleanswers = q.metadata?.shuffleanswers ? 1 : 0;
+    const correctFeedback = q.metadata?.correct_feedback || 'Your answer is correct.';
+    const partiallyCorrectFeedback = q.metadata?.partially_correct_feedback || 'Your answer is partially correct.';
+    const incorrectFeedback = q.metadata?.incorrect_feedback || 'Your answer is incorrect.';
+    const showNumCorrect = q.metadata?.show_num_correct !== false ? '\n    <shownumcorrect/>' : '';
+
+    const dragboxesXml = answers.map((a, idx) => {
+      const group = a.group || 1;
+      const infinite = a.infinite ? 1 : 0;
+      return `    <dragbox>
+      <text><![CDATA[${a.answer_text || ''}]]></text>
+      <group>${group}</group>
+      <infinite>${infinite}</infinite>
+    </dragbox>`;
+    }).join('\n');
+
+    const tags = (q.metadata?.tags || [])
+      .map((t: string) => `      <tag><text>${this.escapeXML(t)}</text></tag>`).join('\n');
+
+    return `  <question type="ddwtos">
+    <name><text>${this.escapeXML(q.name)}</text></name>
+    <questiontext format="html">
+      <text><![CDATA[${this.getQuestionTextWithIllustration(q)}]]></text>
+    </questiontext>
+    <generalfeedback format="html">
+      <text><![CDATA[${q.general_feedback || ''}]]></text>
+    </generalfeedback>
+    <defaultgrade>${q.default_grade ?? 1}</defaultgrade>
+    <penalty>${q.penalty ?? 0.3333333}</penalty>
+    <hidden>0</hidden>
+    <shuffleanswers>${shuffleanswers}</shuffleanswers>
+    <correctfeedback format="html">
+      <text><![CDATA[${correctFeedback}]]></text>
+    </correctfeedback>
+    <partiallycorrectfeedback format="html">
+      <text><![CDATA[${partiallyCorrectFeedback}]]></text>
+    </partiallycorrectfeedback>
+    <incorrectfeedback format="html">
+      <text><![CDATA[${incorrectFeedback}]]></text>
+    </incorrectfeedback>${showNumCorrect}
+    <tags>
+      ${tags}
+    </tags>
+${dragboxesXml}
+  </question>\n\n`;
+  }
+
+  private gapselectToMoodleXML(q: any, answers: any[]): string {
+    const shuffleanswers = q.metadata?.shuffleanswers ? 1 : 0;
+    const correctFeedback = q.metadata?.correct_feedback || 'Your answer is correct.';
+    const partiallyCorrectFeedback = q.metadata?.partially_correct_feedback || 'Your answer is partially correct.';
+    const incorrectFeedback = q.metadata?.incorrect_feedback || 'Your answer is incorrect.';
+    const showNumCorrect = q.metadata?.show_num_correct !== false ? '\n    <shownumcorrect/>' : '';
+
+    const selectoptionsXml = answers.map((a, idx) => {
+      const group = a.group || 1;
+      return `    <selectoption>
+      <text><![CDATA[${a.answer_text || ''}]]></text>
+      <group>${group}</group>
+    </selectoption>`;
+    }).join('\n');
+
+    const tags = (q.metadata?.tags || [])
+      .map((t: string) => `      <tag><text>${this.escapeXML(t)}</text></tag>`).join('\n');
+
+    return `  <question type="gapselect">
+    <name><text>${this.escapeXML(q.name)}</text></name>
+    <questiontext format="html">
+      <text><![CDATA[${this.getQuestionTextWithIllustration(q)}]]></text>
+    </questiontext>
+    <generalfeedback format="html">
+      <text><![CDATA[${q.general_feedback || ''}]]></text>
+    </generalfeedback>
+    <defaultgrade>${q.default_grade ?? 1}</defaultgrade>
+    <penalty>${q.penalty ?? 0.3333333}</penalty>
+    <hidden>0</hidden>
+    <shuffleanswers>${shuffleanswers}</shuffleanswers>
+    <correctfeedback format="html">
+      <text><![CDATA[${correctFeedback}]]></text>
+    </correctfeedback>
+    <partiallycorrectfeedback format="html">
+      <text><![CDATA[${partiallyCorrectFeedback}]]></text>
+    </partiallycorrectfeedback>
+    <incorrectfeedback format="html">
+      <text><![CDATA[${incorrectFeedback}]]></text>
+    </incorrectfeedback>${showNumCorrect}
+    <tags>
+      ${tags}
+    </tags>
+${selectoptionsXml}
+  </question>\n\n`;
   }
 
   private gapfillToMoodleXML(q: any, answers: any[]): string {
@@ -557,6 +657,27 @@ ${dropsXml}
             answer_text: marker.text,
             fraction: 0,
             feedback: `circle |  | ${marker.infinite}`
+          });
+        });
+      } else if (type === 'ddwtos') {
+        qEl.querySelectorAll('dragbox').forEach(dbEl => {
+          const text = this.cleanHtml(dbEl.querySelector('text')?.textContent?.trim() || '');
+          const group = parseInt(dbEl.querySelector('group')?.textContent?.trim() || '1', 10);
+          const infinite = dbEl.querySelector('infinite')?.textContent?.trim() === '1';
+          answers.push({
+            answer_text: text,
+            fraction: 100,
+            feedback: ''
+          });
+        });
+      } else if (type === 'gapselect') {
+        qEl.querySelectorAll('selectoption').forEach(soEl => {
+          const text = this.cleanHtml(soEl.querySelector('text')?.textContent?.trim() || '');
+          const group = parseInt(soEl.querySelector('group')?.textContent?.trim() || '1', 10);
+          answers.push({
+            answer_text: text,
+            fraction: 100,
+            feedback: ''
           });
         });
       } else {

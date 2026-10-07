@@ -116,7 +116,7 @@ export class QuestionFormComponent implements OnInit {
   previewMatchChoices = signal<string[]>([]);
   studentGapfillAnswers = signal<Record<number, string>>({});
   previewGapfillChoices = signal<string[]>([]);
-  parsedGapfillSegments = signal<{ type: 'text' | 'gap'; content: string; gapIndex?: number }[]>([]);
+  parsedGapfillSegments = signal<{ type: 'text' | 'gap'; content: string; gapIndex?: number; gapNumber?: number }[]>([]);
   previewResult = signal<{ isCorrect: boolean; feedback: string; grade: number } | null>(null);
 
   questionTypes = [
@@ -1051,7 +1051,7 @@ export class QuestionFormComponent implements OnInit {
       const questionText = this.questionForm.get('question_text')?.value;
       const qtype = this.questionForm.get('qtype')?.value;
       const isMatch = qtype === 'match';
-      const isGapfill = qtype === 'gapfill';
+      const isGapfill = qtype === 'gapfill' || qtype === 'ddwtos' || qtype === 'gapselect';
       
       let hasAnswers = this.answers.controls.some(a => {
         if (isMatch) {
@@ -1064,7 +1064,10 @@ export class QuestionFormComponent implements OnInit {
         const segments = this.getParsedGapfillSegments();
         const hasGaps = segments.some(s => s.type === 'gap');
         if (!hasGaps) {
-          this.showToast('Please include at least one gap (e.g. [gap]) in the question text.', 'error');
+          const hint = (qtype === 'ddwtos' || qtype === 'gapselect')
+            ? 'Please include at least one gap marker (e.g. [[1]], [[2]]) in your question text.'
+            : 'Please include at least one gap (e.g. [gap]) in the question text.';
+          this.showToast(hint, 'error');
           return;
         }
         hasAnswers = true;
@@ -1117,30 +1120,36 @@ export class QuestionFormComponent implements OnInit {
     return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
   }
 
-  getParsedGapfillSegments(): { type: 'text' | 'gap'; content: string; gapIndex?: number }[] {
+  getParsedGapfillSegments(): { type: 'text' | 'gap'; content: string; gapIndex?: number; gapNumber?: number }[] {
     const text = this.questionForm.get('question_text')?.value || '';
-    const delimiters = this.questionForm.get('gapfill_delimiters')?.value || '[]';
-    let startChar = '[';
-    let endChar = ']';
-    if (delimiters.length >= 2) {
-      startChar = delimiters[0];
-      endChar = delimiters[1];
-    } else if (delimiters.length === 1) {
-      startChar = delimiters[0];
-      endChar = delimiters[0];
+    const qtype = this.questionForm.get('qtype')?.value;
+    
+    let regex: RegExp;
+    if (qtype === 'ddwtos' || qtype === 'gapselect') {
+      // Matches [[1]], [[2]], [[text]] or fallback single [1]
+      regex = /\[\[(.*?)\]\]|\[(\d+)\]/g;
+    } else {
+      const delimiters = this.questionForm.get('gapfill_delimiters')?.value || '[]';
+      let startChar = '[';
+      let endChar = ']';
+      if (delimiters.length >= 2) {
+        startChar = delimiters[0];
+        endChar = delimiters[1];
+      } else if (delimiters.length === 1) {
+        startChar = delimiters[0];
+        endChar = delimiters[0];
+      }
+      const startEsc = this.escapeRegex(startChar);
+      const endEsc = this.escapeRegex(endChar);
+      regex = new RegExp(`${startEsc}(.*?)${endEsc}`, 'g');
     }
-    const startEsc = this.escapeRegex(startChar);
-    const endEsc = this.escapeRegex(endChar);
-    // Use non-greedy matching to capture bracketed contents cleanly without character class issues
-    const regex = new RegExp(`${startEsc}(.*?)${endEsc}`, 'g');
 
-    const segments: { type: 'text' | 'gap'; content: string; gapIndex?: number }[] = [];
+    const segments: { type: 'text' | 'gap'; content: string; gapIndex?: number; gapNumber?: number }[] = [];
     let lastIndex = 0;
     let gapIndex = 0;
-    let match;
+    let match: RegExpExecArray | null;
 
     while ((match = regex.exec(text)) !== null) {
-      // Prevent infinite loops if regex matches empty string
       if (match.index === regex.lastIndex) {
         regex.lastIndex++;
       }
@@ -1148,10 +1157,13 @@ export class QuestionFormComponent implements OnInit {
       if (plainText) {
         segments.push({ type: 'text', content: plainText });
       }
+      const rawContent = (match[1] !== undefined ? match[1] : match[2]) || '';
+      const num = parseInt(rawContent, 10);
       segments.push({
         type: 'gap',
-        content: match[1],
-        gapIndex: gapIndex++
+        content: rawContent,
+        gapIndex: gapIndex++,
+        gapNumber: !isNaN(num) ? num : (gapIndex)
       });
       lastIndex = regex.lastIndex;
     }
@@ -1163,17 +1175,30 @@ export class QuestionFormComponent implements OnInit {
   }
 
   getGapfillChoices(): string[] {
+    const qtype = this.questionForm.get('qtype')?.value;
     const segments = this.getParsedGapfillSegments();
+    const answersList = (this.answers.value || [])
+      .map((a: any) => (a.answer_text || '').trim())
+      .filter((v: string) => v.length > 0);
+
+    if (qtype === 'ddwtos' || qtype === 'gapselect') {
+      // In ddwtos/gapselect, all answers entered in the form are the choices
+      const namedGaps = segments
+        .filter(s => s.type === 'gap' && isNaN(Number(s.content)))
+        .map(s => s.content.trim())
+        .filter(v => v.length > 0);
+
+      const all = Array.from(new Set([...answersList, ...namedGaps]));
+      return all.length > 0 ? all : ['Choice 1', 'Choice 2'];
+    }
+
+    // Standard gapfill
     const correctChoices = segments
       .filter(s => s.type === 'gap')
-      .map(s => s.content.split('|')[0].trim()); // Use first option as correct choice text if multiple correct options exist
+      .map(s => s.content.split('|')[0].trim())
+      .filter(v => v.length > 0);
     
-    const answersList = this.answers.value || [];
-    const distractors = answersList
-      .map((a: any) => a.answer_text?.trim() || '')
-      .filter((v: string) => v !== '');
-
-    const allChoices = Array.from(new Set([...correctChoices, ...distractors]));
+    const allChoices = Array.from(new Set([...correctChoices, ...answersList]));
     return allChoices;
   }
 
@@ -1432,20 +1457,35 @@ export class QuestionFormComponent implements OnInit {
         isCorrect = true;
         feedback = 'No markers to grade.';
       }
-    } else if (qtype === 'gapfill') {
+    } else if (qtype === 'gapfill' || qtype === 'ddwtos' || qtype === 'gapselect') {
       const segments = this.getParsedGapfillSegments();
       const gapSegments = segments.filter(s => s.type === 'gap');
       const studentAnswers = this.studentGapfillAnswers();
       const caseSensitive = this.questionForm.get('gapfill_casesensitive')?.value === true;
+      const answersList = this.answers.value || [];
       
       let correctCount = 0;
       const totalGaps = gapSegments.length;
       
       gapSegments.forEach(seg => {
         const studentAns = (studentAnswers[seg.gapIndex!] || '').trim();
-        const correctOptions = seg.content.split('|').map(o => o.trim());
+        let correctOptions: string[] = [];
+        
+        if (qtype === 'ddwtos' || qtype === 'gapselect') {
+          const num = parseInt(seg.content, 10);
+          if (!isNaN(num) && num >= 1 && num <= answersList.length) {
+            const ansText = (answersList[num - 1]?.answer_text || '').trim();
+            if (ansText) correctOptions.push(ansText);
+          } else {
+            correctOptions.push(seg.content.trim());
+          }
+        } else {
+          // Standard gapfill
+          correctOptions = seg.content.split('|').map(o => o.trim());
+        }
         
         const isMatch = correctOptions.some(opt => {
+          if (!opt) return false;
           if (caseSensitive) {
             return studentAns === opt;
           } else {
@@ -1462,12 +1502,12 @@ export class QuestionFormComponent implements OnInit {
         grade = Math.round((correctCount / totalGaps) * 100);
         isCorrect = grade === 100;
         feedback = isCorrect 
-          ? 'Correct! All gaps are filled correctly.' 
-          : `You got ${correctCount} out of ${totalGaps} gaps correct (${grade}%).`;
+          ? 'Correct! All text gaps are placed correctly.' 
+          : `You got ${correctCount} out of ${totalGaps} items correct (${grade}%).`;
       } else {
         grade = 100;
         isCorrect = true;
-        feedback = 'No gaps to grade.';
+        feedback = 'No items to grade.';
       }
     }
 
