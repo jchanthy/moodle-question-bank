@@ -386,6 +386,35 @@ export class KhmerSpellCheckService {
       }
     }
 
+    // 3. Khmer Orthographic & Phonetic Rules (High-Priority Direct Matches)
+    // Rule A: Coeng Ta <-> Coeng Da swap (\u17D2\u178F <-> \u17D2\u178A), e.g. ប្តី -> ប្ដី, កណ្តាល -> កណ្ដាល, ផ្តើម -> ផ្ដើម
+    if (cleanTarget.includes('\u17D2\u178F') || cleanTarget.includes('\u17D2\u178A')) {
+      const toDa = cleanTarget.replace(/\u17D2\u178F/g, '\u17D2\u178A');
+      if (this.isWordValid(toDa, true) && !suggestions.includes(toDa)) suggestions.push(toDa);
+      const toTa = cleanTarget.replace(/\u17D2\u178A/g, '\u17D2\u178F');
+      if (this.isWordValid(toTa, true) && !suggestions.includes(toTa)) suggestions.push(toTa);
+    }
+
+    // Rule B: Nikhahit (\u17C6) <-> Consonant + Mo + Coeng (\u1798\u17D2), e.g. កំសត់ -> កម្សត់, កំសាន្ត -> កម្សាន្ត, កំរិត -> កម្រិត
+    if (cleanTarget.includes('\u17C6')) {
+      const withMoCoeng = cleanTarget.replace(/([\u1780-\u17A2])\u17C6([\u1780-\u17A2])/g, (m, c1, c2) => c1 + '\u1798\u17D2' + c2);
+      if (this.isWordValid(withMoCoeng, true) && !suggestions.includes(withMoCoeng)) suggestions.push(withMoCoeng);
+    }
+
+    // Rule C: Coeng transposition (e.g. ស្រ្ត <-> ស្ត្រ)
+    if (cleanTarget.includes('\u17D2\u178F\u17D2\u179A') || cleanTarget.includes('\u17D2\u179A\u17D2\u178F')) {
+      const t1 = cleanTarget.replace(/\u17D2\u178F\u17D2\u179A/g, '\u17D2\u179A\u17D2\u178F');
+      if (this.isWordValid(t1, true) && !suggestions.includes(t1)) suggestions.push(t1);
+      const t2 = cleanTarget.replace(/\u17D2\u179A\u17D2\u178F/g, '\u17D2\u178F\u17D2\u179A');
+      if (this.isWordValid(t2, true) && !suggestions.includes(t2)) suggestions.push(t2);
+    }
+
+    // Rule D: Subscript / Keyboard confusion (e.g. ក្ដ <-> ត្ត, as in ទក្ដ -> ទត្ត)
+    if (cleanTarget.includes('\u1780\u17D2\u178A')) {
+      const s1 = cleanTarget.replace(/\u1780\u17D2\u178A/g, '\u178F\u17D2\u178F');
+      if (this.isWordValid(s1, true) && !suggestions.includes(s1)) suggestions.push(s1);
+    }
+
     // 2. Bucketed Levenshtein lookup (target length +/- 2)
     const targetLen = cleanTarget.length;
     const candidates = [

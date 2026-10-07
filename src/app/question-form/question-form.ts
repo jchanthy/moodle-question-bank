@@ -535,6 +535,8 @@ export class QuestionFormComponent implements OnInit {
     );
 
     if (token) {
+      event.preventDefault();
+      event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
       const popupWidth = 288;
       let x = event.clientX;
@@ -669,6 +671,8 @@ export class QuestionFormComponent implements OnInit {
     );
 
     if (token) {
+      event.preventDefault();
+      event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
       const popupWidth = 288;
       let x = event.clientX;
@@ -754,9 +758,10 @@ export class QuestionFormComponent implements OnInit {
   onDocumentClick(event: MouseEvent) {
     if (this.activeSuggestion()) {
       const target = event.target as HTMLElement;
-      if (!target.closest('.spell-suggestion-popup') && !target.closest('.misspelled-word')) {
-        this.closeSuggestionMenu();
+      if (target.closest('.spell-suggestion-popup') || target.closest('textarea') || target.closest('.misspelled-word')) {
+        return;
       }
+      this.closeSuggestionMenu();
     }
   }
 

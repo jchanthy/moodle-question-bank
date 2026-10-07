@@ -675,9 +675,10 @@
 
             <!-- Floating Suggestion Context Menu Popup -->
             <div *ngIf="activeSuggestion()" 
-              class="spell-suggestion-popup fixed z-50 bg-white border border-gray-200 rounded-2xl shadow-2xl p-3 w-72 animate-in zoom-in-95 duration-150 backdrop-blur-md"
+              class="spell-suggestion-popup fixed z-[9999] bg-white border border-gray-200 rounded-2xl shadow-2xl p-3 w-72 animate-in zoom-in-95 duration-150 backdrop-blur-md"
               [style.left.px]="activeSuggestion()!.x"
-              [style.top.px]="activeSuggestion()!.y">
+              [style.top.px]="activeSuggestion()!.y"
+              (click)="$event.stopPropagation()">
               
               <div class="flex items-center justify-between border-b border-gray-100 pb-2 mb-2">
                 <div class="flex items-center gap-1.5">
