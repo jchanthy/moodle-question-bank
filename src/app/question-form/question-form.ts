@@ -1091,13 +1091,46 @@ export class QuestionFormComponent implements OnInit {
       this.previewMatchChoices.set(this.getMatchAnswersList());
     }
     this.isPreviewMode.set(!this.isPreviewMode());
+    this.resetPreview();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  resetPreview() {
     this.previewResult.set(null);
     this.studentSelectedAnswers.set([]);
     this.studentTextAnswer.set('');
     this.studentPlacement.set({});
     this.studentMatchAnswers.set({});
     this.studentGapfillAnswers.set({});
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    this.selectedGapfillChoiceForPlacement = null;
+    this.draggedGapfillChoice = null;
+  }
+
+  isGapCorrect(seg: { type: 'text' | 'gap'; content: string; gapIndex?: number; gapNumber?: number }): boolean {
+    if (!this.previewResult() || seg.gapIndex === undefined) return false;
+    const studentAns = (this.studentGapfillAnswers()[seg.gapIndex] || '').trim();
+    if (!studentAns) return false;
+    const qtype = this.questionForm.get('qtype')?.value;
+    const caseSensitive = this.questionForm.get('gapfill_casesensitive')?.value === true;
+    const answersList = this.answers.value || [];
+
+    let correctOptions: string[] = [];
+    if (qtype === 'ddwtos' || qtype === 'gapselect') {
+      const num = parseInt(seg.content, 10);
+      if (!isNaN(num) && num >= 1 && num <= answersList.length) {
+        const ansText = (answersList[num - 1]?.answer_text || '').trim();
+        if (ansText) correctOptions.push(ansText);
+      } else {
+        correctOptions.push(seg.content.trim());
+      }
+    } else {
+      correctOptions = seg.content.split('|').map(o => o.trim());
+    }
+
+    return correctOptions.some(opt => {
+      if (!opt) return false;
+      return caseSensitive ? studentAns === opt : studentAns.toLowerCase() === opt.toLowerCase();
+    });
   }
 
   getMatchAnswersList(): string[] {

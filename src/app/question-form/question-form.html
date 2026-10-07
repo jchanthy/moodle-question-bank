@@ -156,12 +156,17 @@
                       [class.w-32]="questionForm.get('gapfill_fixedgapsize')?.value !== false"
                       [class.min-w-[110px]]="questionForm.get('gapfill_fixedgapsize')?.value === false"
                       [ngClass]="{
-                        'border-blue-600 bg-blue-50 text-blue-800 font-bold shadow-sm': studentGapfillAnswers()[seg.gapIndex!],
-                        'border-dashed border-gray-300 bg-gray-50 text-gray-400 hover:border-blue-400 hover:bg-blue-50/40': !studentGapfillAnswers()[seg.gapIndex!]
+                        'border-emerald-500 bg-emerald-50 text-emerald-800 font-bold ring-2 ring-emerald-200 shadow-sm': previewResult() && isGapCorrect(seg),
+                        'border-rose-500 bg-rose-50 text-rose-800 font-bold ring-2 ring-rose-200 shadow-sm': previewResult() && !isGapCorrect(seg) && studentGapfillAnswers()[seg.gapIndex!],
+                        'border-dashed border-rose-300 bg-rose-50/40 text-rose-400': previewResult() && !isGapCorrect(seg) && !studentGapfillAnswers()[seg.gapIndex!],
+                        'border-blue-600 bg-blue-50 text-blue-800 font-bold shadow-sm': !previewResult() && studentGapfillAnswers()[seg.gapIndex!],
+                        'border-dashed border-gray-300 bg-gray-50 text-gray-400 hover:border-blue-400 hover:bg-blue-50/40': !previewResult() && !studentGapfillAnswers()[seg.gapIndex!]
                       }"
-                      class="inline-flex items-center justify-center h-10 px-3 border-2 text-sm font-bold rounded-xl cursor-pointer transition-all select-none"
+                      class="inline-flex items-center justify-center h-10 px-3 border-2 text-sm font-bold rounded-xl cursor-pointer transition-all select-none gap-1"
                       [title]="studentGapfillAnswers()[seg.gapIndex!] ? 'Click to remove or replace' : 'Drop or click a word to place here'">
-                      {{ studentGapfillAnswers()[seg.gapIndex!] || ('[[' + (seg.gapNumber || (seg.gapIndex! + 1)) + ']]') }}
+                      <span *ngIf="previewResult() && isGapCorrect(seg)" class="text-xs text-emerald-600 font-black">✓</span>
+                      <span *ngIf="previewResult() && !isGapCorrect(seg)" class="text-xs text-rose-600 font-black">✗</span>
+                      <span>{{ studentGapfillAnswers()[seg.gapIndex!] || ('[[' + (seg.gapNumber || (seg.gapIndex! + 1)) + ']]') }}</span>
                     </span>
 
                     <!-- Dropdown Mode (for gapselect or gapfill in dropdown mode) -->
@@ -170,7 +175,12 @@
                       [class.w-36]="questionForm.get('gapfill_fixedgapsize')?.value !== false"
                       [ngModel]="studentGapfillAnswers()[seg.gapIndex!] || ''"
                       (ngModelChange)="updateGapfillDropdownAnswer(seg.gapIndex!, $event)"
-                      class="inline-block h-10 px-3 border-2 border-blue-300 bg-white text-sm font-bold rounded-xl focus:border-blue-500 focus:outline-none transition-all">
+                      [ngClass]="{
+                        'border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-200 font-bold': previewResult() && isGapCorrect(seg),
+                        'border-rose-500 bg-rose-50 text-rose-800 ring-2 ring-rose-200 font-bold': previewResult() && !isGapCorrect(seg),
+                        'border-blue-300 bg-white font-bold': !previewResult()
+                      }"
+                      class="inline-block h-10 px-3 border-2 text-sm rounded-xl focus:border-blue-500 focus:outline-none transition-all">
                       <option value="">— Select —</option>
                       <option *ngFor="let choice of previewGapfillChoices()" [value]="choice">{{ choice }}</option>
                     </select>
@@ -336,10 +346,11 @@
             </div>
 
             <!-- Submit Button (Preview) -->
-            <div class="mt-10 flex justify-center" *ngIf="!previewResult() && (['multichoice', 'truefalse', 'shortanswer', 'numerical', 'ddimageortext', 'match', 'gapfill'].includes(questionForm.get('qtype')?.value!))">
+            <div class="mt-10 flex justify-center" *ngIf="!previewResult() && !['essay', 'coderunner'].includes(questionForm.get('qtype')?.value!)">
               <button type="button" (click)="checkPreviewAnswer()"
-                class="bg-blue-600 text-white px-10 py-4 font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-900/20 active:scale-95">
-                Check My Answer
+                class="bg-blue-600 text-white px-10 py-4 font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-900/20 active:scale-95 flex items-center gap-2 cursor-pointer">
+                <span>Check My Answer</span>
+                <i class="pi pi-check"></i>
               </button>
             </div>
 
@@ -362,9 +373,10 @@
                   [innerHTML]="previewResult()?.feedback">
                 </div>
                 
-                <button type="button" (click)="previewResult.set(null); studentSelectedAnswers.set([]); studentTextAnswer.set(''); studentPlacement.set({}); studentGapfillAnswers.set({})"
-                  class="mt-6 text-sm font-black text-blue-600 hover:underline">
-                  Try Again
+                <button type="button" (click)="resetPreview()"
+                  class="mt-6 text-sm font-black text-blue-600 hover:underline flex items-center gap-1.5 cursor-pointer">
+                  <i class="pi pi-refresh"></i>
+                  <span>Try Again</span>
                 </button>
               </div>
             </div>
