@@ -297,8 +297,8 @@ export class KhmerSpellCheckService {
               }
             } else {
               const d = this.getNearestDistance(sub);
-              if (d <= 1) {
-                const cost = 2.0;
+              if (d <= 2) {
+                const cost = d === 1 ? 2.0 : 3.0;
                 if (dp[c] + cost < dp[j]) {
                   dp[j] = dp[c] + cost;
                   parent[j] = c;
