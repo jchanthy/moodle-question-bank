@@ -1106,31 +1106,81 @@ export class QuestionFormComponent implements OnInit {
     this.draggedGapfillChoice = null;
   }
 
+  parseGapNumber(raw: string): number {
+    if (!raw) return NaN;
+    const stripped = raw.replace(/<[^>]*>/g, '').trim();
+    // Convert Khmer digits U+17E0..U+17E9 to Arabic digits 0..9
+    const normalized = stripped.replace(/[\u17E0-\u17E9]/g, ch => String(ch.charCodeAt(0) - 0x17E0));
+    const num = parseInt(normalized, 10);
+    return isNaN(num) ? NaN : num;
+  }
+
+  cleanKhmerAndWhitespace(str: string): string {
+    if (!str) return '';
+    return str
+      .replace(/<[^>]*>/g, '') // remove HTML tags
+      .replace(/&nbsp;/gi, ' ') // convert &nbsp; to space
+      .replace(/[\u200B-\u200D\uFEFF]/g, '') // remove zero-width spaces and invisible joiners
+      .replace(/\s+/g, ' ') // collapse multiple whitespace
+      .trim();
+  }
+
+  isStudentAnswerMatching(studentAns: string, opt: string, caseSensitive = false): boolean {
+    if (!studentAns || !opt) return false;
+    const cleanStudent = this.cleanKhmerAndWhitespace(studentAns);
+    const cleanOpt = this.cleanKhmerAndWhitespace(opt);
+    if (caseSensitive) {
+      return cleanStudent === cleanOpt;
+    }
+    return cleanStudent.toLowerCase() === cleanOpt.toLowerCase();
+  }
+
+  getCorrectOptionsForGap(seg: { type: 'text' | 'gap'; content: string; gapIndex?: number; gapNumber?: number }): string[] {
+    const rawContent = (seg.content || '').trim();
+    const answersList = this.answers.value || [];
+    const correctOptions: string[] = [];
+
+    // 1. Try numeric reference (e.g. [[1]], [[2]], [[១]], [[២]], [1], [១])
+    const num = this.parseGapNumber(rawContent);
+    if (!isNaN(num) && num >= 1 && num <= answersList.length) {
+      const choiceText = (answersList[num - 1]?.answer_text || '').trim();
+      if (choiceText) {
+        correctOptions.push(choiceText);
+      }
+    }
+
+    // 2. Try raw text inside brackets (e.g. [[cat]], [cat|kitten], [បញ្ចូលទិន្នន័យ])
+    if (isNaN(num)) {
+      const parts = rawContent.split('|').map(p => p.trim()).filter(Boolean);
+      correctOptions.push(...parts);
+    }
+
+    // 3. Check if rawContent matches any answer_text in answersList
+    answersList.forEach((ans: any) => {
+      const ansText = (ans.answer_text || '').trim();
+      if (ansText && this.isStudentAnswerMatching(ansText, rawContent)) {
+        if (!correctOptions.includes(ansText)) {
+          correctOptions.push(ansText);
+        }
+      }
+    });
+
+    // 4. Fallback: if correctOptions is still empty, include rawContent
+    if (correctOptions.length === 0 && rawContent) {
+      correctOptions.push(rawContent);
+    }
+
+    return correctOptions;
+  }
+
   isGapCorrect(seg: { type: 'text' | 'gap'; content: string; gapIndex?: number; gapNumber?: number }): boolean {
     if (!this.previewResult() || seg.gapIndex === undefined) return false;
     const studentAns = (this.studentGapfillAnswers()[seg.gapIndex] || '').trim();
     if (!studentAns) return false;
-    const qtype = this.questionForm.get('qtype')?.value;
     const caseSensitive = this.questionForm.get('gapfill_casesensitive')?.value === true;
-    const answersList = this.answers.value || [];
+    const correctOptions = this.getCorrectOptionsForGap(seg);
 
-    let correctOptions: string[] = [];
-    if (qtype === 'ddwtos' || qtype === 'gapselect') {
-      const num = parseInt(seg.content, 10);
-      if (!isNaN(num) && num >= 1 && num <= answersList.length) {
-        const ansText = (answersList[num - 1]?.answer_text || '').trim();
-        if (ansText) correctOptions.push(ansText);
-      } else {
-        correctOptions.push(seg.content.trim());
-      }
-    } else {
-      correctOptions = seg.content.split('|').map(o => o.trim());
-    }
-
-    return correctOptions.some(opt => {
-      if (!opt) return false;
-      return caseSensitive ? studentAns === opt : studentAns.toLowerCase() === opt.toLowerCase();
-    });
+    return correctOptions.some(opt => this.isStudentAnswerMatching(studentAns, opt, caseSensitive));
   }
 
   getMatchAnswersList(): string[] {
@@ -1159,22 +1209,19 @@ export class QuestionFormComponent implements OnInit {
     
     let regex: RegExp;
     if (qtype === 'ddwtos' || qtype === 'gapselect') {
-      // Matches [[1]], [[2]], [[text]] or fallback single [1]
-      regex = /\[\[(.*?)\]\]|\[(\d+)\]/g;
+      // Matches [[1]], [[2]], [[១]], [[text]], or [1], [១], [text]
+      regex = /\[\[(.*?)\]\]|\[(.*?)\]/g;
     } else {
       const delimiters = this.questionForm.get('gapfill_delimiters')?.value || '[]';
-      let startChar = '[';
-      let endChar = ']';
-      if (delimiters.length >= 2) {
-        startChar = delimiters[0];
-        endChar = delimiters[1];
-      } else if (delimiters.length === 1) {
-        startChar = delimiters[0];
-        endChar = delimiters[0];
+      if (delimiters === '[]') {
+        regex = /\[\[(.*?)\]\]|\[(.*?)\]/g;
+      } else {
+        let startChar = delimiters[0] || '[';
+        let endChar = delimiters[1] || startChar;
+        const startEsc = this.escapeRegex(startChar);
+        const endEsc = this.escapeRegex(endChar);
+        regex = new RegExp(`${startEsc}(.*?)${endEsc}`, 'g');
       }
-      const startEsc = this.escapeRegex(startChar);
-      const endEsc = this.escapeRegex(endChar);
-      regex = new RegExp(`${startEsc}(.*?)${endEsc}`, 'g');
     }
 
     const segments: { type: 'text' | 'gap'; content: string; gapIndex?: number; gapNumber?: number }[] = [];
@@ -1191,7 +1238,7 @@ export class QuestionFormComponent implements OnInit {
         segments.push({ type: 'text', content: plainText });
       }
       const rawContent = (match[1] !== undefined ? match[1] : match[2]) || '';
-      const num = parseInt(rawContent, 10);
+      const num = this.parseGapNumber(rawContent);
       segments.push({
         type: 'gap',
         content: rawContent,
@@ -1214,25 +1261,21 @@ export class QuestionFormComponent implements OnInit {
       .map((a: any) => (a.answer_text || '').trim())
       .filter((v: string) => v.length > 0);
 
-    if (qtype === 'ddwtos' || qtype === 'gapselect') {
-      // In ddwtos/gapselect, all answers entered in the form are the choices
-      const namedGaps = segments
-        .filter(s => s.type === 'gap' && isNaN(Number(s.content)))
-        .map(s => s.content.trim())
-        .filter(v => v.length > 0);
+    const namedGaps: string[] = [];
+    segments.forEach(s => {
+      if (s.type === 'gap') {
+        const num = this.parseGapNumber(s.content);
+        if (isNaN(num)) {
+          s.content.split('|').forEach(part => {
+            const trimmed = part.trim();
+            if (trimmed) namedGaps.push(trimmed);
+          });
+        }
+      }
+    });
 
-      const all = Array.from(new Set([...answersList, ...namedGaps]));
-      return all.length > 0 ? all : ['Choice 1', 'Choice 2'];
-    }
-
-    // Standard gapfill
-    const correctChoices = segments
-      .filter(s => s.type === 'gap')
-      .map(s => s.content.split('|')[0].trim())
-      .filter(v => v.length > 0);
-    
-    const allChoices = Array.from(new Set([...correctChoices, ...answersList]));
-    return allChoices;
+    const all = Array.from(new Set([...answersList, ...namedGaps]));
+    return all.length > 0 ? all : ['Choice 1', 'Choice 2'];
   }
 
   // Interactive Placement for Gap Fill
@@ -1495,36 +1538,14 @@ export class QuestionFormComponent implements OnInit {
       const gapSegments = segments.filter(s => s.type === 'gap');
       const studentAnswers = this.studentGapfillAnswers();
       const caseSensitive = this.questionForm.get('gapfill_casesensitive')?.value === true;
-      const answersList = this.answers.value || [];
       
       let correctCount = 0;
       const totalGaps = gapSegments.length;
       
       gapSegments.forEach(seg => {
         const studentAns = (studentAnswers[seg.gapIndex!] || '').trim();
-        let correctOptions: string[] = [];
-        
-        if (qtype === 'ddwtos' || qtype === 'gapselect') {
-          const num = parseInt(seg.content, 10);
-          if (!isNaN(num) && num >= 1 && num <= answersList.length) {
-            const ansText = (answersList[num - 1]?.answer_text || '').trim();
-            if (ansText) correctOptions.push(ansText);
-          } else {
-            correctOptions.push(seg.content.trim());
-          }
-        } else {
-          // Standard gapfill
-          correctOptions = seg.content.split('|').map(o => o.trim());
-        }
-        
-        const isMatch = correctOptions.some(opt => {
-          if (!opt) return false;
-          if (caseSensitive) {
-            return studentAns === opt;
-          } else {
-            return studentAns.toLowerCase() === opt.toLowerCase();
-          }
-        });
+        const correctOptions = this.getCorrectOptionsForGap(seg);
+        const isMatch = correctOptions.some(opt => this.isStudentAnswerMatching(studentAns, opt, caseSensitive));
         
         if (isMatch) {
           correctCount++;
