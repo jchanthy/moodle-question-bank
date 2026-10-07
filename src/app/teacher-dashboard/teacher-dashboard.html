@@ -1236,8 +1236,8 @@
                       }">
                       <span>🔍 ពិនិត្យអក្ខរាវិរុទ្ធ (Spell Check)</span>
                       <span *ngIf="spellCheckActive()" class="text-[9px] px-1.5 py-0.2 rounded-full font-bold"
-                        [ngClass]="choiceSpellErrorsCount() > 0 ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'">
-                        {{ choiceSpellErrorsCount() > 0 ? choiceSpellErrorsCount() + ' កំហុស' : '✓ ត្រឹមត្រូវ' }}
+                        [ngClass]="getQuestionChoicesErrorCount(question) > 0 ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'">
+                        {{ getQuestionChoicesErrorCount(question) > 0 ? getQuestionChoicesErrorCount(question) + ' កំហុស' : '✓ ត្រឹមត្រូវ' }}
                       </span>
                     </button>
                   </div>

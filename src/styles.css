@@ -62,7 +62,7 @@
 
 /* Custom Global Font & Typography */
 :root {
-  --app-font-family: 'Niradei', 'CustomFont', 'Kantumruy Pro', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --app-font-family: 'Niradei', 'CustomFont', 'Kantumruy Pro', 'Segoe UI Symbol', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Sans Symbols', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 body, html {

@@ -2,7 +2,7 @@ import { Component, inject, signal, computed, effect, OnInit, HostListener, Elem
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators, FormArray, FormGroup } from '@angular/forms';
 import { SupabaseService } from '../services/supabase.service';
-import { ImportExportService } from '../services/import-export.service';
+import { ImportExportService, normalizeSpecialGlyphs } from '../services/import-export.service';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { NotificationService } from '../services/notification.service';
 import { KhmerSpellCheckService, SpellCheckToken, SpellCheckReport } from '../services/khmer-spellcheck.service';
@@ -2098,7 +2098,7 @@ export class QuestionFormComponent implements OnInit {
       // Shared content fields used for both inserts and updates
       const sharedData = {
         name: formValue.name,
-        question_text: formValue.question_text,
+        question_text: normalizeSpecialGlyphs(formValue.question_text),
         general_feedback: formValue.general_feedback,
         // Preserve decimal precision for Moodle XML compatibility
         default_grade: Number(formValue.default_grade) || 1,
@@ -2234,7 +2234,7 @@ export class QuestionFormComponent implements OnInit {
         }
         return {
           question_id: targetId,
-          answer_text: finalText,
+          answer_text: normalizeSpecialGlyphs(finalText),
           // Preserve decimal fraction precision (e.g. 33.33333 for 3-answer questions)
           // Use ?? to safely preserve explicit 0 fractions (e.g. False answer in TF)
           fraction: Number(ans.fraction) != null ? parseFloat(Number(ans.fraction).toFixed(5)) : 0,

@@ -1502,7 +1502,7 @@ ${dropsXml}
   }
 
   private normalizeWordText(text: string): string {
-    return text
+    const normalized = text
       .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"') // Smart double quotes
       .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'") // Smart single quotes
       .replace(/\u2013/g, "-") // En dash
@@ -1511,6 +1511,7 @@ ${dropsXml}
       .replace(/\u00A0/g, " ") // Non-breaking space
       .replace(/\r\n/g, "\n") // Windows line endings
       .replace(/\r/g, "\n");  // Mac line endings
+    return normalizeSpecialGlyphs(normalized);
   }
 
   // ============================================================
@@ -1566,7 +1567,27 @@ ${dropsXml}
     text = text.replace(/ {2,}/g, ' ');
     // 4. Trim each line
     text = text.split('\n').map(l => l.trim()).filter(l => l.length > 0).join('\n');
-    // 5. Final trim
-    return text.trim();
+    // 5. Final trim and glyph normalization
+    return normalizeSpecialGlyphs(text.trim());
   }
+}
+
+/**
+ * Normalizes missing/broken glyphs, combining enclosing characters (such as U+20DE ⃞ ),
+ * and Word/Wingdings private-use characters to standard Unicode box symbols (□ U+25A1).
+ * Fixes [NO GLYPH] rendering issues across all web fonts and browsers.
+ */
+export function normalizeSpecialGlyphs(text: string): string {
+  if (!text) return text;
+  return text
+    // Replace combining enclosing marks (e.g. U+20DE ⃞ combining enclosing square)
+    // surrounded or preceded by tabs/spaces with standard standalone white square □ (U+25A1)
+    .replace(/[\t ]*[\u20DE-\u20E4][\t ]*/g, ' □ ')
+    .replace(/[\u20DE-\u20E4]/g, '□')
+    // Replace Word / Wingdings private-use characters commonly used for checkbox squares
+    .replace(/[\uF0A8\uF06F\u1F78E]/g, '□')
+    .replace(/[\uF0FE]/g, '☑')
+    .replace(/\n □ /g, '\n□ ')
+    .replace(/^ □ /gm, '□ ')
+    .replace(/ (<\/(?:p|div|span|li)>)/gi, '$1');
 }

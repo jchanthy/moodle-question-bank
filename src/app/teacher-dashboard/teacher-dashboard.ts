@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule, NgIf, NgFor, DatePipe } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { SupabaseService } from '../services/supabase.service';
-import { ImportExportService, ParsedQuestion } from '../services/import-export.service';
+import { ImportExportService, ParsedQuestion, normalizeSpecialGlyphs } from '../services/import-export.service';
 import { Router, RouterModule } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { NotificationService } from '../services/notification.service';
@@ -859,6 +859,23 @@ export class TeacherDashboardComponent implements OnInit {
     }
   }
 
+  sanitizeQuestionGlyphs(q: Question): Question {
+    if (!q) return q;
+    if (q.question_text) {
+      q.question_text = normalizeSpecialGlyphs(q.question_text);
+    }
+    if (q.name) {
+      q.name = normalizeSpecialGlyphs(q.name);
+    }
+    if (q.answers && Array.isArray(q.answers)) {
+      q.answers = q.answers.map((a: any) => ({
+        ...a,
+        answer_text: normalizeSpecialGlyphs(a.answer_text)
+      }));
+    }
+    return q;
+  }
+
   async loadMyQuestions() {
     const user = this.supabaseService.currentUser();
     if (!user) return;
@@ -930,7 +947,9 @@ export class TeacherDashboardComponent implements OnInit {
       ]);
 
       untracked(() => {
-        const questions = (data as Question[]).filter(q => q.name !== '__SYSTEM_USER_RECORDS__');
+        const questions = (data as Question[])
+          .filter(q => q.name !== '__SYSTEM_USER_RECORDS__')
+          .map(q => this.sanitizeQuestionGlyphs(q));
         
         // Update all related signals in the exact same synchronous block to batch updates and prevent double flashing/renders!
         this.allQuestions.set(questions);
@@ -989,10 +1008,10 @@ export class TeacherDashboardComponent implements OnInit {
       
       const questionsWithMeta = (qs as any[] || []).map(q => {
         const assignment = assignments.find(a => a.question_id === q.id);
-        return {
+        return this.sanitizeQuestionGlyphs({
           ...q,
           assignment_completed_at: assignment?.completed_at
-        };
+        });
       });
 
       return questionsWithMeta;
@@ -1074,7 +1093,7 @@ export class TeacherDashboardComponent implements OnInit {
           });
         }
 
-        return filteredQuestions;
+        return filteredQuestions.map(q => this.sanitizeQuestionGlyphs(q));
       }
     } catch (err) {
       console.error('Error loading assistant submissions:', err);
@@ -1655,7 +1674,7 @@ export class TeacherDashboardComponent implements OnInit {
     if (text.toLowerCase().startsWith('<p>') && text.toLowerCase().endsWith('</p>')) {
       text = text.substring(3, text.length - 4);
     }
-    this.editingTextValue = text;
+    this.editingTextValue = normalizeSpecialGlyphs(text);
     this.spellUndoHistory = [];
     if (this.spellCheckActive()) {
       this.runInlineSpellCheck();
@@ -1674,7 +1693,7 @@ export class TeacherDashboardComponent implements OnInit {
 
   private inlineSpellDebounceTimer: any = null;
   onEditingTextChange(val: string) {
-    this.editingTextValue = val;
+    this.editingTextValue = normalizeSpecialGlyphs(val);
     if (this.spellCheckActive()) {
       clearTimeout(this.inlineSpellDebounceTimer);
       this.inlineSpellDebounceTimer = setTimeout(() => {
@@ -1856,7 +1875,7 @@ export class TeacherDashboardComponent implements OnInit {
     if (!this.editingTextValue.trim()) return;
     this.savingInline.set(true);
     try {
-      let finalValue = this.editingTextValue.trim();
+      let finalValue = normalizeSpecialGlyphs(this.editingTextValue.trim());
       const original = q.question_text || '';
       if (original.toLowerCase().startsWith('<p>') && original.toLowerCase().endsWith('</p>')) {
         finalValue = `<p>${finalValue}</p>`;
@@ -1894,7 +1913,7 @@ export class TeacherDashboardComponent implements OnInit {
     if (text.toLowerCase().startsWith('<p>') && text.toLowerCase().endsWith('</p>')) {
       text = text.substring(3, text.length - 4);
     }
-    this.editingChoiceText = text;
+    this.editingChoiceText = normalizeSpecialGlyphs(text);
     if (this.spellCheckActive()) {
       this.runChoiceSpellCheck();
     }
@@ -1907,7 +1926,7 @@ export class TeacherDashboardComponent implements OnInit {
 
   private choiceSpellDebounceTimer: any = null;
   onEditingChoiceTextChange(val: string) {
-    this.editingChoiceText = val;
+    this.editingChoiceText = normalizeSpecialGlyphs(val);
     if (this.spellCheckActive()) {
       clearTimeout(this.choiceSpellDebounceTimer);
       this.choiceSpellDebounceTimer = setTimeout(() => {
@@ -2010,11 +2029,28 @@ export class TeacherDashboardComponent implements OnInit {
     }
   }
 
+  getQuestionChoicesErrorCount(q: Question): number {
+    if (!this.spellCheckActive() || !q.answers || !this.spellCheckService.isLoaded()) return 0;
+    let total = 0;
+    for (const ans of q.answers) {
+      if (this.editingChoiceId() === ans.id) {
+        total += this.choiceSpellErrorsCount();
+      } else if (ans.answer_text) {
+        let txt = ans.answer_text;
+        if (txt.toLowerCase().startsWith('<p>') && txt.toLowerCase().endsWith('</p>')) {
+          txt = txt.substring(3, txt.length - 4);
+        }
+        total += this.spellCheckService.checkText(txt).errorCount;
+      }
+    }
+    return total;
+  }
+
   async saveChoiceText(ans: any, q: Question) {
     if (!this.editingChoiceText.trim()) return;
     this.savingInline.set(true);
     try {
-      let finalValue = this.editingChoiceText.trim();
+      let finalValue = normalizeSpecialGlyphs(this.editingChoiceText.trim());
       const original = ans.answer_text || '';
       if (original.toLowerCase().startsWith('<p>') && original.toLowerCase().endsWith('</p>')) {
         finalValue = `<p>${finalValue}</p>`;

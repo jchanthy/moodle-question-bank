@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule, NgIf, NgFor, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SupabaseService, DEFAULT_COMPENSATION_SETTINGS, CompensationSettings } from '../services/supabase.service';
-import { ImportExportService, ParsedQuestion } from '../services/import-export.service';
+import { ImportExportService, ParsedQuestion, normalizeSpecialGlyphs } from '../services/import-export.service';
 import { Router, RouterModule } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, firstValueFrom } from 'rxjs';
 import { NotificationService } from '../services/notification.service';
@@ -876,13 +876,30 @@ export class AdminDashboardComponent implements OnInit {
     });
   }
 
+  sanitizeQuestionGlyphs(q: Question): Question {
+    if (!q) return q;
+    if (q.question_text) {
+      q.question_text = normalizeSpecialGlyphs(q.question_text);
+    }
+    if (q.name) {
+      q.name = normalizeSpecialGlyphs(q.name);
+    }
+    if (q.answers && Array.isArray(q.answers)) {
+      q.answers = q.answers.map((a: any) => ({
+        ...a,
+        answer_text: normalizeSpecialGlyphs(a.answer_text)
+      }));
+    }
+    return q;
+  }
+
   startEditingText(q: Question) {
     this.editingTextQuestionId.set(q.id);
     let text = q.question_text || '';
     if (text.toLowerCase().startsWith('<p>') && text.toLowerCase().endsWith('</p>')) {
       text = text.substring(3, text.length - 4);
     }
-    this.editingTextValue = text;
+    this.editingTextValue = normalizeSpecialGlyphs(text);
   }
 
   getTextareaRows(text: string, defaultRows: number = 4): number {
@@ -896,7 +913,7 @@ export class AdminDashboardComponent implements OnInit {
     if (!this.editingTextValue.trim()) return;
     this.savingInline.set(true);
     try {
-      let finalValue = this.editingTextValue.trim();
+      let finalValue = normalizeSpecialGlyphs(this.editingTextValue.trim());
       const original = q.question_text || '';
       if (original.toLowerCase().startsWith('<p>') && original.toLowerCase().endsWith('</p>')) {
         finalValue = `<p>${finalValue}</p>`;
@@ -1114,7 +1131,9 @@ export class AdminDashboardComponent implements OnInit {
 
       if (error) throw error;
       
-      const questions = (data as Question[]).filter(q => q.name !== '__SYSTEM_USER_RECORDS__');
+      const questions = (data as Question[])
+        .filter(q => q.name !== '__SYSTEM_USER_RECORDS__')
+        .map(q => this.sanitizeQuestionGlyphs(q));
       this.allQuestions.set(questions);
 
       // Also sync type counts
