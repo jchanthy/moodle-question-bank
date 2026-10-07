@@ -56,8 +56,16 @@ export class KhmerSpellCheckService {
     this.isLoading.set(true);
 
     try {
-      const response = await fetch('/data/khmer-words.json');
-      if (!response.ok) throw new Error('Failed to fetch dictionary');
+      let response: Response;
+      try {
+        response = await fetch('data/khmer-words.json');
+        if (!response.ok) {
+          response = await fetch('/data/khmer-words.json');
+        }
+      } catch {
+        response = await fetch('/data/khmer-words.json');
+      }
+      if (!response.ok) throw new Error(`Failed to fetch dictionary: ${response.status}`);
       const words: string[] = await response.json();
       
       for (const w of words) {

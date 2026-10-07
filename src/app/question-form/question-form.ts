@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit, HostListener, ElementRef, ViewChild } from '@angular/core';
+import { Component, inject, signal, computed, effect, OnInit, HostListener, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators, FormArray, FormGroup } from '@angular/forms';
 import { SupabaseService } from '../services/supabase.service';
@@ -123,7 +123,7 @@ export class QuestionFormComponent implements OnInit {
   previewResult = signal<{ isCorrect: boolean; feedback: string; grade: number } | null>(null);
 
   // Khmer Spell Check State
-  spellCheckActive = signal(false);
+  spellCheckActive = signal(true);
   spellCheckReport = signal<SpellCheckReport | null>(null);
   answerSpellReports = signal<(SpellCheckReport | null)[]>([]);
   activeSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; answerIndex?: number; answerField?: string } | null>(null);
@@ -323,7 +323,13 @@ export class QuestionFormComponent implements OnInit {
     ])
   });
 
-  constructor() { }
+  constructor() {
+    effect(() => {
+      if (this.spellCheckService.isLoaded() && this.spellCheckActive()) {
+        this.runSpellCheck();
+      }
+    });
+  }
 
   ngOnInit() {
     // Instantly scroll window to top when opening the form page

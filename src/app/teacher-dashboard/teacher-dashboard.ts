@@ -104,7 +104,7 @@ export class TeacherDashboardComponent implements OnInit {
   Math = Math;
 
   // Inline Khmer spell check state
-  spellCheckActive = signal(false);
+  spellCheckActive = signal(true);
   spellCheckReport = signal<SpellCheckReport | null>(null);
   choiceSpellReport = signal<SpellCheckReport | null>(null);
   activeSpellSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; isChoice?: boolean } | null>(null);
@@ -780,6 +780,18 @@ export class TeacherDashboardComponent implements OnInit {
         untracked(() => {
           this.router.navigate(['/admin']);
         });
+      }
+    });
+
+    // Re-check spelling when dictionary finishes loading
+    effect(() => {
+      if (this.spellCheckService.isLoaded() && this.spellCheckActive()) {
+        if (this.editingTextQuestionId()) {
+          this.runInlineSpellCheck();
+        }
+        if (this.editingChoiceId()) {
+          this.runChoiceSpellCheck();
+        }
       }
     });
   }
