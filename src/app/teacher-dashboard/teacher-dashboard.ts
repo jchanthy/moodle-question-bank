@@ -2028,7 +2028,8 @@ export class TeacherDashboardComponent implements OnInit {
       if (error) throw error;
 
       // Update in memory state
-      const updatedQuestions = this.allQuestions().map(item => {
+      ans.answer_text = finalValue;
+      const choiceUpdater = (list: Question[]) => list.map(item => {
         if (item.id === q.id && item.answers) {
           const updatedAnswers = item.answers.map((a: any) => {
             if (a.id === ans.id) {
@@ -2040,9 +2041,14 @@ export class TeacherDashboardComponent implements OnInit {
         }
         return item;
       });
-      this.allQuestions.set(updatedQuestions);
-      this.showToast('Choice text updated successfully', 'success');
+
+      this.allQuestions.set(choiceUpdater(this.allQuestions()));
+      this.myQuestions.set(choiceUpdater(this.myQuestions()));
+      this.assignedQuestions.set(choiceUpdater(this.assignedQuestions()));
+      this.assistantSubmissions.set(choiceUpdater(this.assistantSubmissions()));
+      this.choiceSpellReport.set(null);
       this.editingChoiceId.set(null);
+      this.showToast('Choice text updated successfully', 'success');
     } catch (e: any) {
       this.showToast(e.message, 'error');
     } finally {

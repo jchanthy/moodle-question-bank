@@ -607,22 +607,22 @@
                     'bg-white text-gray-700 border-gray-300 hover:border-blue-500 hover:text-blue-600': !spellCheckActive()
                   }">
                   <span>🔍 ពិនិត្យអក្ខរាវិរុទ្ធ (Khmer Spell Check)</span>
-                  <span *ngIf="spellCheckActive() && spellCheckErrorsCount() > 0" 
+                  <span *ngIf="spellCheckActive() && questionSpellErrorsCount() > 0" 
                     class="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black animate-pulse">
-                    {{ spellCheckErrorsCount() }} កំហុស
+                    {{ questionSpellErrorsCount() }} កំហុស
                   </span>
-                  <span *ngIf="spellCheckActive() && spellCheckErrorsCount() === 0" 
+                  <span *ngIf="spellCheckActive() && questionSpellErrorsCount() === 0" 
                     class="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">
                     ✓ ត្រឹមត្រូវទាំងអស់
                   </span>
                 </button>
               </div>
 
-              <!-- Quick-fix Chips Bar (Shown right above the text when typos are found) -->
-              <div *ngIf="spellCheckActive() && spellCheckErrorsCount() > 0" 
+              <!-- Quick-fix Chips Bar (Shown right above the text when typos are found in Question Text) -->
+              <div *ngIf="spellCheckActive() && questionSpellErrorsCount() > 0" 
                    class="mt-2 flex items-center gap-1.5 flex-wrap p-2 bg-rose-50/70 border border-rose-200/80 rounded-xl animate-in fade-in duration-150">
                 <span class="text-[11px] font-black text-rose-700 flex items-center gap-1 shrink-0">
-                  <span>⚠️</span> {{ spellCheckErrorsCount() }} ពាក្យសង្ស័យខុស:
+                  <span>⚠️</span> {{ questionSpellErrorsCount() }} ពាក្យសង្ស័យខុសក្នុងសំណួរ:
                 </span>
                 <ng-container *ngFor="let token of getInvalidTokens()">
                   <button type="button"

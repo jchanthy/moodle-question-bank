@@ -127,11 +127,9 @@ export class QuestionFormComponent implements OnInit {
   spellCheckReport = signal<SpellCheckReport | null>(null);
   answerSpellReports = signal<(SpellCheckReport | null)[]>([]);
   activeSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; answerIndex?: number; answerField?: string } | null>(null);
-  spellCheckErrorsCount = computed(() => {
-    const qCount = this.spellCheckReport()?.errorCount || 0;
-    const aCount = this.answerSpellReports().reduce((acc, r) => acc + (r?.errorCount || 0), 0);
-    return qCount + aCount;
-  });
+  questionSpellErrorsCount = computed(() => this.spellCheckReport()?.errorCount || 0);
+  answersSpellErrorsCount = computed(() => this.answerSpellReports().reduce((acc, r) => acc + (r?.errorCount || 0), 0));
+  spellCheckErrorsCount = computed(() => this.questionSpellErrorsCount() + this.answersSpellErrorsCount());
 
   questionTypes = [
     { value: 'multichoice', label: 'Multiple Choice', icon: 'pi pi-list', info: 'Best for standard MCQ. Support single or multiple correct answers.' },
