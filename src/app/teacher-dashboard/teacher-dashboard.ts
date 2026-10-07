@@ -203,6 +203,9 @@ export class TeacherDashboardComponent implements OnInit {
 
   @HostListener('window:scroll', [])
   onWindowScroll() {
+    if (this.activeSpellSuggestion()) {
+      this.closeSpellSuggestion();
+    }
     const threshold = 300; // px from bottom of the page
     const position = window.scrollY + window.innerHeight;
     const height = document.documentElement.scrollHeight;
@@ -1719,7 +1722,8 @@ export class TeacherDashboardComponent implements OnInit {
     if (x + popupWidth > window.innerWidth - 20) {
       x = Math.max(10, window.innerWidth - popupWidth - 20);
     }
-    const y = rect.bottom + 6;
+    x += window.scrollX;
+    const y = rect.bottom + window.scrollY + 6;
 
     this.activeSpellSuggestion.set({
       token,
@@ -1786,7 +1790,8 @@ export class TeacherDashboardComponent implements OnInit {
       if (x + popupWidth > window.innerWidth - 20) {
         x = Math.max(10, window.innerWidth - popupWidth - 20);
       }
-      const y = event.clientY + 12;
+      x += window.scrollX;
+      const y = event.clientY + window.scrollY + 12;
 
       this.activeSpellSuggestion.set({
         token,
@@ -1820,7 +1825,8 @@ export class TeacherDashboardComponent implements OnInit {
       if (x + popupWidth > window.innerWidth - 20) {
         x = Math.max(10, window.innerWidth - popupWidth - 20);
       }
-      const y = event.clientY + 12;
+      x += window.scrollX;
+      const y = event.clientY + window.scrollY + 12;
 
       this.activeSpellSuggestion.set({
         token,
@@ -1834,6 +1840,9 @@ export class TeacherDashboardComponent implements OnInit {
   @ViewChild('backdropRef') backdropRef?: ElementRef<HTMLDivElement>;
 
   syncBackdropScroll(event: Event) {
+    if (this.activeSpellSuggestion()) {
+      this.closeSpellSuggestion();
+    }
     if (this.backdropRef?.nativeElement) {
       this.backdropRef.nativeElement.scrollTop = (event.target as HTMLElement).scrollTop;
     }
@@ -1984,7 +1993,8 @@ export class TeacherDashboardComponent implements OnInit {
       if (x + popupWidth > window.innerWidth - 20) {
         x = Math.max(10, window.innerWidth - popupWidth - 20);
       }
-      const y = event.clientY + 12;
+      x += window.scrollX;
+      const y = event.clientY + window.scrollY + 12;
 
       this.activeSpellSuggestion.set({
         token,
@@ -2019,7 +2029,8 @@ export class TeacherDashboardComponent implements OnInit {
       if (x + popupWidth > window.innerWidth - 20) {
         x = Math.max(10, window.innerWidth - popupWidth - 20);
       }
-      const y = event.clientY + 12;
+      x += window.scrollX;
+      const y = event.clientY + window.scrollY + 12;
 
       this.activeSpellSuggestion.set({
         token,

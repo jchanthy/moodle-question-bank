@@ -451,6 +451,9 @@ export class QuestionFormComponent implements OnInit {
   }
 
   syncAnswerBackdropScroll(event: Event, index: number) {
+    if (this.activeSuggestion()) {
+      this.closeSuggestionMenu();
+    }
     const textarea = event.target as HTMLTextAreaElement;
     const parent = textarea.parentElement;
     if (parent) {
@@ -487,7 +490,8 @@ export class QuestionFormComponent implements OnInit {
     if (x + popupWidth > window.innerWidth - 20) {
       x = Math.max(10, window.innerWidth - popupWidth - 20);
     }
-    const y = rect.bottom + 6;
+    x += window.scrollX;
+    const y = rect.bottom + window.scrollY + 6;
 
     this.activeSuggestion.set({
       token,
@@ -509,7 +513,8 @@ export class QuestionFormComponent implements OnInit {
     if (x + popupWidth > window.innerWidth - 20) {
       x = Math.max(10, window.innerWidth - popupWidth - 20);
     }
-    const y = rect.bottom + 6;
+    x += window.scrollX;
+    const y = rect.bottom + window.scrollY + 6;
 
     this.activeSuggestion.set({
       token,
@@ -543,7 +548,8 @@ export class QuestionFormComponent implements OnInit {
       if (x + popupWidth > window.innerWidth - 20) {
         x = Math.max(10, window.innerWidth - popupWidth - 20);
       }
-      const y = event.clientY + 12;
+      x += window.scrollX;
+      const y = event.clientY + window.scrollY + 12;
 
       this.activeSuggestion.set({
         token,
@@ -580,7 +586,8 @@ export class QuestionFormComponent implements OnInit {
       if (x + popupWidth > window.innerWidth - 20) {
         x = Math.max(10, window.innerWidth - popupWidth - 20);
       }
-      const y = event.clientY + 12;
+      x += window.scrollX;
+      const y = event.clientY + window.scrollY + 12;
 
       this.activeSuggestion.set({
         token,
@@ -679,7 +686,8 @@ export class QuestionFormComponent implements OnInit {
       if (x + popupWidth > window.innerWidth - 20) {
         x = Math.max(10, window.innerWidth - popupWidth - 20);
       }
-      const y = event.clientY + 12;
+      x += window.scrollX;
+      const y = event.clientY + window.scrollY + 12;
 
       this.activeSuggestion.set({
         token,
@@ -713,7 +721,8 @@ export class QuestionFormComponent implements OnInit {
       if (x + popupWidth > window.innerWidth - 20) {
         x = Math.max(10, window.innerWidth - popupWidth - 20);
       }
-      const y = event.clientY + 12;
+      x += window.scrollX;
+      const y = event.clientY + window.scrollY + 12;
 
       this.activeSuggestion.set({
         token,
@@ -727,6 +736,9 @@ export class QuestionFormComponent implements OnInit {
   @ViewChild('formBackdropRef') formBackdropRef?: ElementRef<HTMLDivElement>;
 
   syncBackdropScroll(event: Event) {
+    if (this.activeSuggestion()) {
+      this.closeSuggestionMenu();
+    }
     if (this.formBackdropRef?.nativeElement) {
       this.formBackdropRef.nativeElement.scrollTop = (event.target as HTMLElement).scrollTop;
     }
@@ -752,6 +764,13 @@ export class QuestionFormComponent implements OnInit {
 
   quickFixToken(token: SpellCheckToken, suggestion: string) {
     this.applySpellSuggestion(token, suggestion);
+  }
+
+  @HostListener('window:scroll')
+  onWindowScroll() {
+    if (this.activeSuggestion()) {
+      this.closeSuggestionMenu();
+    }
   }
 
   @HostListener('document:click', ['$event'])

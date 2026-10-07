@@ -1142,7 +1142,7 @@
 
                     <!-- Floating Suggestion Context Menu Popup -->
                     <div *ngIf="activeSpellSuggestion()"
-                      class="fixed z-[9999] bg-white border border-gray-200 rounded-2xl shadow-2xl p-2 w-72 animate-in fade-in zoom-in-95 duration-150"
+                      class="absolute z-[9999] bg-white border border-gray-200 rounded-2xl shadow-2xl p-2 w-72 animate-in fade-in zoom-in-95 duration-150"
                       [style.left.px]="activeSpellSuggestion()?.x"
                       [style.top.px]="activeSpellSuggestion()?.y"
                       (click)="$event.stopPropagation()">
