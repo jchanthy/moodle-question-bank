@@ -1,4 +1,4 @@
-﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,8 +14,8 @@ serve(async (req) => {
   try {
     const { title, message, type, metadata, origin } = await req.json();
 
-    const token = Deno.env.get("TELEGRAM_BOT_TOKEN") || "8840844878:AAHpgUWLrLgZcEAKP7vqo4WtgjgEWTg2UK8";
-    const chatId = Deno.env.get("TELEGRAM_CHAT_ID") || "-4791701805";
+    const token = Deno.env.get("TELEGRAM_BOT_TOKEN");
+    const chatId = Deno.env.get("TELEGRAM_CHAT_ID");
 
     if (!token || !chatId) {
       return new Response(
