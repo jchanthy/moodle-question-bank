@@ -153,6 +153,12 @@ export class TeacherDashboardComponent implements OnInit {
         this.showNotifications.set(false);
       }
     }
+    if (this.activeSpellSuggestion()) {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.spell-suggestion-popup') && !target.closest('.spell-trigger-chip') && !target.closest('.inline-edit-textarea') && !target.closest('.inline-edit-choice-textarea')) {
+        this.activeSpellSuggestion.set(null);
+      }
+    }
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -203,9 +209,6 @@ export class TeacherDashboardComponent implements OnInit {
 
   @HostListener('window:scroll', [])
   onWindowScroll() {
-    if (this.activeSpellSuggestion()) {
-      this.closeSpellSuggestion();
-    }
     const threshold = 300; // px from bottom of the page
     const position = window.scrollY + window.innerHeight;
     const height = document.documentElement.scrollHeight;
@@ -1715,15 +1718,18 @@ export class TeacherDashboardComponent implements OnInit {
     event.preventDefault();
     event.stopPropagation();
 
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const target = event.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const container = (target.closest('.relative') || target.parentElement) as HTMLElement;
+    const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
     const suggestions = this.spellCheckService.getSuggestions(token.text);
-    const popupWidth = 280;
-    let x = rect.left;
-    if (x + popupWidth > window.innerWidth - 20) {
-      x = Math.max(10, window.innerWidth - popupWidth - 20);
+    const popupWidth = 288;
+    
+    let x = rect.left - containerRect.left;
+    if (x + popupWidth > containerRect.width) {
+      x = Math.max(0, containerRect.width - popupWidth - 10);
     }
-    x += window.scrollX;
-    const y = rect.bottom + window.scrollY + 6;
+    const y = rect.bottom - containerRect.top + 6;
 
     this.activeSpellSuggestion.set({
       token,
@@ -1745,6 +1751,7 @@ export class TeacherDashboardComponent implements OnInit {
     const after = current.substring(token.endIndex);
     this.editingTextValue = before + suggestion + after;
     this.activeSpellSuggestion.set(null);
+    this.questionTextSpellCache.clear();
     this.runInlineSpellCheck();
   }
 
@@ -1785,13 +1792,14 @@ export class TeacherDashboardComponent implements OnInit {
       event.preventDefault();
       event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
-      const popupWidth = 280;
-      let x = event.clientX;
-      if (x + popupWidth > window.innerWidth - 20) {
-        x = Math.max(10, window.innerWidth - popupWidth - 20);
+      const popupWidth = 288;
+      const container = (textarea.closest('.relative') || textarea.parentElement) as HTMLElement;
+      const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
+      let x = event.clientX - containerRect.left;
+      if (x + popupWidth > containerRect.width) {
+        x = Math.max(0, containerRect.width - popupWidth - 10);
       }
-      x += window.scrollX;
-      const y = event.clientY + window.scrollY + 12;
+      const y = event.clientY - containerRect.top + 16;
 
       this.activeSpellSuggestion.set({
         token,
@@ -1820,13 +1828,14 @@ export class TeacherDashboardComponent implements OnInit {
       event.preventDefault();
       event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
-      const popupWidth = 280;
-      let x = event.clientX;
-      if (x + popupWidth > window.innerWidth - 20) {
-        x = Math.max(10, window.innerWidth - popupWidth - 20);
+      const popupWidth = 288;
+      const container = (textarea.closest('.relative') || textarea.parentElement) as HTMLElement;
+      const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
+      let x = event.clientX - containerRect.left;
+      if (x + popupWidth > containerRect.width) {
+        x = Math.max(0, containerRect.width - popupWidth - 10);
       }
-      x += window.scrollX;
-      const y = event.clientY + window.scrollY + 12;
+      const y = event.clientY - containerRect.top + 16;
 
       this.activeSpellSuggestion.set({
         token,
@@ -1901,6 +1910,7 @@ export class TeacherDashboardComponent implements OnInit {
 
       // Update question in-place directly on object
       q.question_text = finalValue;
+      this.questionTextSpellCache.clear();
 
       // Update in memory state across all collections
       const updater = (list: Question[]) => list.map(item => item.id === q.id ? { ...item, question_text: finalValue } : item);
@@ -1974,6 +1984,33 @@ export class TeacherDashboardComponent implements OnInit {
     this.showToast(`បានកែតម្រូវ «${token.text}» ➔ «${suggestion}»`, 'success');
   }
 
+  onChoiceWordAction(token: SpellCheckToken, event: MouseEvent) {
+    if (token.isValid || !token.isKhmer) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const target = event.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const container = (target.closest('.relative') || target.parentElement) as HTMLElement;
+    const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
+    const suggestions = this.spellCheckService.getSuggestions(token.text);
+    const popupWidth = 288;
+
+    let x = rect.left - containerRect.left;
+    if (x + popupWidth > containerRect.width) {
+      x = Math.max(0, containerRect.width - popupWidth - 10);
+    }
+    const y = rect.bottom - containerRect.top + 6;
+
+    this.activeSpellSuggestion.set({
+      token,
+      isChoice: true,
+      x,
+      y,
+      suggestions
+    });
+  }
+
   onChoiceEditorClick(event: MouseEvent) {
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;
@@ -1988,13 +2025,14 @@ export class TeacherDashboardComponent implements OnInit {
 
     if (token) {
       const suggestions = this.spellCheckService.getSuggestions(token.text);
-      const popupWidth = 280;
-      let x = event.clientX;
-      if (x + popupWidth > window.innerWidth - 20) {
-        x = Math.max(10, window.innerWidth - popupWidth - 20);
+      const popupWidth = 288;
+      const container = (textarea.closest('.relative') || textarea.parentElement) as HTMLElement;
+      const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
+      let x = event.clientX - containerRect.left;
+      if (x + popupWidth > containerRect.width) {
+        x = Math.max(0, containerRect.width - popupWidth - 10);
       }
-      x += window.scrollX;
-      const y = event.clientY + window.scrollY + 12;
+      const y = event.clientY - containerRect.top + 16;
 
       this.activeSpellSuggestion.set({
         token,
@@ -2024,13 +2062,14 @@ export class TeacherDashboardComponent implements OnInit {
       event.preventDefault();
       event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
-      const popupWidth = 280;
-      let x = event.clientX;
-      if (x + popupWidth > window.innerWidth - 20) {
-        x = Math.max(10, window.innerWidth - popupWidth - 20);
+      const popupWidth = 288;
+      const container = (textarea.closest('.relative') || textarea.parentElement) as HTMLElement;
+      const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
+      let x = event.clientX - containerRect.left;
+      if (x + popupWidth > containerRect.width) {
+        x = Math.max(0, containerRect.width - popupWidth - 10);
       }
-      x += window.scrollX;
-      const y = event.clientY + window.scrollY + 12;
+      const y = event.clientY - containerRect.top + 16;
 
       this.activeSpellSuggestion.set({
         token,
@@ -2039,6 +2078,101 @@ export class TeacherDashboardComponent implements OnInit {
         y,
         suggestions
       });
+    }
+  }
+
+  // Cache for question text spell check to avoid re-evaluating on every frame
+  private questionTextSpellCache = new Map<string, { errorCount: number; invalidTokens: SpellCheckToken[] }>();
+
+  getQuestionTextSpellReport(q: Question): { errorCount: number; invalidTokens: SpellCheckToken[] } {
+    if (!this.spellCheckActive() || !q.question_text || !this.spellCheckService.isLoaded()) {
+      return { errorCount: 0, invalidTokens: [] };
+    }
+    const key = `${q.id}_${q.question_text}`;
+    const cached = this.questionTextSpellCache.get(key);
+    if (cached) return cached;
+
+    let txt = q.question_text.replace(/<[^>]*>/g, ' ');
+    const report = this.spellCheckService.checkText(txt);
+    const seen = new Set<string>();
+    const invalidTokens: SpellCheckToken[] = [];
+    for (const t of report.tokens) {
+      if (!t.isValid && t.isKhmer && !seen.has(t.text)) {
+        seen.add(t.text);
+        invalidTokens.push(t);
+      }
+    }
+    const result = {
+      errorCount: invalidTokens.length,
+      invalidTokens
+    };
+    this.questionTextSpellCache.set(key, result);
+    return result;
+  }
+
+  getQuestionTextErrorCount(q: Question): number {
+    if (this.editingTextQuestionId() === q.id) {
+      return this.spellCheckErrorsCount();
+    }
+    return this.getQuestionTextSpellReport(q).errorCount;
+  }
+
+  getQuestionTextInvalidTokens(q: Question): SpellCheckToken[] {
+    if (this.editingTextQuestionId() === q.id) {
+      return this.getInvalidTokens();
+    }
+    return this.getQuestionTextSpellReport(q).invalidTokens;
+  }
+
+  startEditingAndOpenSuggestion(q: Question, token: SpellCheckToken, event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.startEditingText(q);
+    setTimeout(() => {
+      const suggestions = this.spellCheckService.getSuggestions(token.text);
+      this.activeSpellSuggestion.set({
+        token,
+        x: 12,
+        y: 42,
+        suggestions
+      });
+    }, 60);
+  }
+
+  async quickFixTokenDirectly(q: Question, token: SpellCheckToken, suggestion: string) {
+    let current = q.question_text || '';
+    let plainText = current.replace(/<[^>]*>/g, '');
+    const before = plainText.substring(0, token.startIndex);
+    const after = plainText.substring(token.endIndex);
+    const newText = before + suggestion + after;
+
+    this.savingInline.set(true);
+    try {
+      let finalValue = normalizeSpecialGlyphs(newText.trim());
+      if (current.toLowerCase().startsWith('<p>') && current.toLowerCase().endsWith('</p>')) {
+        finalValue = `<p>${finalValue}</p>`;
+      }
+
+      const { error } = await this.supabaseService.db
+        .from('questions')
+        .update({ question_text: finalValue, updated_at: new Date().toISOString() })
+        .eq('id', q.id);
+
+      if (error) throw error;
+
+      q.question_text = finalValue;
+      const updater = (list: Question[]) => list.map(item => item.id === q.id ? { ...item, question_text: finalValue } : item);
+      this.allQuestions.set(updater(this.allQuestions()));
+      this.myQuestions.set(updater(this.myQuestions()));
+      this.assignedQuestions.set(updater(this.assignedQuestions()));
+      this.assistantSubmissions.set(updater(this.assistantSubmissions()));
+
+      this.questionTextSpellCache.clear();
+      this.showToast(`បានកែតម្រូវ «${token.text}» ➔ «${suggestion}»`, 'success');
+    } catch (e: any) {
+      this.showToast(e.message, 'error');
+    } finally {
+      this.savingInline.set(false);
     }
   }
 

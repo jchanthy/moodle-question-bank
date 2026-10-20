@@ -912,6 +912,21 @@
                     </select>
                   </div>
 
+                  <!-- Spell Check Indicator Badge on Question Header -->
+                  <div *ngIf="spellCheckActive()" class="flex items-center">
+                    <span *ngIf="getQuestionTextErrorCount(question) > 0"
+                          (click)="startEditingText(question)"
+                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 font-extrabold text-[10px] cursor-pointer hover:bg-rose-100 transition shadow-2xs"
+                          title="មានកំហុសអក្ខរាវិរុទ្ធក្នុងសំណួរ ចុចដើម្បីកែប្រែ">
+                      <span>⚠️</span> {{ getQuestionTextErrorCount(question) }} កំហុស
+                    </span>
+                    <span *ngIf="getQuestionTextErrorCount(question) === 0"
+                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-extrabold text-[10px]"
+                          title="សំណួរត្រឹមត្រូវ">
+                      <span>✓</span> អក្ខរាវិរុទ្ធត្រឹមត្រូវ
+                    </span>
+                  </div>
+
                   <!-- Comments Badge -->
                   <button (click)="openComments(question)" 
                           class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-50 border border-slate-200/60 text-slate-500 hover:bg-slate-100 transition-all font-bold text-[10px]">
@@ -1048,6 +1063,39 @@
                 <!-- Large, bold Question Text -->
                 <!-- Editable Question Text -->
                 <div class="relative group/text mt-2">
+                  <!-- Missing / typo words chips bar on top of question before editing -->
+                  <div *ngIf="editingTextQuestionId() !== question.id && spellCheckActive() && getQuestionTextErrorCount(question) > 0" 
+                       class="mb-2.5 flex items-center gap-1.5 flex-wrap p-2 bg-rose-50/85 border border-rose-200/90 rounded-xl shadow-2xs animate-in fade-in duration-150">
+                    <span class="text-[11px] font-black text-rose-700 flex items-center gap-1 shrink-0">
+                      <span>⚠️</span> {{ getQuestionTextErrorCount(question) }} ពាក្យសង្ស័យខុស:
+                    </span>
+                    <ng-container *ngFor="let token of getQuestionTextInvalidTokens(question)">
+                      <div class="inline-flex items-center rounded-full border border-rose-300 bg-white text-rose-800 shadow-2xs hover:border-rose-400 transition spell-trigger-chip">
+                        <button type="button"
+                          (click)="startEditingAndOpenSuggestion(question, token, $event)"
+                          class="text-[11px] font-bold px-2.5 py-0.5 hover:bg-rose-50 rounded-l-full transition flex items-center gap-1 cursor-pointer"
+                          [title]="'ចុចដើម្បីជ្រើសរើសពាក្យត្រឹមត្រូវពីវចនានុក្រម'">
+                          <span class="line-through opacity-75">{{ token.text }}</span>
+                          <span *ngIf="getPrimarySuggestion(token.text)" class="text-emerald-700 font-extrabold">➔ {{ getPrimarySuggestion(token.text) }}</span>
+                          <span *ngIf="!getPrimarySuggestion(token.text)" class="text-amber-600 font-mono text-[10px]">?</span>
+                          <span class="text-[9px] text-gray-400">▾</span>
+                        </button>
+                        <button *ngIf="getPrimarySuggestion(token.text)"
+                          type="button"
+                          (click)="quickFixTokenDirectly(question, token, getPrimarySuggestion(token.text)!); $event.stopPropagation()"
+                          class="text-[9px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-1.5 py-1 font-bold rounded-r-full border-l border-rose-200 transition cursor-pointer"
+                          title="កែភ្លាមៗ និងរក្សាទុក">
+                          កែ ✓
+                        </button>
+                      </div>
+                    </ng-container>
+                    <button type="button" 
+                      (click)="startEditingText(question)"
+                      class="text-[10px] text-blue-600 hover:text-blue-800 font-bold ml-auto flex items-center gap-0.5 hover:underline cursor-pointer">
+                      ✏️ កែប្រែសំណួរ
+                    </button>
+                  </div>
+
                   <div *ngIf="editingTextQuestionId() !== question.id" 
                        (click)="startEditingText(question)"
                        class="text-xl md:text-2xl font-bold text-slate-800 leading-relaxed hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between cursor-pointer">
@@ -1096,23 +1144,24 @@
                         <span>⚠️</span> {{ spellCheckErrorsCount() }} ពាក្យសង្ស័យខុស:
                       </span>
                       <ng-container *ngFor="let token of getInvalidTokens()">
-                        <button type="button"
-                          *ngIf="getPrimarySuggestion(token.text); else noSugChip"
-                          (click)="quickFixToken(token, getPrimarySuggestion(token.text)!)"
-                          class="text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-rose-300 bg-white text-rose-800 hover:bg-rose-100 hover:border-rose-400 transition flex items-center gap-1 shadow-2xs group cursor-pointer"
-                          [title]="'ចុចដើម្បីកែ «' + token.text + '» ➔ «' + getPrimarySuggestion(token.text) + '» ភ្លាមៗ'">
-                          <span class="line-through opacity-75">{{ token.text }}</span>
-                          <span class="text-emerald-700 font-extrabold group-hover:scale-105 transition-transform">➔ {{ getPrimarySuggestion(token.text) }}</span>
-                          <span class="text-[9px] bg-emerald-100 text-emerald-800 px-1 rounded-sm ml-0.5">កែ ✓</span>
-                        </button>
-                        <ng-template #noSugChip>
+                        <div class="inline-flex items-center rounded-full border border-rose-300 bg-white text-rose-800 shadow-2xs hover:border-rose-400 transition spell-trigger-chip">
                           <button type="button"
                             (click)="onSpellWordAction(token, $event)"
-                            class="text-[11px] font-bold px-2 py-0.5 rounded-full border border-rose-300 bg-white text-rose-700 hover:bg-rose-100 transition cursor-pointer">
-                            <span>{{ token.text }}</span>
-                            <span class="text-gray-400 text-[10px]">?</span>
+                            class="text-[11px] font-bold px-2.5 py-0.5 hover:bg-rose-50 rounded-l-full transition flex items-center gap-1 cursor-pointer"
+                            [title]="'ចុចដើម្បីជ្រើសរើសពាក្យត្រឹមត្រូវពីវចនានុក្រម'">
+                            <span class="line-through opacity-75">{{ token.text }}</span>
+                            <span *ngIf="getPrimarySuggestion(token.text)" class="text-emerald-700 font-extrabold">➔ {{ getPrimarySuggestion(token.text) }}</span>
+                            <span *ngIf="!getPrimarySuggestion(token.text)" class="text-amber-600 font-mono text-[10px]">?</span>
+                            <span class="text-[9px] text-gray-400">▾</span>
                           </button>
-                        </ng-template>
+                          <button *ngIf="getPrimarySuggestion(token.text)"
+                            type="button"
+                            (click)="quickFixToken(token, getPrimarySuggestion(token.text)!); $event.stopPropagation()"
+                            class="text-[9px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-1.5 py-1 font-bold rounded-r-full border-l border-rose-200 transition cursor-pointer"
+                            title="កែភ្លាមៗ">
+                            កែ ✓
+                          </button>
+                        </div>
                       </ng-container>
                     </div>
 
@@ -1141,8 +1190,8 @@
                     </div>
 
                     <!-- Floating Suggestion Context Menu Popup -->
-                    <div *ngIf="activeSpellSuggestion()"
-                      class="absolute z-[9999] bg-white border border-gray-200 rounded-2xl shadow-2xl p-2 w-72 animate-in fade-in zoom-in-95 duration-150"
+                    <div *ngIf="activeSpellSuggestion() && !activeSpellSuggestion()?.isChoice"
+                      class="spell-suggestion-popup absolute z-[9999] bg-white border border-gray-200 rounded-2xl shadow-2xl p-2 w-72 animate-in fade-in zoom-in-95 duration-150"
                       [style.left.px]="activeSpellSuggestion()?.x"
                       [style.top.px]="activeSpellSuggestion()?.y"
                       (click)="$event.stopPropagation()">
@@ -1259,7 +1308,7 @@
                         </div>
                         
                         <!-- Choice text edit input -->
-                        <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5">
+                        <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5 relative">
                           <!-- Quick-fix Chips for Choice -->
                           <div *ngIf="spellCheckActive() && choiceSpellErrorsCount() > 0" 
                                class="flex items-center gap-1.5 flex-wrap p-1.5 bg-rose-50/70 border border-rose-200/80 rounded-lg">
@@ -1267,22 +1316,24 @@
                               <span>⚠️</span> {{ choiceSpellErrorsCount() }} កំហុស:
                             </span>
                             <ng-container *ngFor="let token of getChoiceInvalidTokens()">
-                              <button type="button"
-                                *ngIf="getPrimarySuggestion(token.text); else noChoiceSug"
-                                (click)="quickFixChoiceToken(token, getPrimarySuggestion(token.text)!)"
-                                class="text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-300 bg-white text-rose-800 hover:bg-rose-100 transition flex items-center gap-1 cursor-pointer"
-                                [title]="'ចុចដើម្បីកែ «' + token.text + '» ➔ «' + getPrimarySuggestion(token.text) + '»'">
-                                <span class="line-through opacity-75">{{ token.text }}</span>
-                                <span class="text-emerald-700 font-extrabold">➔ {{ getPrimarySuggestion(token.text) }}</span>
-                                <span class="text-[8px] bg-emerald-100 text-emerald-800 px-1 rounded-sm ml-0.5">កែ ✓</span>
-                              </button>
-                              <ng-template #noChoiceSug>
+                              <div class="inline-flex items-center rounded-full border border-rose-300 bg-white text-rose-800 shadow-2xs hover:border-rose-400 transition spell-trigger-chip">
                                 <button type="button"
-                                  (click)="onSpellWordAction(token, $event)"
-                                  class="text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-300 bg-white text-rose-700 hover:bg-rose-100 transition cursor-pointer">
-                                  {{ token.text }}
+                                  (click)="onChoiceWordAction(token, $event)"
+                                  class="text-[10px] font-bold px-2 py-0.5 hover:bg-rose-50 rounded-l-full transition flex items-center gap-1 cursor-pointer"
+                                  [title]="'ចុចដើម្បីជ្រើសរើសពាក្យត្រឹមត្រូវពីវចនានុក្រម'">
+                                  <span class="line-through opacity-75">{{ token.text }}</span>
+                                  <span *ngIf="getPrimarySuggestion(token.text)" class="text-emerald-700 font-extrabold">➔ {{ getPrimarySuggestion(token.text) }}</span>
+                                  <span *ngIf="!getPrimarySuggestion(token.text)" class="text-amber-600 font-mono text-[9px]">?</span>
+                                  <span class="text-[8px] text-gray-400">▾</span>
                                 </button>
-                              </ng-template>
+                                <button *ngIf="getPrimarySuggestion(token.text)"
+                                  type="button"
+                                  (click)="quickFixChoiceToken(token, getPrimarySuggestion(token.text)!); $event.stopPropagation()"
+                                  class="text-[8px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-1.5 py-1 font-bold rounded-r-full border-l border-rose-200 transition cursor-pointer"
+                                  title="កែភ្លាមៗ">
+                                  កែ ✓
+                                </button>
+                              </div>
                             </ng-container>
                           </div>
 
@@ -1318,6 +1369,51 @@
                                       style="box-sizing: border-box; margin: 0; border: 1px solid transparent;"
                                       (keydown)="onChoiceKeyDown($event, ans, question)"
                                       (blur)="onBlurChoice()"></textarea>
+                          </div>
+
+                          <!-- Floating Suggestion Context Menu Popup for Choice -->
+                          <div *ngIf="activeSpellSuggestion() && activeSpellSuggestion()?.isChoice"
+                            class="spell-suggestion-popup absolute z-[9999] bg-white border border-gray-200 rounded-2xl shadow-2xl p-2 w-72 animate-in fade-in zoom-in-95 duration-150"
+                            [style.left.px]="activeSpellSuggestion()?.x"
+                            [style.top.px]="activeSpellSuggestion()?.y"
+                            (click)="$event.stopPropagation()">
+                            
+                            <div class="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
+                              <div>
+                                <span class="text-[10px] font-black uppercase tracking-wider text-gray-400 block">ពាក្យខុស (Typo)</span>
+                                <span class="text-sm font-bold text-rose-600">{{ activeSpellSuggestion()?.token?.text }}</span>
+                              </div>
+                              <button type="button" (click)="closeSpellSuggestion()" class="text-gray-400 hover:text-gray-600 text-sm font-bold p-1">✕</button>
+                            </div>
+
+                            <div class="p-1 space-y-0.5">
+                              <span class="text-[10px] font-black uppercase tracking-wider text-gray-400 px-2 py-1 block">ពាក្យកែតម្រូវ (Suggestions)</span>
+                              <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noChoiceSuggestions">
+                                <button *ngFor="let sug of activeSpellSuggestion()?.suggestions"
+                                  type="button"
+                                  (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug)"
+                                  class="w-full text-left px-3 py-2 text-sm font-bold text-gray-800 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition flex items-center justify-between group">
+                                  <span>{{ sug }}</span>
+                                  <span class="text-[11px] font-normal text-gray-400 group-hover:text-emerald-600">ជ្រើសរើស ✓</span>
+                                </button>
+                              </ng-container>
+                              <ng-template #noChoiceSuggestions>
+                                <div class="px-3 py-2 text-xs text-gray-400 italic">គ្មានពាក្យស្រដៀងក្នុងវចនានុក្រមទេ</div>
+                              </ng-template>
+                            </div>
+
+                            <div class="pt-1 mt-1 border-t border-gray-100 flex flex-col gap-0.5">
+                              <button type="button"
+                                (click)="addWordToDictionary(activeSpellSuggestion()!.token)"
+                                class="w-full text-left px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition flex items-center gap-1.5 font-medium">
+                                <span>➕</span> បន្ថែមទៅវចនានុក្រម (Add to Dictionary)
+                              </button>
+                              <button type="button"
+                                (click)="ignoreSpellWord(activeSpellSuggestion()!.token)"
+                                class="w-full text-left px-3 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2">
+                                <span>👁️</span> មិនអើពើ (Ignore Once)
+                              </button>
+                            </div>
                           </div>
 
                           <div class="flex gap-1 justify-end">
