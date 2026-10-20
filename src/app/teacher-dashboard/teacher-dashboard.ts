@@ -1797,10 +1797,32 @@ export class TeacherDashboardComponent implements OnInit {
     });
   }
 
-  applySpellSuggestion(token: SpellCheckToken, suggestion: string) {
+  getEditingQuestion(): Question | undefined {
+    const id = this.editingTextQuestionId();
+    if (!id) return undefined;
+    return this.allQuestions().find(item => item.id === id) ||
+           this.myQuestions().find(item => item.id === id) ||
+           this.assignedQuestions().find(item => item.id === id) ||
+           this.assistantSubmissions().find(item => item.id === id);
+  }
+
+  getEditingChoiceQuestion(): Question | undefined {
+    const choiceId = this.editingChoiceId();
+    if (!choiceId) return undefined;
+    const findIn = (list: Question[]) => list.find(q => q.answers?.some((a: any) => a.id === choiceId));
+    return findIn(this.allQuestions()) || findIn(this.myQuestions()) || findIn(this.assignedQuestions()) || findIn(this.assistantSubmissions());
+  }
+
+  getEditingChoiceAnswer(q?: Question): any {
+    const choiceId = this.editingChoiceId();
+    if (!choiceId || !q || !q.answers) return undefined;
+    return q.answers.find((a: any) => a.id === choiceId);
+  }
+
+  async applySpellSuggestion(token: SpellCheckToken, suggestion: string, q?: Question, ans?: any) {
     const active = this.activeSpellSuggestion();
     if (active && active.isChoice) {
-      this.applyChoiceSpellSuggestion(token, suggestion);
+      await this.applyChoiceSpellSuggestion(token, suggestion, ans, q);
       return;
     }
     const current = this.editingTextValue || '';
@@ -1811,6 +1833,12 @@ export class TeacherDashboardComponent implements OnInit {
     this.activeSpellSuggestion.set(null);
     this.invalidateQuestionSpellCache(this.editingTextQuestionId() || undefined);
     this.runInlineSpellCheck();
+
+    // Auto-save the corrected question text to database
+    const targetQ = q || this.getEditingQuestion();
+    if (targetQ) {
+      await this.saveInlineText(targetQ);
+    }
   }
 
   undoSpellCorrection() {
@@ -1958,9 +1986,8 @@ export class TeacherDashboardComponent implements OnInit {
     return sugs.length > 0 ? sugs[0] : null;
   }
 
-  quickFixToken(token: SpellCheckToken, suggestion: string) {
-    this.applySpellSuggestion(token, suggestion);
-    this.showToast(`បានកែតម្រូវ «${token.text}» ➔ «${suggestion}»`, 'success');
+  async quickFixToken(token: SpellCheckToken, suggestion: string, q?: Question) {
+    await this.applySpellSuggestion(token, suggestion, q);
   }
 
   closeSpellSuggestion() {
@@ -2056,7 +2083,7 @@ export class TeacherDashboardComponent implements OnInit {
     return res;
   }
 
-  applyChoiceSpellSuggestion(token: SpellCheckToken, suggestion: string) {
+  async applyChoiceSpellSuggestion(token: SpellCheckToken, suggestion: string, ans?: any, q?: Question) {
     const current = this.editingChoiceText || '';
     this.spellUndoHistory.push(current);
     const before = current.substring(0, token.startIndex);
@@ -2064,11 +2091,17 @@ export class TeacherDashboardComponent implements OnInit {
     this.editingChoiceText = before + suggestion + after;
     this.activeSpellSuggestion.set(null);
     this.runChoiceSpellCheck();
+
+    // Auto-save the corrected choice text to database
+    const targetQ = q || this.getEditingChoiceQuestion();
+    const targetAns = ans || this.getEditingChoiceAnswer(targetQ);
+    if (targetAns && targetQ) {
+      await this.saveChoiceText(targetAns, targetQ);
+    }
   }
 
-  quickFixChoiceToken(token: SpellCheckToken, suggestion: string) {
-    this.applyChoiceSpellSuggestion(token, suggestion);
-    this.showToast(`បានកែតម្រូវ «${token.text}» ➔ «${suggestion}»`, 'success');
+  async quickFixChoiceToken(token: SpellCheckToken, suggestion: string, ans?: any, q?: Question) {
+    await this.applyChoiceSpellSuggestion(token, suggestion, ans, q);
   }
 
   onChoiceWordAction(token: SpellCheckToken, event: MouseEvent) {
@@ -2434,20 +2467,11 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   onBlurText() {
-    // Only close if not interacting with spell suggestion popup
-    setTimeout(() => {
-      if (!this.savingInline() && !this.activeSpellSuggestion() && !this.spellCheckActive()) {
-        this.editingTextQuestionId.set(null);
-      }
-    }, 250);
+    // Kept for backward compatibility, no automatic closing to prevent losing unsaved edits
   }
 
   onBlurChoice() {
-    setTimeout(() => {
-      if (!this.savingInline()) {
-        this.editingChoiceId.set(null);
-      }
-    }, 200);
+    // Kept for backward compatibility, no automatic closing to prevent losing unsaved edits
   }
 
   onTextKeyDown(event: any, q: Question) {

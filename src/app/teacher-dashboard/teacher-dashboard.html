@@ -1143,7 +1143,7 @@
                           </button>
                           <button *ngIf="token.primarySuggestion"
                             type="button"
-                            (click)="quickFixToken(token, token.primarySuggestion!); $event.stopPropagation()"
+                            (click)="quickFixToken(token, token.primarySuggestion!, question); $event.stopPropagation()"
                             class="text-[9px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-1.5 py-1 font-bold rounded-r-full border-l border-rose-200 transition cursor-pointer"
                             title="កែភ្លាមៗ">
                             កែ ✓
@@ -1169,7 +1169,7 @@
                                 (click)="onEditorClick($event)"
                                 (contextmenu)="onEditorContextMenu($event)"
                                 (keydown)="onTextKeyDown($event, question)"
-                                (blur)="onBlurText()"
+                                
                                 [rows]="getTextareaRows(editingTextValue, 4)"
                                 class="relative z-10 w-full p-4 text-xl md:text-2xl font-bold text-gray-900 bg-transparent leading-relaxed outline-none resize-y inline-edit-textarea"
                                 style="box-sizing: border-box; margin: 0; border: 2px solid transparent;"
@@ -1209,7 +1209,7 @@
                         <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noSuggestions">
                           <button *ngFor="let sug of activeSpellSuggestion()?.suggestions"
                             type="button"
-                            (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug)"
+                            (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug, question)"
                             class="w-full text-left px-2 py-1 text-xs font-bold text-slate-800 hover:bg-emerald-50 hover:text-emerald-700 rounded-md transition-colors flex items-center justify-between group cursor-pointer">
                             <span>{{ sug }}</span>
                             <span class="text-[9px] text-emerald-600 opacity-0 group-hover:opacity-100 font-bold">ជ្រើសរើស ✓</span>
@@ -1331,7 +1331,7 @@
                                 </button>
                                 <button *ngIf="token.primarySuggestion"
                                   type="button"
-                                  (click)="quickFixChoiceToken(token, token.primarySuggestion!); $event.stopPropagation()"
+                                  (click)="quickFixChoiceToken(token, token.primarySuggestion!, ans, question); $event.stopPropagation()"
                                   class="text-[8px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-1.5 py-1 font-bold rounded-r-full border-l border-rose-200 transition cursor-pointer"
                                   title="កែភ្លាមៗ">
                                   កែ ✓
@@ -1371,7 +1371,7 @@
                                       class="relative z-10 w-full text-base font-bold text-slate-900 bg-transparent px-3 py-2 leading-relaxed outline-none resize-y inline-edit-choice-textarea"
                                       style="box-sizing: border-box; margin: 0; border: 1px solid transparent;"
                                       (keydown)="onChoiceKeyDown($event, ans, question)"
-                                      (blur)="onBlurChoice()"></textarea>
+                                      ></textarea>
                           </div>
 
                           <!-- Floating Suggestion Context Menu Popup for Choice (Compact & Draggable) -->
@@ -1407,7 +1407,7 @@
                               <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noChoiceSuggestions">
                                 <button *ngFor="let sug of activeSpellSuggestion()?.suggestions"
                                   type="button"
-                                  (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug)"
+                                  (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug, question, ans)"
                                   class="w-full text-left px-2 py-1 text-xs font-bold text-slate-800 hover:bg-emerald-50 hover:text-emerald-700 rounded-md transition flex items-center justify-between group cursor-pointer">
                                   <span>{{ sug }}</span>
                                   <span class="text-[9px] font-bold text-emerald-600 opacity-0 group-hover:opacity-100">ជ្រើសរើស ✓</span>
