@@ -107,7 +107,7 @@ export class TeacherDashboardComponent implements OnInit {
   spellCheckActive = signal(true);
   spellCheckReport = signal<SpellCheckReport | null>(null);
   choiceSpellReport = signal<SpellCheckReport | null>(null);
-  activeSpellSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; isChoice?: boolean } | null>(null);
+  activeSpellSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; isChoice?: boolean; side?: 'left' | 'right' } | null>(null);
 
   // Draggable popup support
   isDraggingPopup = false;
@@ -149,7 +149,11 @@ export class TeacherDashboardComponent implements OnInit {
     this.isDraggingPopup = false;
   }
 
-  togglePopupSide() {
+  togglePopupSide(event?: MouseEvent) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     const current = this.activeSpellSuggestion();
     if (!current) return;
     const popupWidth = 256;
@@ -159,12 +163,20 @@ export class TeacherDashboardComponent implements OnInit {
     } else {
       container = document.querySelector('.question-edit-box') as HTMLElement;
     }
-    const containerWidth = container ? container.clientWidth : 750;
-    const rightSideX = Math.max(16, containerWidth - popupWidth - 16);
-    const leftSideX = current.isChoice ? 8 : 16;
-    const newX = current.x > containerWidth * 0.4 ? leftSideX : rightSideX;
+    const containerWidth = (container && container.clientWidth > 0) ? container.clientWidth : 750;
+    
+    // Explicitly toggle between 'left' and 'right' side
+    const nextSide: 'left' | 'right' = current.side === 'left' ? 'right' : 'left';
+    let newX = 16;
+    if (nextSide === 'right') {
+      newX = Math.max(16, containerWidth - popupWidth - (current.isChoice ? 8 : 16));
+    } else {
+      newX = current.isChoice ? 8 : 16;
+    }
+
     this.activeSpellSuggestion.set({
       ...current,
+      side: nextSide,
       x: newX
     });
   }
@@ -1885,11 +1897,9 @@ export class TeacherDashboardComponent implements OnInit {
       const clickXInContainer = event.clientX - containerRect.left;
 
       // Smart Aside Positioning:
-      // If user clicked anywhere on the left/middle (< 60% of container), place popup on the RIGHT edge.
-      // If user clicked on the right side (>= 60%), place popup on the LEFT edge.
-      // This guarantees the misspelled word, cursor, and sentence are 100% visible and never covered!
+      const side: 'left' | 'right' = clickXInContainer < containerRect.width * 0.6 ? 'right' : 'left';
       let x = 16;
-      if (clickXInContainer < containerRect.width * 0.6) {
+      if (side === 'right') {
         x = Math.max(16, containerRect.width - popupWidth - 16);
       } else {
         x = 16;
@@ -1901,6 +1911,7 @@ export class TeacherDashboardComponent implements OnInit {
 
       this.activeSpellSuggestion.set({
         token,
+        side,
         x,
         y,
         suggestions
@@ -2153,11 +2164,14 @@ export class TeacherDashboardComponent implements OnInit {
       const textareaRect = textarea.getBoundingClientRect();
       const clickXInContainer = event.clientX - containerRect.left;
 
+      let side: 'left' | 'right' = 'right';
       let x = 8;
       if (containerRect.width >= 320) {
         if (clickXInContainer < containerRect.width * 0.5) {
+          side = 'right';
           x = Math.max(8, containerRect.width - popupWidth - 8);
         } else {
+          side = 'left';
           x = 8;
         }
       }
@@ -2174,6 +2188,7 @@ export class TeacherDashboardComponent implements OnInit {
       this.activeSpellSuggestion.set({
         token,
         isChoice: true,
+        side,
         x,
         y,
         suggestions
