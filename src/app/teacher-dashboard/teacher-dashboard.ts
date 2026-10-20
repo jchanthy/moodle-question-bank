@@ -108,6 +108,46 @@ export class TeacherDashboardComponent implements OnInit {
   spellCheckReport = signal<SpellCheckReport | null>(null);
   choiceSpellReport = signal<SpellCheckReport | null>(null);
   activeSpellSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; isChoice?: boolean } | null>(null);
+
+  // Draggable popup support
+  isDraggingPopup = false;
+  dragStartX = 0;
+  dragStartY = 0;
+  popupStartX = 0;
+  popupStartY = 0;
+
+  startDragPopup(event: MouseEvent) {
+    if ((event.target as HTMLElement).tagName === 'BUTTON') return;
+    this.isDraggingPopup = true;
+    this.dragStartX = event.clientX;
+    this.dragStartY = event.clientY;
+    const current = this.activeSpellSuggestion();
+    if (current) {
+      this.popupStartX = current.x;
+      this.popupStartY = current.y;
+    }
+    event.preventDefault();
+  }
+
+  @HostListener('document:mousemove', ['$event'])
+  onDragPopup(event: MouseEvent) {
+    if (!this.isDraggingPopup) return;
+    const dx = event.clientX - this.dragStartX;
+    const dy = event.clientY - this.dragStartY;
+    const current = this.activeSpellSuggestion();
+    if (current) {
+      this.activeSpellSuggestion.set({
+        ...current,
+        x: Math.max(0, this.popupStartX + dx),
+        y: Math.max(0, this.popupStartY + dy)
+      });
+    }
+  }
+
+  @HostListener('document:mouseup')
+  stopDragPopup() {
+    this.isDraggingPopup = false;
+  }
   spellCheckErrorsCount = computed(() => this.spellCheckReport()?.errorCount || 0);
   choiceSpellErrorsCount = computed(() => this.choiceSpellReport()?.errorCount || 0);
 
@@ -1795,8 +1835,12 @@ export class TeacherDashboardComponent implements OnInit {
       const popupWidth = 288;
       const container = (textarea.closest('.relative') || textarea.parentElement) as HTMLElement;
       const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
-      // Shift popup to the right side by 30px so it does not hide the clicked word
-      let x = event.clientX - containerRect.left + 30;
+      const textareaRect = textarea.getBoundingClientRect();
+      const clickYInTextarea = event.clientY - textareaRect.top;
+      const popupHeight = 175;
+
+      // Shift popup to the right side by 25px so it does not hide the clicked word
+      let x = event.clientX - containerRect.left + 25;
       if (x + popupWidth > containerRect.width - 10) {
         if (event.clientX - containerRect.left - popupWidth - 15 > 0) {
           x = event.clientX - containerRect.left - popupWidth - 15;
@@ -1804,7 +1848,12 @@ export class TeacherDashboardComponent implements OnInit {
           x = Math.max(10, containerRect.width - popupWidth - 10);
         }
       }
-      const y = event.clientY - containerRect.top + 24;
+
+      let y = event.clientY - containerRect.top + 20;
+      // If clicked in the lower half of the editor, flip ABOVE the word so it never hides other boxes below!
+      if (clickYInTextarea > textareaRect.height * 0.45) {
+        y = Math.max(10, event.clientY - containerRect.top - popupHeight - 10);
+      }
 
       this.activeSpellSuggestion.set({
         token,
@@ -1836,8 +1885,12 @@ export class TeacherDashboardComponent implements OnInit {
       const popupWidth = 288;
       const container = (textarea.closest('.relative') || textarea.parentElement) as HTMLElement;
       const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
-      // Shift popup to the right side by 30px so it does not hide the clicked word
-      let x = event.clientX - containerRect.left + 30;
+      const textareaRect = textarea.getBoundingClientRect();
+      const clickYInTextarea = event.clientY - textareaRect.top;
+      const popupHeight = 175;
+
+      // Shift popup to the right side by 25px so it does not hide the clicked word
+      let x = event.clientX - containerRect.left + 25;
       if (x + popupWidth > containerRect.width - 10) {
         if (event.clientX - containerRect.left - popupWidth - 15 > 0) {
           x = event.clientX - containerRect.left - popupWidth - 15;
@@ -1845,7 +1898,12 @@ export class TeacherDashboardComponent implements OnInit {
           x = Math.max(10, containerRect.width - popupWidth - 10);
         }
       }
-      const y = event.clientY - containerRect.top + 24;
+
+      let y = event.clientY - containerRect.top + 20;
+      // If clicked in the lower half of the editor, flip ABOVE the word so it never hides other boxes below!
+      if (clickYInTextarea > textareaRect.height * 0.45) {
+        y = Math.max(10, event.clientY - containerRect.top - popupHeight - 10);
+      }
 
       this.activeSpellSuggestion.set({
         token,
@@ -2046,8 +2104,12 @@ export class TeacherDashboardComponent implements OnInit {
       const popupWidth = 288;
       const container = (textarea.closest('.relative') || textarea.parentElement) as HTMLElement;
       const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
-      // Shift popup to the right side by 30px so it does not hide the clicked word
-      let x = event.clientX - containerRect.left + 30;
+      const textareaRect = textarea.getBoundingClientRect();
+      const clickYInTextarea = event.clientY - textareaRect.top;
+      const popupHeight = 175;
+
+      // Shift popup to the right side by 25px so it does not hide the clicked word
+      let x = event.clientX - containerRect.left + 25;
       if (x + popupWidth > containerRect.width - 10) {
         if (event.clientX - containerRect.left - popupWidth - 15 > 0) {
           x = event.clientX - containerRect.left - popupWidth - 15;
@@ -2055,7 +2117,12 @@ export class TeacherDashboardComponent implements OnInit {
           x = Math.max(10, containerRect.width - popupWidth - 10);
         }
       }
-      const y = event.clientY - containerRect.top + 24;
+
+      let y = event.clientY - containerRect.top + 20;
+      // If clicked in the lower half of the editor, flip ABOVE the word so it never hides other boxes below!
+      if (clickYInTextarea > textareaRect.height * 0.45) {
+        y = Math.max(10, event.clientY - containerRect.top - popupHeight - 10);
+      }
 
       this.activeSpellSuggestion.set({
         token,
@@ -2088,8 +2155,12 @@ export class TeacherDashboardComponent implements OnInit {
       const popupWidth = 288;
       const container = (textarea.closest('.relative') || textarea.parentElement) as HTMLElement;
       const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
-      // Shift popup to the right side by 30px so it does not hide the clicked word
-      let x = event.clientX - containerRect.left + 30;
+      const textareaRect = textarea.getBoundingClientRect();
+      const clickYInTextarea = event.clientY - textareaRect.top;
+      const popupHeight = 175;
+
+      // Shift popup to the right side by 25px so it does not hide the clicked word
+      let x = event.clientX - containerRect.left + 25;
       if (x + popupWidth > containerRect.width - 10) {
         if (event.clientX - containerRect.left - popupWidth - 15 > 0) {
           x = event.clientX - containerRect.left - popupWidth - 15;
@@ -2097,7 +2168,12 @@ export class TeacherDashboardComponent implements OnInit {
           x = Math.max(10, containerRect.width - popupWidth - 10);
         }
       }
-      const y = event.clientY - containerRect.top + 24;
+
+      let y = event.clientY - containerRect.top + 20;
+      // If clicked in the lower half of the editor, flip ABOVE the word so it never hides other boxes below!
+      if (clickYInTextarea > textareaRect.height * 0.45) {
+        y = Math.max(10, event.clientY - containerRect.top - popupHeight - 10);
+      }
 
       this.activeSpellSuggestion.set({
         token,
