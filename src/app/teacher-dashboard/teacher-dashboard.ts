@@ -2158,12 +2158,22 @@ export class TeacherDashboardComponent implements OnInit {
     this.spellCheckService.addToCustomDictionary(token.text);
     this.activeSpellSuggestion.set(null);
     this.runInlineSpellCheck();
+    if (this.editingChoiceId()) {
+      this.runChoiceSpellCheck();
+    }
+    this.invalidateQuestionSpellCache();
+    this.showToast(`បានបន្ថែម «${token.text}» ទៅក្នុងវចនានុក្រម`, 'success');
   }
 
   ignoreSpellWord(token: SpellCheckToken) {
     this.spellCheckService.ignoreWord(token.text);
     this.activeSpellSuggestion.set(null);
     this.runInlineSpellCheck();
+    if (this.editingChoiceId()) {
+      this.runChoiceSpellCheck();
+    }
+    this.invalidateQuestionSpellCache();
+    this.showToast(`បានរំលងពាក្យ «${token.text}» (Ignored)`, 'info');
   }
 
   onEditorClick(event: MouseEvent) {

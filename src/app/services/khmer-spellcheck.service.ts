@@ -54,6 +54,13 @@ export class KhmerSpellCheckService {
           parsed.forEach(w => this.customWords.add(w));
         }
       }
+      const ignored = localStorage.getItem('khmer_ignored_words');
+      if (ignored) {
+        const parsed = JSON.parse(ignored);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(w => this.ignoredWords.add(w));
+        }
+      }
     } catch (e) {
       console.warn('Failed to load custom dictionary from localStorage:', e);
     }
@@ -124,6 +131,13 @@ export class KhmerSpellCheckService {
         } else if (w.includes('\u17D2\u178F')) {
           addWord(w.replace(/\u17D2\u178F/g, '\u17D2\u178A'));
         }
+        // Orthographic equivalence: អ៊ី (\u17A2\u17CA\u17B8) and អ៉ី (\u17A2\u17C9\u17B8)
+        // e.g. អ៊ីរ៉ង់ <-> អ៉ីរ៉ង់, អ៊ីរ៉ាក់ <-> អ៉ីរ៉ាក់, អ៊ីតាលី <-> អ៉ីតាលី
+        if (w.includes('\u17A2\u17CA\u17B8')) {
+          addWord(w.replace(/\u17A2\u17CA\u17B8/g, '\u17A2\u17C9\u17B8'));
+        } else if (w.includes('\u17A2\u17C9\u17B8')) {
+          addWord(w.replace(/\u17A2\u17C9\u17B8/g, '\u17A2\u17CA\u17B8'));
+        }
       }
       this.isLoaded.set(true);
     } catch (err) {
@@ -151,6 +165,12 @@ export class KhmerSpellCheckService {
     if (clean) {
       this.ignoredWords.add(clean);
       this.reportCache.clear();
+      this.suggestionCache.clear();
+      try {
+        localStorage.setItem('khmer_ignored_words', JSON.stringify(Array.from(this.ignoredWords)));
+      } catch (e) {
+        console.warn('Failed to save ignored words:', e);
+      }
     }
   }
 
