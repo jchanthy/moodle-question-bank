@@ -115,12 +115,14 @@ export class KhmerSpellCheckService {
 
       for (const w of words) {
         addWord(w);
-        // Orthographic/homoglyph equivalence: ផ + ្ដ (coeng DA U+178A) and ផ + ្ត (coeng TA U+178F)
-        // e.g., ផ្ដល់ (Chuon Nath dictionary) <-> ផ្តល់ (standard modern keyboard typing)
-        if (w.includes('\u1795\u17D2\u178A')) {
-          addWord(w.replace(/\u1795\u17D2\u178A/g, '\u1795\u17D2\u178F'));
-        } else if (w.includes('\u1795\u17D2\u178F')) {
-          addWord(w.replace(/\u1795\u17D2\u178F/g, '\u1795\u17D2\u178A'));
+        // Orthographic/homoglyph equivalence: ្ដ (coeng DA U+178A) and ្ត (coeng TA U+178F)
+        // In Chuon Nath dictionary, words such as បណ្ដុះបណ្ដាល, ដូចម្ដេច, ម្ដាយ, ម្ដង, កណ្ដាល, ផ្ដល់, ប្ដី
+        // are entered with ្ដ (Coeng Da), while modern typing predominantly uses ្ត (Coeng Ta).
+        // Both are valid in standard Khmer writing and should not be flagged as typos.
+        if (w.includes('\u17D2\u178A')) {
+          addWord(w.replace(/\u17D2\u178A/g, '\u17D2\u178F'));
+        } else if (w.includes('\u17D2\u178F')) {
+          addWord(w.replace(/\u17D2\u178F/g, '\u17D2\u178A'));
         }
       }
       this.isLoaded.set(true);
@@ -171,9 +173,9 @@ export class KhmerSpellCheckService {
 
     if (this.dictionary.has(clean)) return true;
 
-    // Homoglyph equivalence fallback: ផ + ្ដ <-> ផ + ្ត
-    if (clean.includes('\u1795\u17D2\u178A') && this.dictionary.has(clean.replace(/\u1795\u17D2\u178A/g, '\u1795\u17D2\u178F'))) return true;
-    if (clean.includes('\u1795\u17D2\u178F') && this.dictionary.has(clean.replace(/\u1795\u17D2\u178F/g, '\u1795\u17D2\u178A'))) return true;
+    // Homoglyph equivalence fallback: ្ដ (coeng DA) <-> ្ត (coeng TA)
+    if (clean.includes('\u17D2\u178A') && this.dictionary.has(clean.replace(/\u17D2\u178A/g, '\u17D2\u178F'))) return true;
+    if (clean.includes('\u17D2\u178F') && this.dictionary.has(clean.replace(/\u17D2\u178F/g, '\u17D2\u178A'))) return true;
 
     // Morphological suffix: -នីយកម្ម (-ization / -fication) e.g. កូដនីយកម្ម, ទំនើបនីយកម្ម
     if (clean.endsWith('នីយកម្ម') && clean.length > 7) {
