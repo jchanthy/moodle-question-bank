@@ -1086,9 +1086,9 @@
 
                   <div *ngIf="editingTextQuestionId() !== question.id" 
                        (click)="startEditingText(question)"
-                       class="text-xl md:text-2xl font-bold text-slate-800 leading-relaxed hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between cursor-pointer">
-                    <div class="flex-1 leading-relaxed question-text" [innerHTML]="question.question_text"></div>
-                    <span class="text-xs text-blue-500 opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-1.5 flex items-center gap-1">
+                       class="text-xl md:text-2xl font-bold text-slate-800 leading-relaxed hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition-all relative cursor-pointer group/text">
+                    <div class="w-full leading-relaxed question-text" [innerHTML]="question.question_text"></div>
+                    <span class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 pointer-events-none">
                       ✏️ Click to Edit Text
                     </span>
                   </div>

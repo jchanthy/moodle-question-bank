@@ -590,11 +590,9 @@
               </div>
               <!-- Editable Question Text -->
               <div class="relative group/text mt-2">
-                <div *ngIf="editingTextQuestionId() !== q.id" 
-                     (click)="startEditingText(q)"
-                     class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between">
-                  <div class="flex-1 leading-relaxed" [innerHTML]="q.question_text"></div>
-                  <span class="text-xs text-blue-500 opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-1.5 flex items-center gap-1">
+                <div *ngIf="editingTextQuestionId() !== q.id" (click)="startEditingText(q)" class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition relative group/text">
+                  <div class="w-full leading-relaxed" [innerHTML]="q.question_text"></div>
+                  <span class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 pointer-events-none">
                     ✏️ Click to Edit
                   </span>
                 </div>
@@ -972,11 +970,9 @@
               </div>
               <!-- Editable Question Text -->
               <div class="relative group/text mt-2">
-                <div *ngIf="editingTextQuestionId() !== q.id" 
-                     (click)="startEditingText(q)"
-                     class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between">
-                  <div class="flex-1 leading-relaxed" [innerHTML]="q.question_text"></div>
-                  <span class="text-xs text-blue-500 opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-1.5 flex items-center gap-1">
+                <div *ngIf="editingTextQuestionId() !== q.id" (click)="startEditingText(q)" class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition relative group/text">
+                  <div class="w-full leading-relaxed" [innerHTML]="q.question_text"></div>
+                  <span class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 pointer-events-none">
                     ✏️ Click to Edit
                   </span>
                 </div>
@@ -1208,11 +1204,9 @@
               </div>
               <!-- Editable Question Text -->
               <div class="relative group/text mt-2">
-                <div *ngIf="editingTextQuestionId() !== q.id" 
-                     (click)="startEditingText(q)"
-                     class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between">
-                  <div class="flex-1 leading-relaxed" [innerHTML]="q.question_text"></div>
-                  <span class="text-xs text-blue-500 opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-1.5 flex items-center gap-1">
+                <div *ngIf="editingTextQuestionId() !== q.id" (click)="startEditingText(q)" class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition relative group/text">
+                  <div class="w-full leading-relaxed" [innerHTML]="q.question_text"></div>
+                  <span class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 pointer-events-none">
                     ✏️ Click to Edit
                   </span>
                 </div>
@@ -1433,11 +1427,9 @@
               </div>
               <!-- Editable Question Text -->
               <div class="relative group/text mt-2">
-                <div *ngIf="editingTextQuestionId() !== q.id" 
-                     (click)="startEditingText(q)"
-                     class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition-all flex items-start gap-2 justify-between">
-                  <div class="flex-1 leading-relaxed" [innerHTML]="q.question_text"></div>
-                  <span class="text-xs text-blue-500 opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-1.5 flex items-center gap-1">
+                <div *ngIf="editingTextQuestionId() !== q.id" (click)="startEditingText(q)" class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition relative group/text">
+                  <div class="w-full leading-relaxed" [innerHTML]="q.question_text"></div>
+                  <span class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 pointer-events-none">
                     ✏️ Click to Edit
                   </span>
                 </div>
@@ -1707,13 +1699,12 @@
 
                 <!-- Question Text -->
                 <div class="relative group/text mt-2">
-                  <div *ngIf="editingTextQuestionId() !== q.id" (click)="startEditingText(q)"
-                    class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition flex items-start gap-2 justify-between">
-                    <div class="flex-1 leading-relaxed" [innerHTML]="q.question_text"></div>
-                    <span class="text-xs text-blue-500 opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-1.5">
-                      ✏️ Click to Edit
-                    </span>
-                  </div>
+                  <div *ngIf="editingTextQuestionId() !== q.id" (click)="startEditingText(q)" class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition relative group/text">
+                  <div class="w-full leading-relaxed" [innerHTML]="q.question_text"></div>
+                  <span class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 pointer-events-none">
+                    ✏️ Click to Edit
+                  </span>
+                </div>
                   <div *ngIf="editingTextQuestionId() === q.id" class="flex flex-col gap-2 mt-1">
                     <textarea [ngModel]="editingTextValue" (ngModelChange)="editingTextValue = $event"
                       [rows]="getTextareaRows(editingTextValue, 4)"
