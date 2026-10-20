@@ -544,12 +544,16 @@ export class QuestionFormComponent implements OnInit {
       event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
       const popupWidth = 288;
-      let x = event.clientX;
+      let x = event.clientX + 30;
       if (x + popupWidth > window.innerWidth - 20) {
-        x = Math.max(10, window.innerWidth - popupWidth - 20);
+        if (event.clientX - popupWidth - 15 > 0) {
+          x = event.clientX - popupWidth - 15;
+        } else {
+          x = Math.max(10, window.innerWidth - popupWidth - 20);
+        }
       }
       x += window.scrollX;
-      const y = event.clientY + window.scrollY + 12;
+      const y = event.clientY + window.scrollY + 20;
 
       this.activeSuggestion.set({
         token,
@@ -582,12 +586,16 @@ export class QuestionFormComponent implements OnInit {
       event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
       const popupWidth = 288;
-      let x = event.clientX;
+      let x = event.clientX + 30;
       if (x + popupWidth > window.innerWidth - 20) {
-        x = Math.max(10, window.innerWidth - popupWidth - 20);
+        if (event.clientX - popupWidth - 15 > 0) {
+          x = event.clientX - popupWidth - 15;
+        } else {
+          x = Math.max(10, window.innerWidth - popupWidth - 20);
+        }
       }
       x += window.scrollX;
-      const y = event.clientY + window.scrollY + 12;
+      const y = event.clientY + window.scrollY + 20;
 
       this.activeSuggestion.set({
         token,
@@ -682,12 +690,16 @@ export class QuestionFormComponent implements OnInit {
       event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
       const popupWidth = 288;
-      let x = event.clientX;
+      let x = event.clientX + 30;
       if (x + popupWidth > window.innerWidth - 20) {
-        x = Math.max(10, window.innerWidth - popupWidth - 20);
+        if (event.clientX - popupWidth - 15 > 0) {
+          x = event.clientX - popupWidth - 15;
+        } else {
+          x = Math.max(10, window.innerWidth - popupWidth - 20);
+        }
       }
       x += window.scrollX;
-      const y = event.clientY + window.scrollY + 12;
+      const y = event.clientY + window.scrollY + 20;
 
       this.activeSuggestion.set({
         token,
@@ -717,12 +729,16 @@ export class QuestionFormComponent implements OnInit {
       event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
       const popupWidth = 288;
-      let x = event.clientX;
+      let x = event.clientX + 30;
       if (x + popupWidth > window.innerWidth - 20) {
-        x = Math.max(10, window.innerWidth - popupWidth - 20);
+        if (event.clientX - popupWidth - 15 > 0) {
+          x = event.clientX - popupWidth - 15;
+        } else {
+          x = Math.max(10, window.innerWidth - popupWidth - 20);
+        }
       }
       x += window.scrollX;
-      const y = event.clientY + window.scrollY + 12;
+      const y = event.clientY + window.scrollY + 20;
 
       this.activeSuggestion.set({
         token,

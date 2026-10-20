@@ -1796,11 +1796,16 @@ export class TeacherDashboardComponent implements OnInit {
       const popupWidth = 288;
       const container = (textarea.closest('.relative') || textarea.parentElement) as HTMLElement;
       const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
-      let x = event.clientX - containerRect.left;
-      if (x + popupWidth > containerRect.width) {
-        x = Math.max(0, containerRect.width - popupWidth - 10);
+      // Shift popup to the right side by 30px so it does not hide the clicked word
+      let x = event.clientX - containerRect.left + 30;
+      if (x + popupWidth > containerRect.width - 10) {
+        if (event.clientX - containerRect.left - popupWidth - 15 > 0) {
+          x = event.clientX - containerRect.left - popupWidth - 15;
+        } else {
+          x = Math.max(10, containerRect.width - popupWidth - 10);
+        }
       }
-      const y = event.clientY - containerRect.top + 16;
+      const y = event.clientY - containerRect.top + 24;
 
       this.activeSpellSuggestion.set({
         token,
@@ -1832,11 +1837,16 @@ export class TeacherDashboardComponent implements OnInit {
       const popupWidth = 288;
       const container = (textarea.closest('.relative') || textarea.parentElement) as HTMLElement;
       const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
-      let x = event.clientX - containerRect.left;
-      if (x + popupWidth > containerRect.width) {
-        x = Math.max(0, containerRect.width - popupWidth - 10);
+      // Shift popup to the right side by 30px so it does not hide the clicked word
+      let x = event.clientX - containerRect.left + 30;
+      if (x + popupWidth > containerRect.width - 10) {
+        if (event.clientX - containerRect.left - popupWidth - 15 > 0) {
+          x = event.clientX - containerRect.left - popupWidth - 15;
+        } else {
+          x = Math.max(10, containerRect.width - popupWidth - 10);
+        }
       }
-      const y = event.clientY - containerRect.top + 16;
+      const y = event.clientY - containerRect.top + 24;
 
       this.activeSpellSuggestion.set({
         token,
@@ -2037,11 +2047,16 @@ export class TeacherDashboardComponent implements OnInit {
       const popupWidth = 288;
       const container = (textarea.closest('.relative') || textarea.parentElement) as HTMLElement;
       const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
-      let x = event.clientX - containerRect.left;
-      if (x + popupWidth > containerRect.width) {
-        x = Math.max(0, containerRect.width - popupWidth - 10);
+      // Shift popup to the right side by 30px so it does not hide the clicked word
+      let x = event.clientX - containerRect.left + 30;
+      if (x + popupWidth > containerRect.width - 10) {
+        if (event.clientX - containerRect.left - popupWidth - 15 > 0) {
+          x = event.clientX - containerRect.left - popupWidth - 15;
+        } else {
+          x = Math.max(10, containerRect.width - popupWidth - 10);
+        }
       }
-      const y = event.clientY - containerRect.top + 16;
+      const y = event.clientY - containerRect.top + 24;
 
       this.activeSpellSuggestion.set({
         token,
@@ -2074,11 +2089,16 @@ export class TeacherDashboardComponent implements OnInit {
       const popupWidth = 288;
       const container = (textarea.closest('.relative') || textarea.parentElement) as HTMLElement;
       const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
-      let x = event.clientX - containerRect.left;
-      if (x + popupWidth > containerRect.width) {
-        x = Math.max(0, containerRect.width - popupWidth - 10);
+      // Shift popup to the right side by 30px so it does not hide the clicked word
+      let x = event.clientX - containerRect.left + 30;
+      if (x + popupWidth > containerRect.width - 10) {
+        if (event.clientX - containerRect.left - popupWidth - 15 > 0) {
+          x = event.clientX - containerRect.left - popupWidth - 15;
+        } else {
+          x = Math.max(10, containerRect.width - popupWidth - 10);
+        }
       }
-      const y = event.clientY - containerRect.top + 16;
+      const y = event.clientY - containerRect.top + 24;
 
       this.activeSpellSuggestion.set({
         token,
