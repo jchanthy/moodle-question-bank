@@ -1585,7 +1585,7 @@ export function normalizeSpecialGlyphs(text: string): string {
     .replace(/[\t ]*[\u20DE-\u20E4][\t ]*/g, ' □ ')
     .replace(/[\u20DE-\u20E4]/g, '□')
     // Replace Word / Wingdings private-use characters commonly used for checkbox squares
-    .replace(/[\uF0A8\uF06F\u1F78E]/g, '□')
+    .replace(/(?:[\uF0A8\uF06F]|\u{1F78E})/gu, '□')
     .replace(/[\uF0FE]/g, '☑')
     .replace(/\n □ /g, '\n□ ')
     .replace(/^ □ /gm, '□ ')
