@@ -91,7 +91,7 @@ export class KhmerSpellCheckService {
         'កម្មវិធីរុករក', 'ម៉ាស៊ីនស្វែងរក', 'កុំព្យូទ័រយួរដៃ', 'ថាប្លែត',
         'អ៊ីនធឺហ្វេស', 'ដានីឡា', 'អ៊ិនធឺណិត', 'អ៊ិនធឺណែត',
         // Encryption, IT, and Modern Morphology terms
-        'កូដនីយកម្ម', 'វិកូដនីយកម្ម', 'នីយកម្ម', 'នីយ', 'នីយភាព', 'អ៊ីវ៉ង់', 'អ៊ីវង់',
+        'កូដនីយកម្ម', 'វិកូដនីយកម្ម', 'នីយកម្ម', 'នីយ', 'នីយភាព', 'អ៊ីវ៉ង់', 'អ៊ីវង់', 'អ៊ីមែល',
         'កូដនីយកម្មទិន្នន័យ', 'កូដសម្ងាត់', 'គន្លឹះសម្ងាត់', 'ហត្ថលេខាឌីជីថល',
         'ប្លុកឆេន', 'ពិធីការ', 'សុវត្ថិភាពព័ត៌មាន', 'រចនាសម្ព័ន្ធទិន្នន័យ',
         'វិស្វកម្មទិន្នន័យ', 'វិទ្យាសាស្ត្រទិន្នន័យ', 'វិស្វកម្មឃ្លាបញ្ជា',
@@ -296,6 +296,16 @@ export class KhmerSpellCheckService {
         : sub.replace(/្រ្ត/g, '្ត្រ');
       if (this.isWordValid(swapped, false)) return true;
     }
+    // Rule F: Vowel U + Vowel II mistyped for Triisap + Vowel II (e.g. អុីមែល -> អ៊ីមែល, សុី -> ស៊ី)
+    if (sub.includes('\u17BB\u17B8') || sub.includes('\u17B8\u17BB')) {
+      const swapped = sub.replace(/\u17BB\u17B8|\u17B8\u17BB/g, '\u17CA\u17B8');
+      if (this.isWordValid(swapped, false)) return true;
+    }
+    // Rule G: Missing Triisap on initial អ before vowel II (e.g. អីមែល -> អ៊ីមែល, អីនធឺណិត -> អ៊ីនធឺណិត)
+    if (sub.startsWith('\u17A2\u17B8')) {
+      const swapped = '\u17A2\u17CA\u17B8' + sub.slice(2);
+      if (this.isWordValid(swapped, false)) return true;
+    }
     return false;
   }
 
@@ -466,6 +476,12 @@ export class KhmerSpellCheckService {
     const cleanTarget = this.cleanKhmer(misspelledWord);
     if (!cleanTarget || !this.isLoaded()) return [];
 
+    // Isolated single consonants (e.g. ល, យ, ក) are orphan clusters, never standalone typos.
+    // Never suggest replacements for isolated single consonants.
+    if (cleanTarget.length === 1 && /[\u1780-\u17A2]/.test(cleanTarget)) {
+      return [];
+    }
+
     const cacheKey = `${cleanTarget}_${maxSuggestions}`;
     const cached = this.suggestionCache.get(cacheKey);
     if (cached) return cached;
@@ -532,6 +548,22 @@ export class KhmerSpellCheckService {
     if (cleanTarget.includes('\u17C9')) {
       const toB = cleanTarget.replace('\u17C9', '\u17CB');
       if (this.isWordValid(toB, true) && toB !== cleanTarget && !suggestions.includes(toB)) suggestions.push(toB);
+    }
+
+    // Rule F: Accidental Vowel U + Vowel II mistyped for Triisap + Vowel II (e.g. អុីមែល -> អ៊ីមែល, សុី -> ស៊ី)
+    if (cleanTarget.includes('\u17BB\u17B8') || cleanTarget.includes('\u17B8\u17BB')) {
+      const toTriisap = cleanTarget.replace(/\u17BB\u17B8|\u17B8\u17BB/g, '\u17CA\u17B8');
+      if (this.isWordValid(toTriisap, true) && toTriisap !== cleanTarget && !suggestions.includes(toTriisap)) {
+        suggestions.unshift(toTriisap);
+      }
+    }
+
+    // Rule G: Missing Triisap on initial អ before vowel II (e.g. អីមែល -> អ៊ីមែល, អីនធឺណិត -> អ៊ីនធឺណិត)
+    if (cleanTarget.startsWith('\u17A2\u17B8')) {
+      const withTriisap = '\u17A2\u17CA\u17B8' + cleanTarget.slice(2);
+      if (this.isWordValid(withTriisap, true) && withTriisap !== cleanTarget && !suggestions.includes(withTriisap)) {
+        suggestions.unshift(withTriisap);
+      }
     }
 
     // Only run heavy Levenshtein if high-priority orthographic rules did not fill maxSuggestions
