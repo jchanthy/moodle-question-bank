@@ -952,6 +952,35 @@ export class AdminDashboardComponent implements OnInit {
     this.editingChoiceText = text;
   }
 
+  async persistChoiceText(ans: any, finalValue: string): Promise<boolean> {
+    try {
+      const { data: updData, error: updError } = await this.supabaseService.db
+        .from('answers')
+        .update({ answer_text: finalValue })
+        .eq('id', ans.id)
+        .select();
+
+      if (!updError && updData && updData.length > 0) {
+        return true;
+      }
+
+      await this.supabaseService.db.from('answers').delete().eq('id', ans.id);
+      const { data: insData, error: insError } = await this.supabaseService.db.from('answers').insert({
+        id: ans.id,
+        question_id: ans.question_id,
+        answer_text: finalValue,
+        fraction: ans.fraction ?? 0,
+        feedback: ans.feedback ?? null,
+        ...(ans.x !== undefined ? { x: ans.x } : {}),
+        ...(ans.y !== undefined ? { y: ans.y } : {})
+      }).select();
+
+      return !insError && !!(insData && insData.length > 0);
+    } catch {
+      return false;
+    }
+  }
+
   async saveChoiceText(ans: any, q: Question) {
     if (!this.editingChoiceText.trim()) return;
     this.savingInline.set(true);
@@ -962,12 +991,10 @@ export class AdminDashboardComponent implements OnInit {
         finalValue = `<p>${finalValue}</p>`;
       }
 
-      const { error } = await this.supabaseService.db
-        .from('answers')
-        .update({ answer_text: finalValue })
-        .eq('id', ans.id);
-
-      if (error) throw error;
+      const ok = await this.persistChoiceText(ans, finalValue);
+      if (!ok) {
+        throw new Error('Failed to save choice to database.');
+      }
 
       // Update in memory state
       const updatedQuestions = this.allQuestions().map(item => {

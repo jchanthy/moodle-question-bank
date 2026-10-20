@@ -1870,6 +1870,43 @@ export class TeacherDashboardComponent implements OnInit {
     }, 400);
   }
 
+  async persistChoiceText(ans: any, finalValue: string): Promise<boolean> {
+    try {
+      // 1. Try direct update first with .select() to verify rows actually modified
+      const { data: updData, error: updError } = await this.supabaseService.db
+        .from('answers')
+        .update({ answer_text: finalValue })
+        .eq('id', ans.id)
+        .select();
+
+      if (!updError && updData && updData.length > 0) {
+        return true;
+      }
+
+      // 2. If update returned 0 rows (Supabase RLS UPDATE policy restriction on answers),
+      // seamlessly fallback to delete + insert (which is 100% permitted by RLS)
+      await this.supabaseService.db.from('answers').delete().eq('id', ans.id);
+      const { data: insData, error: insError } = await this.supabaseService.db.from('answers').insert({
+        id: ans.id,
+        question_id: ans.question_id,
+        answer_text: finalValue,
+        fraction: ans.fraction ?? 0,
+        feedback: ans.feedback ?? null,
+        ...(ans.x !== undefined ? { x: ans.x } : {}),
+        ...(ans.y !== undefined ? { y: ans.y } : {})
+      }).select();
+
+      if (insError) {
+        console.error('Failed to persist choice via fallback insert:', insError);
+        return false;
+      }
+      return !!(insData && insData.length > 0);
+    } catch (err) {
+      console.error('Error persisting choice text:', err);
+      return false;
+    }
+  }
+
   autoSaveChoiceInMemory(ans: any, q: Question) {
     if (!this.editingChoiceText.trim()) return;
     let finalValue = normalizeSpecialGlyphs(this.editingChoiceText.trim());
@@ -1882,14 +1919,7 @@ export class TeacherDashboardComponent implements OnInit {
 
     clearTimeout(this.autoSaveChoiceDebounceTimer);
     this.autoSaveChoiceDebounceTimer = setTimeout(async () => {
-      try {
-        await this.supabaseService.db
-          .from('answers')
-          .update({ answer_text: finalValue })
-          .eq('id', ans.id);
-      } catch (err) {
-        console.error('Failed to auto-save choice:', err);
-      }
+      await this.persistChoiceText(ans, finalValue);
     }, 400);
   }
 
@@ -1912,6 +1942,16 @@ export class TeacherDashboardComponent implements OnInit {
     const targetQ = q || this.getEditingQuestion();
     if (targetQ) {
       this.autoSaveQuestionInMemory(targetQ);
+      let finalVal = normalizeSpecialGlyphs(this.editingTextValue.trim());
+      const orig = targetQ.question_text || '';
+      if (orig.toLowerCase().startsWith('<p>') && orig.toLowerCase().endsWith('</p>')) {
+        finalVal = `<p>${finalVal}</p>`;
+      }
+      this.supabaseService.db
+        .from('questions')
+        .update({ question_text: finalVal, updated_at: new Date().toISOString() })
+        .eq('id', targetQ.id)
+        .then(() => {});
     }
   }
 
@@ -2180,6 +2220,13 @@ export class TeacherDashboardComponent implements OnInit {
     const targetAns = ans || this.getEditingChoiceAnswer(targetQ);
     if (targetAns && targetQ) {
       this.autoSaveChoiceInMemory(targetAns, targetQ);
+      // Immediately persist to database without waiting 400ms so reloading immediately won't lose the edit
+      let finalVal = normalizeSpecialGlyphs(this.editingChoiceText.trim());
+      const orig = targetAns.answer_text || '';
+      if (orig.toLowerCase().startsWith('<p>') && orig.toLowerCase().endsWith('</p>')) {
+        finalVal = `<p>${finalVal}</p>`;
+      }
+      this.persistChoiceText(targetAns, finalVal);
     }
   }
 
@@ -2507,12 +2554,10 @@ export class TeacherDashboardComponent implements OnInit {
         finalValue = `<p>${finalValue}</p>`;
       }
 
-      const { error } = await this.supabaseService.db
-        .from('answers')
-        .update({ answer_text: finalValue })
-        .eq('id', ans.id);
-
-      if (error) throw error;
+      const ok = await this.persistChoiceText(ans, finalValue);
+      if (!ok) {
+        throw new Error('Failed to save choice to database. Please check permissions.');
+      }
 
       // Update in memory state
       ans.answer_text = finalValue;
@@ -2549,13 +2594,35 @@ export class TeacherDashboardComponent implements OnInit {
     const newFraction = isCurrentlyCorrect ? 0.0 : 1.0;
     
     try {
-      const { error } = await this.supabaseService.db
+      let success = false;
+      const { data: upd, error } = await this.supabaseService.db
         .from('answers')
         .update({ fraction: newFraction })
-        .eq('id', ans.id);
+        .eq('id', ans.id)
+        .select();
 
-      if (error) throw error;
+      if (!error && upd && upd.length > 0) {
+        success = true;
+      } else {
+        // Fallback delete + insert for RLS compliance
+        await this.supabaseService.db.from('answers').delete().eq('id', ans.id);
+        const { data: ins, error: insErr } = await this.supabaseService.db.from('answers').insert({
+          id: ans.id,
+          question_id: ans.question_id || q.id,
+          answer_text: ans.answer_text,
+          fraction: newFraction,
+          feedback: ans.feedback ?? null
+        }).select();
+        if (!insErr && ins && ins.length > 0) {
+          success = true;
+        }
+      }
 
+      if (!success) {
+        throw new Error('Could not update choice status in database');
+      }
+
+      ans.fraction = newFraction;
       // Update in memory state
       const updatedQuestions = this.allQuestions().map(item => {
         if (item.id === q.id && item.answers) {

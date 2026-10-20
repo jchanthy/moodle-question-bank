@@ -89,13 +89,25 @@ export class KhmerSpellCheckService {
         words.push(t);
       }
 
-      for (const w of words) {
+      const addWord = (w: string) => {
+        if (!w || this.dictionary.has(w)) return;
         this.dictionary.add(w);
         const len = w.length;
         if (!this.wordsByLength.has(len)) {
           this.wordsByLength.set(len, []);
         }
         this.wordsByLength.get(len)!.push(w);
+      };
+
+      for (const w of words) {
+        addWord(w);
+        // Orthographic/homoglyph equivalence: ផ + ្ដ (coeng DA U+178A) and ផ + ្ត (coeng TA U+178F)
+        // e.g., ផ្ដល់ (Chuon Nath dictionary) <-> ផ្តល់ (standard modern keyboard typing)
+        if (w.includes('\u1795\u17D2\u178A')) {
+          addWord(w.replace(/\u1795\u17D2\u178A/g, '\u1795\u17D2\u178F'));
+        } else if (w.includes('\u1795\u17D2\u178F')) {
+          addWord(w.replace(/\u1795\u17D2\u178F/g, '\u1795\u17D2\u178A'));
+        }
       }
       this.isLoaded.set(true);
     } catch (err) {
@@ -144,6 +156,10 @@ export class KhmerSpellCheckService {
     }
 
     if (this.dictionary.has(clean)) return true;
+
+    // Homoglyph equivalence fallback: ផ + ្ដ <-> ផ + ្ត
+    if (clean.includes('\u1795\u17D2\u178A') && this.dictionary.has(clean.replace(/\u1795\u17D2\u178A/g, '\u1795\u17D2\u178F'))) return true;
+    if (clean.includes('\u1795\u17D2\u178F') && this.dictionary.has(clean.replace(/\u1795\u17D2\u178F/g, '\u1795\u17D2\u178A'))) return true;
 
     // Support Khmer repetition sign 'ៗ' (U+17D7)
     // Rules:
