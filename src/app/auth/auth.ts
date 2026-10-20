@@ -268,15 +268,22 @@ export class AuthComponent implements OnInit {
       }
       console.log('Login successful. Detected role:', role);
 
+      let targetRoute = '/teacher';
       if (role === 'super_admin') {
-        console.log('Redirecting to Super Admin Dashboard...');
-        this.router.navigate(['/super-admin']);
+        targetRoute = '/super-admin';
       } else if (role === 'admin') {
-        console.log('Redirecting to Admin Dashboard...');
-        this.router.navigate(['/admin']);
-      } else {
-        console.log('Redirecting to Teacher Dashboard...');
-        this.router.navigate(['/teacher']);
+        targetRoute = '/admin';
+      }
+
+      console.log(`Redirecting to ${targetRoute}...`);
+      try {
+        const navigated = await this.router.navigate([targetRoute]);
+        if (!navigated) {
+          window.location.href = targetRoute;
+        }
+      } catch (navErr) {
+        console.warn('Router navigation failed, falling back to full navigation:', navErr);
+        window.location.href = targetRoute;
       }
     } catch (error: any) {
       this.errorMessage.set(error.message);
