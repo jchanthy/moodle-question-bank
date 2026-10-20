@@ -404,6 +404,18 @@ export class TeacherDashboardComponent implements OnInit {
   activeMenuId = signal<string | null>(null);
   totalCount = signal(0);
 
+  hasActiveFilters = computed(() => {
+    return !!(
+      this.filterKeyword() ||
+      this.filterType() ||
+      this.filterStatus() ||
+      this.filterDateFrom() ||
+      this.filterDateTo() ||
+      this.filterHidden() ||
+      this.selectedCategoryId()
+    );
+  });
+
   typeLabels: Record<string, { label: string; icon: string; description: string }> = {
     'multichoice': { 
       label: 'Multiple Choice', icon: '🔘', 
@@ -900,10 +912,32 @@ export class TeacherDashboardComponent implements OnInit {
     }
   }
 
-  ngOnInit() {
-    // Initial load handled by effects
+  async ngOnInit() {
     this.notificationService.loadNotifications();
     this.supabaseService.getCompensationSettings();
+
+    // Ensure session and currentUser are resolved immediately
+    let user = this.supabaseService.currentUser();
+    if (!user) {
+      try {
+        const { data: { session } } = await this.supabaseService.auth.getSession();
+        if (session?.user) {
+          this.supabaseService.currentUser.set(session.user);
+          user = session.user;
+        }
+      } catch (e) {
+        console.warn('ngOnInit: Failed to fetch session:', e);
+      }
+    }
+
+    if (user) {
+      await Promise.all([
+        this.loadCategories(),
+        this.loadMyQuestions()
+      ]);
+    } else {
+      this.loading.set(false);
+    }
   }
 
   onKeywordChange(value: string) {
@@ -955,8 +989,23 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   async loadMyQuestions() {
-    const user = this.supabaseService.currentUser();
-    if (!user) return;
+    let user = this.supabaseService.currentUser();
+    if (!user) {
+      try {
+        const { data: { session } } = await this.supabaseService.auth.getSession();
+        if (session?.user) {
+          this.supabaseService.currentUser.set(session.user);
+          user = session.user;
+        }
+      } catch (e) {
+        console.warn('loadMyQuestions: Failed to get session:', e);
+      }
+    }
+
+    if (!user) {
+      untracked(() => this.loading.set(false));
+      return;
+    }
 
     // Use untracked for state changes to avoid triggering recursive effects
     untracked(() => this.loading.set(true));
@@ -1180,7 +1229,18 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   async loadCategories() {
-    const user = this.supabaseService.currentUser();
+    let user = this.supabaseService.currentUser();
+    if (!user) {
+      try {
+        const { data: { session } } = await this.supabaseService.auth.getSession();
+        if (session?.user) {
+          this.supabaseService.currentUser.set(session.user);
+          user = session.user;
+        }
+      } catch (e) {
+        console.warn('loadCategories: Failed to get session:', e);
+      }
+    }
     const role = this.supabaseService.currentUserRole();
     if (!user) return;
 
@@ -1210,7 +1270,13 @@ export class TeacherDashboardComponent implements OnInit {
       depth: 0
     }));
 
-    untracked(() => this.categories.set(catsWithCount));
+    untracked(() => {
+      this.categories.set(catsWithCount);
+      const currentCatId = this.selectedCategoryId();
+      if (currentCatId && !catsWithCount.some((c: any) => c.id === currentCatId)) {
+        this.selectedCategoryId.set(null);
+      }
+    });
   }
 
   flatCategories = computed(() => {

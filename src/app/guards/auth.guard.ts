@@ -8,6 +8,9 @@ export const authGuard: CanActivateFn = async (route, state) => {
 
   const { data: { session } } = await supabaseService.auth.getSession();
   if (session) {
+    if (!supabaseService.currentUser()) {
+      supabaseService.currentUser.set(session.user);
+    }
     // Security check: Block suspended users immediately
     let isSuspended = false;
     try {
@@ -54,6 +57,9 @@ export const adminGuard: CanActivateFn = async (route, state) => {
     console.log('adminGuard: No active session found. Redirecting to /auth');
     router.navigate(['/auth']);
     return false;
+  }
+  if (!supabaseService.currentUser()) {
+    supabaseService.currentUser.set(session.user);
   }
 
   // Security check: Block suspended users immediately
@@ -119,6 +125,9 @@ export const superAdminGuard: CanActivateFn = async (route, state) => {
     console.log('superAdminGuard: No active session found. Redirecting to /auth');
     router.navigate(['/auth']);
     return false;
+  }
+  if (!supabaseService.currentUser()) {
+    supabaseService.currentUser.set(session.user);
   }
 
   // Security check: Block suspended users immediately

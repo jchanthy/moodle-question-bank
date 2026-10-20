@@ -1582,7 +1582,12 @@
             </svg>
             <h3 class="text-lg font-bold text-slate-800">No questions found</h3>
             <p class="text-slate-400 font-medium text-sm mt-1">Try adjusting your filters or create a new question.</p>
-            <a routerLink="/teacher/new-question" class="mt-4 text-blue-600 font-bold hover:underline" *ngIf="currentView() === 'my'">Create your first question</a>
+            <div class="flex items-center gap-3 mt-4">
+              <button *ngIf="hasActiveFilters()" (click)="clearFilters()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition">
+                Clear Filters
+              </button>
+              <a routerLink="/teacher/new-question" class="text-blue-600 font-bold hover:underline" *ngIf="currentView() === 'my'">Create your first question</a>
+            </div>
           </div>
         </div>
       </div>
