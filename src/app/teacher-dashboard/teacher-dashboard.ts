@@ -1831,6 +1831,55 @@ export class TeacherDashboardComponent implements OnInit {
     return q.answers.find((a: any) => a.id === choiceId);
   }
 
+  private autoSaveChoiceDebounceTimer: any = null;
+  private autoSaveQuestionDebounceTimer: any = null;
+
+  autoSaveQuestionInMemory(q: Question) {
+    if (!this.editingTextValue.trim()) return;
+    let finalValue = normalizeSpecialGlyphs(this.editingTextValue.trim());
+    const original = q.question_text || '';
+    if (original.toLowerCase().startsWith('<p>') && original.toLowerCase().endsWith('</p>')) {
+      finalValue = `<p>${finalValue}</p>`;
+    }
+    q.question_text = finalValue;
+    this.invalidateQuestionSpellCache(q.id);
+
+    clearTimeout(this.autoSaveQuestionDebounceTimer);
+    this.autoSaveQuestionDebounceTimer = setTimeout(async () => {
+      try {
+        await this.supabaseService.db
+          .from('questions')
+          .update({ question_text: finalValue, updated_at: new Date().toISOString() })
+          .eq('id', q.id);
+      } catch (err) {
+        console.error('Failed to auto-save question:', err);
+      }
+    }, 400);
+  }
+
+  autoSaveChoiceInMemory(ans: any, q: Question) {
+    if (!this.editingChoiceText.trim()) return;
+    let finalValue = normalizeSpecialGlyphs(this.editingChoiceText.trim());
+    const original = ans.answer_text || '';
+    if (original.toLowerCase().startsWith('<p>') && original.toLowerCase().endsWith('</p>')) {
+      finalValue = `<p>${finalValue}</p>`;
+    }
+    ans.answer_text = finalValue;
+    this.invalidateQuestionSpellCache(q.id);
+
+    clearTimeout(this.autoSaveChoiceDebounceTimer);
+    this.autoSaveChoiceDebounceTimer = setTimeout(async () => {
+      try {
+        await this.supabaseService.db
+          .from('answers')
+          .update({ answer_text: finalValue })
+          .eq('id', ans.id);
+      } catch (err) {
+        console.error('Failed to auto-save choice:', err);
+      }
+    }, 400);
+  }
+
   async applySpellSuggestion(token: SpellCheckToken, suggestion: string, q?: Question, ans?: any) {
     const active = this.activeSpellSuggestion();
     if (active && active.isChoice) {
@@ -1846,10 +1895,10 @@ export class TeacherDashboardComponent implements OnInit {
     this.invalidateQuestionSpellCache(this.editingTextQuestionId() || undefined);
     this.runInlineSpellCheck();
 
-    // Auto-save the corrected question text to database
+    // Instant optimistic update with background auto-save (0ms UI latency!)
     const targetQ = q || this.getEditingQuestion();
     if (targetQ) {
-      await this.saveInlineText(targetQ);
+      this.autoSaveQuestionInMemory(targetQ);
     }
   }
 
@@ -2103,11 +2152,11 @@ export class TeacherDashboardComponent implements OnInit {
     this.activeSpellSuggestion.set(null);
     this.runChoiceSpellCheck();
 
-    // Auto-save the corrected choice text to database
+    // Instant optimistic update with background auto-save (0ms UI latency!)
     const targetQ = q || this.getEditingChoiceQuestion();
     const targetAns = ans || this.getEditingChoiceAnswer(targetQ);
     if (targetAns && targetQ) {
-      await this.saveChoiceText(targetAns, targetQ);
+      this.autoSaveChoiceInMemory(targetAns, targetQ);
     }
   }
 
@@ -2368,10 +2417,15 @@ export class TeacherDashboardComponent implements OnInit {
 
   getQuestionChoicesErrorCount(q: Question): number {
     if (!this.spellCheckActive() || !q.answers || !this.spellCheckService.isLoaded()) return 0;
-    if (this.editingChoiceId()) {
+    
+    // Only bypass cache for the single question that contains the actively edited choice
+    const activeChoiceId = this.editingChoiceId();
+    const isThisQuestionBeingEdited = activeChoiceId ? q.answers.some((a: any) => a.id === activeChoiceId) : false;
+
+    if (isThisQuestionBeingEdited) {
       let total = 0;
       for (const ans of q.answers) {
-        if (this.editingChoiceId() === ans.id) {
+        if (activeChoiceId === ans.id) {
           total += this.choiceSpellErrorsCount();
         } else if (ans.answer_text) {
           let txt = ans.answer_text;
