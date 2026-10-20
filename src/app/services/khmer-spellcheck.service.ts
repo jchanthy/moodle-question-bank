@@ -306,6 +306,15 @@ export class KhmerSpellCheckService {
       const swapped = '\u17A2\u17CA\u17B8' + sub.slice(2);
       if (this.isWordValid(swapped, false)) return true;
     }
+    // Rule H: Accidental extra vowel 'ិ' before Tandakhat '៍' (e.g. អក្សរសិល្បិ៍ -> អក្សរសិល្ប៍)
+    if (sub.includes('\u17B7\u17CD')) {
+      const withoutI = sub.replace(/\u17B7\u17CD/g, '\u17CD');
+      if (this.isWordValid(withoutI, false)) return true;
+    }
+    // Rule I: Common academic typos (e.g. ចេនា -> ចេតនា)
+    if (sub === 'ចេនា') {
+      return true;
+    }
     return false;
   }
 
@@ -563,6 +572,21 @@ export class KhmerSpellCheckService {
       const withTriisap = '\u17A2\u17CA\u17B8' + cleanTarget.slice(2);
       if (this.isWordValid(withTriisap, true) && withTriisap !== cleanTarget && !suggestions.includes(withTriisap)) {
         suggestions.unshift(withTriisap);
+      }
+    }
+
+    // Rule H: Accidental extra vowel 'ិ' before Tandakhat '៍' (e.g. អក្សរសិល្បិ៍ -> អក្សរសិល្ប៍, សិល្បិ៍ -> សិល្ប៍)
+    if (cleanTarget.includes('\u17B7\u17CD')) {
+      const withoutI = cleanTarget.replace(/\u17B7\u17CD/g, '\u17CD');
+      if (this.isWordValid(withoutI, true) && !suggestions.includes(withoutI)) {
+        suggestions.unshift(withoutI);
+      }
+    }
+
+    // Rule I: Common academic typos (e.g. ចេនា -> ចេតនា, missing consonant 'ត')
+    if (cleanTarget === 'ចេនា') {
+      if (this.isWordValid('ចេតនា', true) && !suggestions.includes('ចេតនា')) {
+        suggestions.unshift('ចេតនា');
       }
     }
 
