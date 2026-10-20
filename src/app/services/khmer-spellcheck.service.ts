@@ -32,6 +32,11 @@ export class KhmerSpellCheckService {
   // Fast length-indexed word buckets for sub-millisecond typo detection
   private wordsByLength = new Map<number, string[]>();
 
+  // Word definitions (Chuon Nath + modern academic/technical terms)
+  private definitions = new Map<string, string>();
+  isDefinitionsLoaded = signal(false);
+  isDefinitionsLoading = signal(false);
+
   // High-performance memoization cache (0ms lookup for repeated checks)
   private reportCache = new Map<string, SpellCheckReport>();
   private suggestionCache = new Map<string, string[]>();
@@ -42,7 +47,10 @@ export class KhmerSpellCheckService {
 
   constructor() {
     this.loadCustomDictionary();
-    this.loadDictionary();
+    this.loadDictionary().then(() => {
+      // Load definitions in background once wordlist is active
+      this.loadDefinitions();
+    });
   }
 
   private loadCustomDictionary() {
@@ -145,6 +153,75 @@ export class KhmerSpellCheckService {
     } finally {
       this.isLoading.set(false);
     }
+  }
+
+  async loadDefinitions(): Promise<void> {
+    if (this.isDefinitionsLoaded() || this.isDefinitionsLoading()) return;
+    this.isDefinitionsLoading.set(true);
+
+    try {
+      let response: Response;
+      try {
+        response = await fetch('data/khmer-definitions.json');
+        if (!response.ok) {
+          response = await fetch('/data/khmer-definitions.json');
+        }
+      } catch {
+        response = await fetch('/data/khmer-definitions.json');
+      }
+      if (!response.ok) throw new Error(`Failed to fetch definitions: ${response.status}`);
+      const data: Record<string, string> = await response.json();
+      for (const [k, v] of Object.entries(data)) {
+        this.definitions.set(k, v);
+      }
+      this.isDefinitionsLoaded.set(true);
+    } catch (err) {
+      console.warn('Could not load Khmer definitions:', err);
+    } finally {
+      this.isDefinitionsLoading.set(false);
+    }
+  }
+
+  getDefinition(word: string): string | null {
+    if (!word) return null;
+    const clean = this.cleanKhmer(word);
+    if (!clean) return null;
+
+    if (this.definitions.has(clean)) {
+      return this.definitions.get(clean)!;
+    }
+
+    // Homoglyph equivalence: ្ដ (coeng DA) <-> ្ត (coeng TA)
+    if (clean.includes('\u17D2\u178A')) {
+      const alt = clean.replace(/\u17D2\u178A/g, '\u17D2\u178F');
+      if (this.definitions.has(alt)) return this.definitions.get(alt)!;
+    }
+    if (clean.includes('\u17D2\u178F')) {
+      const alt = clean.replace(/\u17D2\u178F/g, '\u17D2\u178A');
+      if (this.definitions.has(alt)) return this.definitions.get(alt)!;
+    }
+
+    // Orthographic equivalence: អ៊ី <-> អ៉ី
+    if (clean.includes('\u17A2\u17CA\u17B8')) {
+      const alt = clean.replace(/\u17A2\u17CA\u17B8/g, '\u17A2\u17C9\u17B8');
+      if (this.definitions.has(alt)) return this.definitions.get(alt)!;
+    }
+    if (clean.includes('\u17A2\u17C9\u17B8')) {
+      const alt = clean.replace(/\u17A2\u17C9\u17B8/g, '\u17A2\u17CA\u17B8');
+      if (this.definitions.has(alt)) return this.definitions.get(alt)!;
+    }
+
+    // Lazy load definitions if requested and not loaded yet
+    if (!this.isDefinitionsLoaded() && !this.isDefinitionsLoading()) {
+      this.loadDefinitions();
+    }
+
+    return null;
+  }
+
+  getDictionaryUrl(word: string): string {
+    const clean = this.cleanKhmer(word) || word.trim();
+    return `https://khmerdict.com/word/${encodeURIComponent(clean)}`;
   }
 
   addToCustomDictionary(word: string) {

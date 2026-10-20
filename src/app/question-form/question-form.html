@@ -667,35 +667,57 @@
 
             <!-- Floating Suggestion Context Menu Popup -->
             <div *ngIf="activeSuggestion()" 
-              class="spell-suggestion-popup absolute z-[9999] bg-white border border-gray-200 rounded-2xl shadow-2xl p-3 w-72 animate-in zoom-in-95 duration-150 backdrop-blur-md"
+              class="spell-suggestion-popup absolute z-[9999] bg-white border border-gray-200 rounded-2xl shadow-2xl p-3 w-[350px] animate-in zoom-in-95 duration-150 backdrop-blur-md"
               [style.left.px]="activeSuggestion()!.x"
               [style.top.px]="activeSuggestion()!.y"
               (click)="$event.stopPropagation()">
               
               <div class="flex items-center justify-between border-b border-gray-100 pb-2 mb-2">
-                <div class="flex items-center gap-1.5">
+                <div class="flex items-center gap-2">
                   <span class="text-rose-500 font-black text-xs">❌</span>
                   <span class="font-bold text-xs text-gray-800 font-mono">{{ activeSuggestion()!.token.text }}</span>
+                  <a *ngIf="activeSuggestion()?.token?.text"
+                     [href]="getKhmerDictUrl(activeSuggestion()!.token.text)"
+                     target="_blank" rel="noopener noreferrer"
+                     (click)="$event.stopPropagation()"
+                     class="text-[9px] text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-0.5"
+                     title="ស្វែងរកក្នុងវចនានុក្រម KhmerDict">
+                    <span>📖 វចនានុក្រម ↗</span>
+                  </a>
                 </div>
                 <button type="button" (click)="closeSuggestionMenu()" class="text-gray-400 hover:text-gray-600 text-xs font-bold">✕</button>
               </div>
 
-              <!-- Suggestions List -->
+              <!-- Suggestions List with Meaning -->
               <div class="mb-2">
-                <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-1.5">💡 តើអ្នកចង់សរសេរពាក្យនេះមែនទេ? (Suggestions):</span>
+                <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-1.5">💡 តើអ្នកចង់សរសេរពាក្យនេះមែនទេ? (Suggestions & Meaning):</span>
                 
                 <div *ngIf="activeSuggestion()!.suggestions.length === 0" class="text-xs text-gray-400 italic py-1">
                   គ្មានសំណើកែតម្រូវជិតស្និទ្ធក្នុងវចនានុក្រម
                 </div>
 
-                <div class="space-y-1">
-                  <button *ngFor="let s of activeSuggestion()!.suggestions"
-                    type="button"
+                <div class="space-y-1.5 max-h-64 overflow-y-auto pr-0.5">
+                  <div *ngFor="let s of activeSuggestion()!.suggestions"
                     (click)="applySuggestion(activeSuggestion()!.token, s)"
-                    class="w-full text-left px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50/60 hover:bg-blue-100 hover:text-blue-900 rounded-xl transition flex items-center justify-between group cursor-pointer">
-                    <span>{{ s }}</span>
-                    <span class="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity text-blue-500 uppercase font-black">កែតម្រូវ ✓</span>
-                  </button>
+                    class="w-full text-left p-2 rounded-xl transition border border-blue-100/60 hover:border-blue-300 hover:bg-blue-50/80 group cursor-pointer">
+                    <div class="flex items-center justify-between gap-1.5">
+                      <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-extrabold text-blue-800 group-hover:text-blue-950">{{ s }}</span>
+                        <a [href]="getKhmerDictUrl(s)" target="_blank" rel="noopener noreferrer"
+                           (click)="$event.stopPropagation()"
+                           class="text-gray-400 hover:text-blue-600 hover:bg-white p-0.5 rounded text-[11px] transition"
+                           title="មើលក្នុងវចនានុក្រម KhmerDict">
+                          📖
+                        </a>
+                      </div>
+                      <span class="text-[10px] text-blue-700 bg-white group-hover:bg-blue-600 group-hover:text-white font-bold px-2 py-0.5 rounded-md border border-blue-200 transition shrink-0">
+                        កែតម្រូវ ✓
+                      </span>
+                    </div>
+                    <p *ngIf="getWordDefinition(s)" class="text-[11px] text-slate-600 font-normal leading-snug line-clamp-2 mt-1 select-text">
+                      {{ getWordDefinition(s) }}
+                    </p>
+                  </div>
                 </div>
               </div>
 

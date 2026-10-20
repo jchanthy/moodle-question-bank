@@ -698,6 +698,14 @@ export class QuestionFormComponent implements OnInit {
     this.activeSuggestion.set(null);
   }
 
+  getWordDefinition(word: string): string | null {
+    return this.spellCheckService.getDefinition(word);
+  }
+
+  getKhmerDictUrl(word: string): string {
+    return this.spellCheckService.getDictionaryUrl(word);
+  }
+
   onEditorClick(event: MouseEvent) {
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;

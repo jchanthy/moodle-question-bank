@@ -1179,17 +1179,27 @@
 
                     <!-- Floating Suggestion Context Menu Popup (Compact & Draggable) -->
                     <div *ngIf="activeSpellSuggestion() && !activeSpellSuggestion()?.isChoice"
-                      class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl shadow-2xl p-1.5 w-80 animate-in fade-in zoom-in-95 duration-150 select-none"
+                      class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl shadow-2xl p-1.5 w-[350px] animate-in fade-in zoom-in-95 duration-150 select-none"
                       [style.left.px]="activeSpellSuggestion()?.x"
                       [style.top.px]="activeSpellSuggestion()?.y"
                       (click)="$event.stopPropagation()">
                       
                       <!-- Drag Header -->
                       <div (mousedown)="startDragPopup($event)" class="px-3 py-2 border-b border-slate-100 flex items-center justify-between cursor-move bg-slate-50/80 rounded-t-xl">
-                        <div class="flex items-center gap-1.5">
+                        <div class="flex items-center gap-2">
                           <span class="text-slate-400 text-xs" title="អូសផ្លាស់ទី">⠿</span>
                           <div>
-                            <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
+                            <div class="flex items-center gap-1.5">
+                              <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
+                              <a *ngIf="activeSpellSuggestion()?.token?.text"
+                                 [href]="getKhmerDictUrl(activeSpellSuggestion()!.token.text)"
+                                 target="_blank" rel="noopener noreferrer"
+                                 (click)="$event.stopPropagation()"
+                                 class="text-[9px] text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-0.5"
+                                 title="ស្វែងរកក្នុងវចនានុក្រម KhmerDict">
+                                <span>📖 វចនានុក្រម ↗</span>
+                              </a>
+                            </div>
                             <span class="text-sm font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
                           </div>
                         </div>
@@ -1204,17 +1214,31 @@
                         </div>
                       </div>
 
-                      <!-- Compact Scrollable Suggestions List -->
-                      <div class="p-1.5 space-y-1 max-h-60 overflow-y-auto">
-                        <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 px-1.5 py-0.5 block">ពាក្យកែតម្រូវ (Suggestions)</span>
+                      <!-- Compact Scrollable Suggestions List with Meaning -->
+                      <div class="p-1.5 space-y-1.5 max-h-72 overflow-y-auto">
+                        <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 px-1.5 py-0.5 block">ពាក្យកែតម្រូវ និងនិយមន័យ (Suggestions & Meaning)</span>
                         <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noSuggestions">
-                          <button *ngFor="let sug of activeSpellSuggestion()?.suggestions"
-                            type="button"
+                          <div *ngFor="let sug of activeSpellSuggestion()?.suggestions"
                             (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug, question)"
-                            class="w-full text-left px-3 py-2 text-sm font-bold text-slate-800 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-colors flex items-center justify-between group cursor-pointer">
-                            <span>{{ sug }}</span>
-                            <span class="text-xs text-emerald-600 opacity-0 group-hover:opacity-100 font-bold">ជ្រើសរើស ✓</span>
-                          </button>
+                            class="w-full text-left p-2 rounded-xl transition-all border border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/60 group cursor-pointer">
+                            <div class="flex items-center justify-between gap-1.5">
+                              <div class="flex items-center gap-1.5">
+                                <span class="text-sm font-extrabold text-slate-800 group-hover:text-emerald-700">{{ sug }}</span>
+                                <a [href]="getKhmerDictUrl(sug)" target="_blank" rel="noopener noreferrer"
+                                   (click)="$event.stopPropagation()"
+                                   class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-0.5 rounded text-[11px] transition"
+                                   title="មើលក្នុងវចនានុក្រម KhmerDict">
+                                  📖
+                                </a>
+                              </div>
+                              <span class="text-[10px] text-emerald-700 bg-white group-hover:bg-emerald-600 group-hover:text-white font-bold px-2 py-0.5 rounded-md border border-emerald-200 transition shrink-0">
+                                ជ្រើសរើស ✓
+                              </span>
+                            </div>
+                            <p *ngIf="getWordDefinition(sug)" class="text-[11px] text-slate-600 font-normal leading-snug line-clamp-2 mt-1 select-text">
+                              {{ getWordDefinition(sug) }}
+                            </p>
+                          </div>
                         </ng-container>
                         <ng-template #noSuggestions>
                           <div class="px-2 py-1 text-[11px] text-slate-400 italic">គ្មានពាក្យស្រដៀង</div>
@@ -1378,7 +1402,7 @@
 
                           <!-- Floating Suggestion Context Menu Popup for Choice (Compact & Draggable) -->
                           <div *ngIf="activeSpellSuggestion() && activeSpellSuggestion()?.isChoice"
-                            class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl shadow-2xl p-1.5 w-80 animate-in fade-in zoom-in-95 duration-150 select-none"
+                            class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl shadow-2xl p-1.5 w-[350px] animate-in fade-in zoom-in-95 duration-150 select-none"
                             [style.left.px]="activeSpellSuggestion()?.x"
                             [style.top.px]="activeSpellSuggestion()?.y"
                             (click)="$event.stopPropagation()">
@@ -1388,7 +1412,17 @@
                               <div class="flex items-center gap-1.5">
                                 <span class="text-slate-400 text-xs" title="អូសផ្លាស់ទី">⠿</span>
                                 <div>
-                                  <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
+                                  <div class="flex items-center gap-1.5">
+                                    <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
+                                    <a *ngIf="activeSpellSuggestion()?.token?.text"
+                                       [href]="getKhmerDictUrl(activeSpellSuggestion()!.token.text)"
+                                       target="_blank" rel="noopener noreferrer"
+                                       (click)="$event.stopPropagation()"
+                                       class="text-[9px] text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-0.5"
+                                       title="ស្វែងរកក្នុងវចនានុក្រម KhmerDict">
+                                      <span>📖 វចនានុក្រម ↗</span>
+                                    </a>
+                                  </div>
                                   <span class="text-sm font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
                                 </div>
                               </div>
@@ -1403,17 +1437,31 @@
                               </div>
                             </div>
 
-                            <!-- Compact Scrollable Suggestions List -->
-                            <div class="p-1.5 space-y-1 max-h-60 overflow-y-auto">
-                              <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 px-1.5 py-0.5 block">ពាក្យកែតម្រូវ (Suggestions)</span>
+                            <!-- Compact Scrollable Suggestions List with Meaning -->
+                            <div class="p-1.5 space-y-1.5 max-h-72 overflow-y-auto">
+                              <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 px-1.5 py-0.5 block">ពាក្យកែតម្រូវ និងនិយមន័យ (Suggestions & Meaning)</span>
                               <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noChoiceSuggestions">
-                                <button *ngFor="let sug of activeSpellSuggestion()?.suggestions"
-                                  type="button"
+                                <div *ngFor="let sug of activeSpellSuggestion()?.suggestions"
                                   (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug, question, ans)"
-                                  class="w-full text-left px-3 py-2 text-sm font-bold text-slate-800 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition flex items-center justify-between group cursor-pointer">
-                                  <span>{{ sug }}</span>
-                                  <span class="text-xs font-bold text-emerald-600 opacity-0 group-hover:opacity-100">ជ្រើសរើស ✓</span>
-                                </button>
+                                  class="w-full text-left p-2 rounded-xl transition-all border border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/60 group cursor-pointer">
+                                  <div class="flex items-center justify-between gap-1.5">
+                                    <div class="flex items-center gap-1.5">
+                                      <span class="text-sm font-extrabold text-slate-800 group-hover:text-emerald-700">{{ sug }}</span>
+                                      <a [href]="getKhmerDictUrl(sug)" target="_blank" rel="noopener noreferrer"
+                                         (click)="$event.stopPropagation()"
+                                         class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-0.5 rounded text-[11px] transition"
+                                         title="មើលក្នុងវចនានុក្រម KhmerDict">
+                                        📖
+                                      </a>
+                                    </div>
+                                    <span class="text-[10px] text-emerald-700 bg-white group-hover:bg-emerald-600 group-hover:text-white font-bold px-2 py-0.5 rounded-md border border-emerald-200 transition shrink-0">
+                                      ជ្រើសរើស ✓
+                                    </span>
+                                  </div>
+                                  <p *ngIf="getWordDefinition(sug)" class="text-[11px] text-slate-600 font-normal leading-snug line-clamp-2 mt-1 select-text">
+                                    {{ getWordDefinition(sug) }}
+                                  </p>
+                                </div>
                               </ng-container>
                               <ng-template #noChoiceSuggestions>
                                 <div class="px-2 py-1 text-[11px] text-slate-400 italic">គ្មានពាក្យស្រដៀង</div>
