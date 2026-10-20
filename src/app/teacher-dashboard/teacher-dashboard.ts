@@ -148,6 +148,26 @@ export class TeacherDashboardComponent implements OnInit {
   stopDragPopup() {
     this.isDraggingPopup = false;
   }
+
+  togglePopupSide() {
+    const current = this.activeSpellSuggestion();
+    if (!current) return;
+    const popupWidth = 256;
+    let container: HTMLElement | null = null;
+    if (current.isChoice) {
+      container = document.querySelector('.choice-edit-box') as HTMLElement;
+    } else {
+      container = document.querySelector('.question-edit-box') as HTMLElement;
+    }
+    const containerWidth = container ? container.clientWidth : 750;
+    const rightSideX = Math.max(16, containerWidth - popupWidth - 16);
+    const leftSideX = current.isChoice ? 8 : 16;
+    const newX = current.x > containerWidth * 0.4 ? leftSideX : rightSideX;
+    this.activeSpellSuggestion.set({
+      ...current,
+      x: newX
+    });
+  }
   spellCheckErrorsCount = computed(() => this.spellCheckReport()?.errorCount || 0);
   choiceSpellErrorsCount = computed(() => this.choiceSpellReport()?.errorCount || 0);
 
@@ -1760,15 +1780,13 @@ export class TeacherDashboardComponent implements OnInit {
 
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
-    const container = (target.closest('.relative') || target.parentElement) as HTMLElement;
-    const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
+    const container = (target.closest('.question-edit-box') || target.closest('.flex.flex-col.gap-2.mt-1.relative') || target.parentElement) as HTMLElement;
+    const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
     const suggestions = this.spellCheckService.getSuggestions(token.text);
-    const popupWidth = 288;
+    const popupWidth = 256;
     
-    let x = rect.left - containerRect.left;
-    if (x + popupWidth > containerRect.width) {
-      x = Math.max(0, containerRect.width - popupWidth - 10);
-    }
+    // Position on the right side so it never covers chips or text
+    const x = Math.max(16, containerRect.width - popupWidth - 16);
     const y = rect.bottom - containerRect.top + 6;
 
     this.activeSpellSuggestion.set({
@@ -1832,28 +1850,26 @@ export class TeacherDashboardComponent implements OnInit {
       event.preventDefault();
       event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
-      const popupWidth = 288;
-      const container = (textarea.closest('.relative') || textarea.parentElement) as HTMLElement;
-      const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
+      const popupWidth = 256;
+      const container = (textarea.closest('.question-edit-box') || textarea.closest('.flex.flex-col.gap-2.mt-1.relative') || textarea.parentElement?.parentElement) as HTMLElement;
+      const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
       const textareaRect = textarea.getBoundingClientRect();
-      const clickYInTextarea = event.clientY - textareaRect.top;
-      const popupHeight = 175;
+      const clickXInContainer = event.clientX - containerRect.left;
 
-      // Shift popup to the right side by 25px so it does not hide the clicked word
-      let x = event.clientX - containerRect.left + 25;
-      if (x + popupWidth > containerRect.width - 10) {
-        if (event.clientX - containerRect.left - popupWidth - 15 > 0) {
-          x = event.clientX - containerRect.left - popupWidth - 15;
-        } else {
-          x = Math.max(10, containerRect.width - popupWidth - 10);
-        }
+      // Smart Aside Positioning:
+      // If user clicked anywhere on the left/middle (< 60% of container), place popup on the RIGHT edge.
+      // If user clicked on the right side (>= 60%), place popup on the LEFT edge.
+      // This guarantees the misspelled word, cursor, and sentence are 100% visible and never covered!
+      let x = 16;
+      if (clickXInContainer < containerRect.width * 0.6) {
+        x = Math.max(16, containerRect.width - popupWidth - 16);
+      } else {
+        x = 16;
       }
 
-      let y = event.clientY - containerRect.top + 20;
-      // If clicked in the lower half of the editor, flip ABOVE the word so it never hides other boxes below!
-      if (clickYInTextarea > textareaRect.height * 0.45) {
-        y = Math.max(10, event.clientY - containerRect.top - popupHeight - 10);
-      }
+      const textareaTopInContainer = textareaRect.top - containerRect.top;
+      const clickYInContainer = event.clientY - containerRect.top;
+      const y = Math.max(textareaTopInContainer + 8, Math.min(clickYInContainer - 25, containerRect.height - 220));
 
       this.activeSpellSuggestion.set({
         token,
@@ -1882,28 +1898,23 @@ export class TeacherDashboardComponent implements OnInit {
       event.preventDefault();
       event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
-      const popupWidth = 288;
-      const container = (textarea.closest('.relative') || textarea.parentElement) as HTMLElement;
-      const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
+      const popupWidth = 256;
+      const container = (textarea.closest('.question-edit-box') || textarea.closest('.flex.flex-col.gap-2.mt-1.relative') || textarea.parentElement?.parentElement) as HTMLElement;
+      const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
       const textareaRect = textarea.getBoundingClientRect();
-      const clickYInTextarea = event.clientY - textareaRect.top;
-      const popupHeight = 175;
+      const clickXInContainer = event.clientX - containerRect.left;
 
-      // Shift popup to the right side by 25px so it does not hide the clicked word
-      let x = event.clientX - containerRect.left + 25;
-      if (x + popupWidth > containerRect.width - 10) {
-        if (event.clientX - containerRect.left - popupWidth - 15 > 0) {
-          x = event.clientX - containerRect.left - popupWidth - 15;
-        } else {
-          x = Math.max(10, containerRect.width - popupWidth - 10);
-        }
+      // Smart Aside Positioning:
+      let x = 16;
+      if (clickXInContainer < containerRect.width * 0.6) {
+        x = Math.max(16, containerRect.width - popupWidth - 16);
+      } else {
+        x = 16;
       }
 
-      let y = event.clientY - containerRect.top + 20;
-      // If clicked in the lower half of the editor, flip ABOVE the word so it never hides other boxes below!
-      if (clickYInTextarea > textareaRect.height * 0.45) {
-        y = Math.max(10, event.clientY - containerRect.top - popupHeight - 10);
-      }
+      const textareaTopInContainer = textareaRect.top - containerRect.top;
+      const clickYInContainer = event.clientY - containerRect.top;
+      const y = Math.max(textareaTopInContainer + 8, Math.min(clickYInContainer - 25, containerRect.height - 220));
 
       this.activeSpellSuggestion.set({
         token,
@@ -2067,14 +2078,14 @@ export class TeacherDashboardComponent implements OnInit {
 
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
-    const container = (target.closest('.relative') || target.parentElement) as HTMLElement;
-    const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
+    const container = (target.closest('.choice-edit-box') || target.closest('.flex.flex-col.gap-1.5.mt-0.5.relative') || target.parentElement) as HTMLElement;
+    const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
     const suggestions = this.spellCheckService.getSuggestions(token.text);
-    const popupWidth = 288;
+    const popupWidth = 256;
 
-    let x = rect.left - containerRect.left;
-    if (x + popupWidth > containerRect.width) {
-      x = Math.max(0, containerRect.width - popupWidth - 10);
+    let x = 8;
+    if (containerRect.width >= 320) {
+      x = Math.max(8, containerRect.width - popupWidth - 8);
     }
     const y = rect.bottom - containerRect.top + 6;
 
@@ -2100,28 +2111,31 @@ export class TeacherDashboardComponent implements OnInit {
     );
 
     if (token) {
+      event.preventDefault();
+      event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
-      const popupWidth = 288;
-      const container = (textarea.closest('.relative') || textarea.parentElement) as HTMLElement;
-      const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
+      const popupWidth = 256;
+      const container = (textarea.closest('.choice-edit-box') || textarea.closest('.flex.flex-col.gap-1.5.mt-0.5.relative') || textarea.parentElement?.parentElement) as HTMLElement;
+      const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
       const textareaRect = textarea.getBoundingClientRect();
-      const clickYInTextarea = event.clientY - textareaRect.top;
-      const popupHeight = 175;
+      const clickXInContainer = event.clientX - containerRect.left;
 
-      // Shift popup to the right side by 25px so it does not hide the clicked word
-      let x = event.clientX - containerRect.left + 25;
-      if (x + popupWidth > containerRect.width - 10) {
-        if (event.clientX - containerRect.left - popupWidth - 15 > 0) {
-          x = event.clientX - containerRect.left - popupWidth - 15;
+      let x = 8;
+      if (containerRect.width >= 320) {
+        if (clickXInContainer < containerRect.width * 0.5) {
+          x = Math.max(8, containerRect.width - popupWidth - 8);
         } else {
-          x = Math.max(10, containerRect.width - popupWidth - 10);
+          x = 8;
         }
       }
 
-      let y = event.clientY - containerRect.top + 20;
-      // If clicked in the lower half of the editor, flip ABOVE the word so it never hides other boxes below!
-      if (clickYInTextarea > textareaRect.height * 0.45) {
-        y = Math.max(10, event.clientY - containerRect.top - popupHeight - 10);
+      const textareaTopInContainer = textareaRect.top - containerRect.top;
+      const textareaBottomInContainer = textareaRect.bottom - containerRect.top;
+      let y = textareaTopInContainer;
+      if (containerRect.width < 340) {
+        y = textareaBottomInContainer + 4;
+      } else {
+        y = Math.max(4, Math.min(event.clientY - containerRect.top - 20, containerRect.height - 180));
       }
 
       this.activeSpellSuggestion.set({
@@ -2152,27 +2166,28 @@ export class TeacherDashboardComponent implements OnInit {
       event.preventDefault();
       event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
-      const popupWidth = 288;
-      const container = (textarea.closest('.relative') || textarea.parentElement) as HTMLElement;
-      const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth };
+      const popupWidth = 256;
+      const container = (textarea.closest('.choice-edit-box') || textarea.closest('.flex.flex-col.gap-1.5.mt-0.5.relative') || textarea.parentElement?.parentElement) as HTMLElement;
+      const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
       const textareaRect = textarea.getBoundingClientRect();
-      const clickYInTextarea = event.clientY - textareaRect.top;
-      const popupHeight = 175;
+      const clickXInContainer = event.clientX - containerRect.left;
 
-      // Shift popup to the right side by 25px so it does not hide the clicked word
-      let x = event.clientX - containerRect.left + 25;
-      if (x + popupWidth > containerRect.width - 10) {
-        if (event.clientX - containerRect.left - popupWidth - 15 > 0) {
-          x = event.clientX - containerRect.left - popupWidth - 15;
+      let x = 8;
+      if (containerRect.width >= 320) {
+        if (clickXInContainer < containerRect.width * 0.5) {
+          x = Math.max(8, containerRect.width - popupWidth - 8);
         } else {
-          x = Math.max(10, containerRect.width - popupWidth - 10);
+          x = 8;
         }
       }
 
-      let y = event.clientY - containerRect.top + 20;
-      // If clicked in the lower half of the editor, flip ABOVE the word so it never hides other boxes below!
-      if (clickYInTextarea > textareaRect.height * 0.45) {
-        y = Math.max(10, event.clientY - containerRect.top - popupHeight - 10);
+      const textareaTopInContainer = textareaRect.top - containerRect.top;
+      const textareaBottomInContainer = textareaRect.bottom - containerRect.top;
+      let y = textareaTopInContainer;
+      if (containerRect.width < 340) {
+        y = textareaBottomInContainer + 4;
+      } else {
+        y = Math.max(4, Math.min(event.clientY - containerRect.top - 20, containerRect.height - 180));
       }
 
       this.activeSpellSuggestion.set({
@@ -2251,9 +2266,13 @@ export class TeacherDashboardComponent implements OnInit {
     this.startEditingText(q);
     setTimeout(() => {
       const suggestions = this.spellCheckService.getSuggestions(token.text);
+      const container = document.querySelector('.question-edit-box') as HTMLElement;
+      const containerWidth = container ? container.clientWidth : 750;
+      const popupWidth = 256;
+      const x = Math.max(16, containerWidth - popupWidth - 16);
       this.activeSpellSuggestion.set({
         token,
-        x: 12,
+        x,
         y: 42,
         suggestions
       });

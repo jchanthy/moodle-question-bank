@@ -1091,7 +1091,7 @@
                       ✏️ Click to Edit Text
                     </span>
                   </div>
-                  <div *ngIf="editingTextQuestionId() === question.id" class="flex flex-col gap-2 mt-1 relative">
+                  <div *ngIf="editingTextQuestionId() === question.id" class="flex flex-col gap-2 mt-1 relative question-edit-box">
                     <!-- Inline Spell Check Trigger Bar -->
                     <div class="flex items-center justify-between">
                       <div class="flex items-center gap-2">
@@ -1186,13 +1186,21 @@
                       <!-- Drag Header -->
                       <div (mousedown)="startDragPopup($event)" class="px-2.5 py-1.5 border-b border-slate-100 flex items-center justify-between cursor-move bg-slate-50/80 rounded-t-lg">
                         <div class="flex items-center gap-1.5">
-                          <span class="text-slate-400 text-xs">⠿</span>
+                          <span class="text-slate-400 text-xs" title="អូសផ្លាស់ទី">⠿</span>
                           <div>
                             <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
                             <span class="text-xs font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
                           </div>
                         </div>
-                        <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                        <div class="flex items-center gap-1">
+                          <button type="button" 
+                                  (click)="togglePopupSide()" 
+                                  class="text-slate-500 hover:text-blue-600 hover:bg-blue-50 text-[10px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition flex items-center gap-0.5 border border-slate-200" 
+                                  title="ផ្លាស់ប្តូរទៅម្ខាងទៀត (Move to other side)">
+                            ⇄ ម្ខាងទៀត
+                          </button>
+                          <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                        </div>
                       </div>
 
                       <!-- Compact Scrollable Suggestions List -->
@@ -1303,7 +1311,7 @@
                         </div>
                         
                         <!-- Choice text edit input -->
-                        <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5 relative">
+                        <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5 relative choice-edit-box">
                           <!-- Quick-fix Chips for Choice -->
                           <div *ngIf="spellCheckActive() && choiceSpellErrorsCount() > 0" 
                                class="flex items-center gap-1.5 flex-wrap p-1.5 bg-rose-50/70 border border-rose-200/80 rounded-lg">
@@ -1376,13 +1384,21 @@
                             <!-- Drag Header -->
                             <div (mousedown)="startDragPopup($event)" class="px-2.5 py-1.5 border-b border-slate-100 flex items-center justify-between cursor-move bg-slate-50/80 rounded-t-lg">
                               <div class="flex items-center gap-1.5">
-                                <span class="text-slate-400 text-xs">⠿</span>
+                                <span class="text-slate-400 text-xs" title="អូសផ្លាស់ទី">⠿</span>
                                 <div>
                                   <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
                                   <span class="text-xs font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
                                 </div>
                               </div>
-                              <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                              <div class="flex items-center gap-1">
+                                <button type="button" 
+                                        (click)="togglePopupSide()" 
+                                        class="text-slate-500 hover:text-blue-600 hover:bg-blue-50 text-[10px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition flex items-center gap-0.5 border border-slate-200" 
+                                        title="ផ្លាស់ប្តូរទៅម្ខាងទៀត (Move to other side)">
+                                  ⇄ ម្ខាងទៀត
+                                </button>
+                                <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                              </div>
                             </div>
 
                             <!-- Compact Scrollable Suggestions List -->
