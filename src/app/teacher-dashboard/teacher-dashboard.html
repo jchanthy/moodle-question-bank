@@ -1178,18 +1178,18 @@
 
                     <!-- Floating Suggestion Context Menu Popup (Compact & Draggable) -->
                     <div *ngIf="activeSpellSuggestion() && !activeSpellSuggestion()?.isChoice"
-                      class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-xl shadow-2xl p-1 w-64 animate-in fade-in zoom-in-95 duration-150 select-none"
+                      class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl shadow-2xl p-1.5 w-80 animate-in fade-in zoom-in-95 duration-150 select-none"
                       [style.left.px]="activeSpellSuggestion()?.x"
                       [style.top.px]="activeSpellSuggestion()?.y"
                       (click)="$event.stopPropagation()">
                       
                       <!-- Drag Header -->
-                      <div (mousedown)="startDragPopup($event)" class="px-2.5 py-1.5 border-b border-slate-100 flex items-center justify-between cursor-move bg-slate-50/80 rounded-t-lg">
+                      <div (mousedown)="startDragPopup($event)" class="px-3 py-2 border-b border-slate-100 flex items-center justify-between cursor-move bg-slate-50/80 rounded-t-xl">
                         <div class="flex items-center gap-1.5">
                           <span class="text-slate-400 text-xs" title="អូសផ្លាស់ទី">⠿</span>
                           <div>
                             <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
-                            <span class="text-xs font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
+                            <span class="text-sm font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
                           </div>
                         </div>
                         <div class="flex items-center gap-1" (mousedown)="$event.stopPropagation()">
@@ -1204,15 +1204,15 @@
                       </div>
 
                       <!-- Compact Scrollable Suggestions List -->
-                      <div class="p-1 space-y-0.5 max-h-36 overflow-y-auto">
+                      <div class="p-1.5 space-y-1 max-h-60 overflow-y-auto">
                         <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 px-1.5 py-0.5 block">ពាក្យកែតម្រូវ (Suggestions)</span>
                         <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noSuggestions">
                           <button *ngFor="let sug of activeSpellSuggestion()?.suggestions"
                             type="button"
                             (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug, question)"
-                            class="w-full text-left px-2 py-1 text-xs font-bold text-slate-800 hover:bg-emerald-50 hover:text-emerald-700 rounded-md transition-colors flex items-center justify-between group cursor-pointer">
+                            class="w-full text-left px-3 py-2 text-sm font-bold text-slate-800 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-colors flex items-center justify-between group cursor-pointer">
                             <span>{{ sug }}</span>
-                            <span class="text-[9px] text-emerald-600 opacity-0 group-hover:opacity-100 font-bold">ជ្រើសរើស ✓</span>
+                            <span class="text-xs text-emerald-600 opacity-0 group-hover:opacity-100 font-bold">ជ្រើសរើស ✓</span>
                           </button>
                         </ng-container>
                         <ng-template #noSuggestions>
@@ -1221,16 +1221,16 @@
                       </div>
 
                       <!-- Compact Footer Actions -->
-                      <div class="border-t border-slate-100 pt-1 mt-0.5 flex items-center gap-1">
+                      <div class="border-t border-slate-100 pt-1.5 mt-1 flex items-center gap-1.5">
                         <button type="button"
                           (click)="addWordToDictionary(activeSpellSuggestion()!.token)"
-                          class="flex-1 text-center px-1.5 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-100 rounded transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                          class="flex-1 text-center px-2 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
                           title="បន្ថែមទៅវចនានុក្រម">
                           <span>➕</span> វចនានុក្រម
                         </button>
                         <button type="button"
                           (click)="ignoreSpellWord(activeSpellSuggestion()!.token)"
-                          class="px-2 py-1 text-[10px] font-bold text-slate-500 hover:bg-slate-100 rounded transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                          class="px-2.5 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
                           title="មិនអើពើ">
                           <span>👁️</span> រំលង
                         </button>
@@ -1376,18 +1376,18 @@
 
                           <!-- Floating Suggestion Context Menu Popup for Choice (Compact & Draggable) -->
                           <div *ngIf="activeSpellSuggestion() && activeSpellSuggestion()?.isChoice"
-                            class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-xl shadow-2xl p-1 w-64 animate-in fade-in zoom-in-95 duration-150 select-none"
+                            class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl shadow-2xl p-1.5 w-80 animate-in fade-in zoom-in-95 duration-150 select-none"
                             [style.left.px]="activeSpellSuggestion()?.x"
                             [style.top.px]="activeSpellSuggestion()?.y"
                             (click)="$event.stopPropagation()">
                             
                             <!-- Drag Header -->
-                            <div (mousedown)="startDragPopup($event)" class="px-2.5 py-1.5 border-b border-slate-100 flex items-center justify-between cursor-move bg-slate-50/80 rounded-t-lg">
+                            <div (mousedown)="startDragPopup($event)" class="px-3 py-2 border-b border-slate-100 flex items-center justify-between cursor-move bg-slate-50/80 rounded-t-xl">
                               <div class="flex items-center gap-1.5">
                                 <span class="text-slate-400 text-xs" title="អូសផ្លាស់ទី">⠿</span>
                                 <div>
                                   <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
-                                  <span class="text-xs font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
+                                  <span class="text-sm font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
                                 </div>
                               </div>
                               <div class="flex items-center gap-1">
@@ -1402,15 +1402,15 @@
                             </div>
 
                             <!-- Compact Scrollable Suggestions List -->
-                            <div class="p-1 space-y-0.5 max-h-36 overflow-y-auto">
+                            <div class="p-1.5 space-y-1 max-h-60 overflow-y-auto">
                               <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 px-1.5 py-0.5 block">ពាក្យកែតម្រូវ (Suggestions)</span>
                               <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noChoiceSuggestions">
                                 <button *ngFor="let sug of activeSpellSuggestion()?.suggestions"
                                   type="button"
                                   (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug, question, ans)"
-                                  class="w-full text-left px-2 py-1 text-xs font-bold text-slate-800 hover:bg-emerald-50 hover:text-emerald-700 rounded-md transition flex items-center justify-between group cursor-pointer">
+                                  class="w-full text-left px-3 py-2 text-sm font-bold text-slate-800 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition flex items-center justify-between group cursor-pointer">
                                   <span>{{ sug }}</span>
-                                  <span class="text-[9px] font-bold text-emerald-600 opacity-0 group-hover:opacity-100">ជ្រើសរើស ✓</span>
+                                  <span class="text-xs font-bold text-emerald-600 opacity-0 group-hover:opacity-100">ជ្រើសរើស ✓</span>
                                 </button>
                               </ng-container>
                               <ng-template #noChoiceSuggestions>
@@ -1419,16 +1419,16 @@
                             </div>
 
                             <!-- Compact Footer Actions -->
-                            <div class="border-t border-slate-100 pt-1 mt-0.5 flex items-center gap-1">
+                            <div class="border-t border-slate-100 pt-1.5 mt-1 flex items-center gap-1.5">
                               <button type="button"
                                 (click)="addWordToDictionary(activeSpellSuggestion()!.token)"
-                                class="flex-1 text-center px-1.5 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-100 rounded transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                                class="flex-1 text-center px-2 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
                                 title="បន្ថែមទៅវចនានុក្រម">
                                 <span>➕</span> វចនានុក្រម
                               </button>
                               <button type="button"
                                 (click)="ignoreSpellWord(activeSpellSuggestion()!.token)"
-                                class="px-2 py-1 text-[10px] font-bold text-slate-500 hover:bg-slate-100 rounded transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                                class="px-2.5 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
                                 title="មិនអើពើ">
                                 <span>👁️</span> រំលង
                               </button>

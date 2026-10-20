@@ -156,7 +156,7 @@ export class TeacherDashboardComponent implements OnInit {
     }
     const current = this.activeSpellSuggestion();
     if (!current) return;
-    const popupWidth = 256;
+    const popupWidth = 320;
     let container: HTMLElement | null = null;
     if (current.isChoice) {
       container = document.querySelector('.choice-edit-box') as HTMLElement;
@@ -1795,7 +1795,7 @@ export class TeacherDashboardComponent implements OnInit {
     const container = (target.closest('.question-edit-box') || target.closest('.flex.flex-col.gap-2.mt-1.relative') || target.parentElement) as HTMLElement;
     const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
     const suggestions = this.spellCheckService.getSuggestions(token.text);
-    const popupWidth = 256;
+    const popupWidth = 320;
     
     // Position on the right side so it never covers chips or text
     const x = Math.max(16, containerRect.width - popupWidth - 16);
@@ -1939,7 +1939,7 @@ export class TeacherDashboardComponent implements OnInit {
       event.preventDefault();
       event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
-      const popupWidth = 256;
+      const popupWidth = 320;
       const container = (textarea.closest('.question-edit-box') || textarea.closest('.flex.flex-col.gap-2.mt-1.relative') || textarea.parentElement?.parentElement) as HTMLElement;
       const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
       const textareaRect = textarea.getBoundingClientRect();
@@ -1986,7 +1986,7 @@ export class TeacherDashboardComponent implements OnInit {
       event.preventDefault();
       event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
-      const popupWidth = 256;
+      const popupWidth = 320;
       const container = (textarea.closest('.question-edit-box') || textarea.closest('.flex.flex-col.gap-2.mt-1.relative') || textarea.parentElement?.parentElement) as HTMLElement;
       const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
       const textareaRect = textarea.getBoundingClientRect();
@@ -2174,7 +2174,7 @@ export class TeacherDashboardComponent implements OnInit {
     const container = (target.closest('.choice-edit-box') || target.closest('.flex.flex-col.gap-1.5.mt-0.5.relative') || target.parentElement) as HTMLElement;
     const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
     const suggestions = this.spellCheckService.getSuggestions(token.text);
-    const popupWidth = 256;
+    const popupWidth = 320;
 
     let x = 8;
     if (containerRect.width >= 320) {
@@ -2207,7 +2207,7 @@ export class TeacherDashboardComponent implements OnInit {
       event.preventDefault();
       event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
-      const popupWidth = 256;
+      const popupWidth = 320;
       const container = (textarea.closest('.choice-edit-box') || textarea.closest('.flex.flex-col.gap-1.5.mt-0.5.relative') || textarea.parentElement?.parentElement) as HTMLElement;
       const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
       const textareaRect = textarea.getBoundingClientRect();
@@ -2263,7 +2263,7 @@ export class TeacherDashboardComponent implements OnInit {
       event.preventDefault();
       event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
-      const popupWidth = 256;
+      const popupWidth = 320;
       const container = (textarea.closest('.choice-edit-box') || textarea.closest('.flex.flex-col.gap-1.5.mt-0.5.relative') || textarea.parentElement?.parentElement) as HTMLElement;
       const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
       const textareaRect = textarea.getBoundingClientRect();
@@ -2365,7 +2365,7 @@ export class TeacherDashboardComponent implements OnInit {
       const suggestions = this.spellCheckService.getSuggestions(token.text);
       const container = document.querySelector('.question-edit-box') as HTMLElement;
       const containerWidth = container ? container.clientWidth : 750;
-      const popupWidth = 256;
+      const popupWidth = 320;
       const x = Math.max(16, containerWidth - popupWidth - 16);
       this.activeSpellSuggestion.set({
         token,
