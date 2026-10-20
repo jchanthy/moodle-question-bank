@@ -333,8 +333,17 @@ export class QuestionFormComponent implements OnInit {
     // Instantly scroll window to top when opening the form page
     window.scrollTo({ top: 0 });
 
+    this.route.paramMap.subscribe(params => {
+      const id = params.get('id');
+      if (id && id !== this.questionId()) {
+        this.editMode.set(true);
+        this.questionId.set(id);
+        this.loadQuestionData(id);
+      }
+    });
+
     const id = this.route.snapshot.paramMap.get('id');
-    if (id) {
+    if (id && !this.questionId()) {
       this.editMode.set(true);
       this.questionId.set(id);
       this.loadQuestionData(id);
@@ -2099,7 +2108,7 @@ export class QuestionFormComponent implements OnInit {
       const user = this.supabase.currentUser();
       if (!user) throw new Error('User not authenticated');
 
-      const formValue: any = this.questionForm.value;
+      const formValue: any = this.questionForm.getRawValue();
       const currentStatus = this.questionForm.get('status')?.value;
       const questionId = this.questionId();
       let targetId: string;
@@ -2216,10 +2225,14 @@ export class QuestionFormComponent implements OnInit {
         targetId = newQ.id;
 
         // 1b. Soft-delete the OLD version so it doesn't clutter the active dashboard
-        await this.supabase.db
-          .from('questions')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('id', questionId!);
+        try {
+          await this.supabase.db
+            .from('questions')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('id', questionId!);
+        } catch (delErr) {
+          console.warn('Could not soft-delete old version (RLS):', delErr);
+        }
       } else if (this.editMode()) {
         console.log('Regular Update: Updating existing record ID:', questionId);
         // Regular in-place update for drafts / pending questions.
@@ -2378,6 +2391,7 @@ export class QuestionFormComponent implements OnInit {
         // Stay on the form — navigate to new ID if branched, otherwise just reload
         if (targetId !== questionId) {
           this.editMode.set(true);
+          this.questionId.set(targetId);
           this.router.navigate(['/teacher/edit-question', targetId]).then(() => {
             this.loadQuestionData(targetId);
           });

@@ -1926,18 +1926,119 @@ export class TeacherDashboardComponent implements OnInit {
     clearTimeout(this.autoSaveQuestionDebounceTimer);
     this.autoSaveQuestionDebounceTimer = setTimeout(async () => {
       try {
-        await this.supabaseService.db
-          .from('questions')
-          .update({ question_text: finalValue, updated_at: new Date().toISOString() })
-          .eq('id', q.id);
+        await this.persistQuestionText(q, finalValue);
       } catch (err) {
         console.error('Failed to auto-save question:', err);
       }
     }, 400);
   }
 
-  async persistChoiceText(ans: any, finalValue: string): Promise<boolean> {
+  async persistQuestionText(q: Question, finalValue: string): Promise<boolean> {
     try {
+      const user = this.supabaseService.currentUser();
+      if (!user) return false;
+
+      // 1. Try direct update with .select() to verify actual rows affected
+      const { data: updData, error: updError } = await this.supabaseService.db
+        .from('questions')
+        .update({ question_text: finalValue, updated_at: new Date().toISOString() })
+        .eq('id', q.id)
+        .select();
+
+      if (!updError && updData && updData.length > 0) {
+        return true;
+      }
+
+      // 2. If update returned 0 rows (Supabase RLS UPDATE policy restriction for non-owned questions),
+      // seamlessly branch into a new version owned by the current teacher!
+      if (!updError && (!updData || updData.length === 0)) {
+        console.warn('Direct update returned 0 rows (RLS restriction). Branching question into new version...');
+        const parentId = q.parent_id || q.id;
+
+        const { data: latestRecords } = await this.supabaseService.db
+          .from('questions')
+          .select('version')
+          .or(`id.eq.${parentId},parent_id.eq.${parentId}`)
+          .order('version', { ascending: false })
+          .limit(1);
+
+        const nextVersion = (latestRecords?.[0]?.version || q.version || 1) + 1;
+
+        const { data: newQ, error: insError } = await this.supabaseService.db
+          .from('questions')
+          .insert({
+            name: q.name,
+            question_text: finalValue,
+            general_feedback: q.general_feedback,
+            default_grade: q.default_grade || 1,
+            penalty: q.penalty ?? 0.3333333,
+            qtype: q.qtype,
+            category_id: q.category_id || null,
+            status: q.status || 'draft',
+            version: nextVersion,
+            parent_id: parentId,
+            created_by: user.id,
+            metadata: {
+              ...(q.metadata || {}),
+              author_id: user.id,
+              author_name: this.supabaseService.currentUserName,
+              modified_by: this.supabaseService.currentUserName,
+              modified_at: new Date().toISOString()
+            }
+          })
+          .select()
+          .single();
+
+        if (insError || !newQ) {
+          console.error('Failed to create new version of question:', insError);
+          return false;
+        }
+
+        // Copy answers to new question version
+        if (q.answers && q.answers.length > 0) {
+          const answersToInsert = q.answers.map((a: any) => ({
+            question_id: newQ.id,
+            answer_text: a.answer_text,
+            fraction: a.fraction ?? 0,
+            feedback: a.feedback ?? '',
+            x: a.x ?? 50,
+            y: a.y ?? 50
+          }));
+          await this.supabaseService.db.from('answers').insert(answersToInsert);
+        }
+
+        const oldId = q.id;
+        q.id = newQ.id;
+        q.version = nextVersion;
+        q.parent_id = parentId;
+        q.created_by = user.id;
+
+        const updater = (list: Question[]) => list.map(item => item.id === oldId ? { 
+          ...item, 
+          id: newQ.id, 
+          version: nextVersion, 
+          question_text: finalValue, 
+          created_by: user.id, 
+          parent_id: parentId 
+        } : item);
+        this.allQuestions.set(updater(this.allQuestions()));
+        this.myQuestions.set(updater(this.myQuestions()));
+        this.assignedQuestions.set(updater(this.assignedQuestions()));
+        this.assistantSubmissions.set(updater(this.assistantSubmissions()));
+
+        return true;
+      }
+
+      return false;
+    } catch (err) {
+      console.error('Error persisting question text:', err);
+      return false;
+    }
+  }
+
+  async persistChoiceText(ans: any, finalValue: string, q?: Question): Promise<boolean> {
+    try {
+      const targetQuestionId = ans.question_id || q?.id;
       // 1. Try direct update first with .select() to verify rows actually modified
       const { data: updData, error: updError } = await this.supabaseService.db
         .from('answers')
@@ -1954,7 +2055,7 @@ export class TeacherDashboardComponent implements OnInit {
       await this.supabaseService.db.from('answers').delete().eq('id', ans.id);
       const { data: insData, error: insError } = await this.supabaseService.db.from('answers').insert({
         id: ans.id,
-        question_id: ans.question_id,
+        question_id: targetQuestionId,
         answer_text: finalValue,
         fraction: ans.fraction ?? 0,
         feedback: ans.feedback ?? null,
@@ -1985,7 +2086,7 @@ export class TeacherDashboardComponent implements OnInit {
 
     clearTimeout(this.autoSaveChoiceDebounceTimer);
     this.autoSaveChoiceDebounceTimer = setTimeout(async () => {
-      await this.persistChoiceText(ans, finalValue);
+      await this.persistChoiceText(ans, finalValue, q);
     }, 400);
   }
 
@@ -1997,14 +2098,26 @@ export class TeacherDashboardComponent implements OnInit {
     }
     const current = this.editingTextValue || '';
     this.spellUndoHistory.push(current);
-    const before = current.substring(0, token.startIndex);
-    const after = current.substring(token.endIndex);
-    this.editingTextValue = before + suggestion + after;
+
+    // Robust word replacement: verify token bounds match token text, otherwise locate accurately
+    let replaced = current;
+    if (current.substring(token.startIndex, token.endIndex) === token.text) {
+      replaced = current.substring(0, token.startIndex) + suggestion + current.substring(token.endIndex);
+    } else {
+      const idx = current.indexOf(token.text);
+      if (idx !== -1) {
+        replaced = current.substring(0, idx) + suggestion + current.substring(idx + token.text.length);
+      } else {
+        replaced = current.replace(token.text, suggestion);
+      }
+    }
+
+    this.editingTextValue = replaced;
     this.activeSpellSuggestion.set(null);
     this.invalidateQuestionSpellCache(this.editingTextQuestionId() || undefined);
     this.runInlineSpellCheck();
 
-    // Instant optimistic update with background auto-save (0ms UI latency!)
+    // Instant optimistic update with background persistence
     const targetQ = q || this.getEditingQuestion();
     if (targetQ) {
       this.autoSaveQuestionInMemory(targetQ);
@@ -2013,11 +2126,8 @@ export class TeacherDashboardComponent implements OnInit {
       if (orig.toLowerCase().startsWith('<p>') && orig.toLowerCase().endsWith('</p>')) {
         finalVal = `<p>${finalVal}</p>`;
       }
-      this.supabaseService.db
-        .from('questions')
-        .update({ question_text: finalVal, updated_at: new Date().toISOString() })
-        .eq('id', targetQ.id)
-        .then(() => {});
+      targetQ.question_text = finalVal;
+      await this.persistQuestionText(targetQ, finalVal);
     }
   }
 
@@ -2200,12 +2310,10 @@ export class TeacherDashboardComponent implements OnInit {
         finalValue = `<p>${finalValue}</p>`;
       }
 
-      const { error } = await this.supabaseService.db
-        .from('questions')
-        .update({ question_text: finalValue, updated_at: new Date().toISOString() })
-        .eq('id', q.id);
-
-      if (error) throw error;
+      const ok = await this.persistQuestionText(q, finalValue);
+      if (!ok) {
+        throw new Error('Failed to save question text to database. Please check permissions.');
+      }
 
       // Update question in-place directly on object
       q.question_text = finalValue;
@@ -2221,7 +2329,7 @@ export class TeacherDashboardComponent implements OnInit {
       this.showToast('Question text updated successfully', 'success');
       this.editingTextQuestionId.set(null);
     } catch (e: any) {
-      this.showToast(e.message, 'error');
+      this.showToast(e.message || 'Error updating question text', 'error');
     } finally {
       this.savingInline.set(false);
     }
@@ -2273,27 +2381,50 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   async applyChoiceSpellSuggestion(token: SpellCheckToken, suggestion: string, ans?: any, q?: Question) {
-    const current = this.editingChoiceText || '';
+    const targetQ = q || this.getEditingChoiceQuestion();
+    const targetAns = ans || this.getEditingChoiceAnswer(targetQ);
+    if (!targetAns) return;
+
+    let current = (this.editingChoiceId() === targetAns.id && this.editingChoiceText)
+      ? this.editingChoiceText
+      : (targetAns.answer_text || '');
+
+    let hasParagraph = false;
+    if (current.toLowerCase().startsWith('<p>') && current.toLowerCase().endsWith('</p>')) {
+      hasParagraph = true;
+      current = current.substring(3, current.length - 4);
+    }
+
     this.spellUndoHistory.push(current);
-    const before = current.substring(0, token.startIndex);
-    const after = current.substring(token.endIndex);
-    this.editingChoiceText = before + suggestion + after;
+
+    // Robust replacement: verify token bounds, fallback to indexOf or exact replace
+    let replaced = current;
+    if (current.substring(token.startIndex, token.endIndex) === token.text) {
+      replaced = current.substring(0, token.startIndex) + suggestion + current.substring(token.endIndex);
+    } else {
+      const idx = current.indexOf(token.text);
+      if (idx !== -1) {
+        replaced = current.substring(0, idx) + suggestion + current.substring(idx + token.text.length);
+      } else {
+        replaced = current.replace(token.text, suggestion);
+      }
+    }
+
+    this.editingChoiceText = replaced;
     this.activeSpellSuggestion.set(null);
     this.runChoiceSpellCheck();
 
-    // Instant optimistic update with background auto-save (0ms UI latency!)
-    const targetQ = q || this.getEditingChoiceQuestion();
-    const targetAns = ans || this.getEditingChoiceAnswer(targetQ);
-    if (targetAns && targetQ) {
-      this.autoSaveChoiceInMemory(targetAns, targetQ);
-      // Immediately persist to database without waiting 400ms so reloading immediately won't lose the edit
-      let finalVal = normalizeSpecialGlyphs(this.editingChoiceText.trim());
-      const orig = targetAns.answer_text || '';
-      if (orig.toLowerCase().startsWith('<p>') && orig.toLowerCase().endsWith('</p>')) {
-        finalVal = `<p>${finalVal}</p>`;
-      }
-      this.persistChoiceText(targetAns, finalVal);
+    let finalVal = normalizeSpecialGlyphs(replaced.trim());
+    if (hasParagraph) {
+      finalVal = `<p>${finalVal}</p>`;
     }
+
+    targetAns.answer_text = finalVal;
+    if (targetQ) {
+      this.autoSaveChoiceInMemory(targetAns, targetQ);
+      this.invalidateQuestionSpellCache(targetQ.id);
+    }
+    await this.persistChoiceText(targetAns, finalVal, targetQ);
   }
 
   async quickFixChoiceToken(token: SpellCheckToken, suggestion: string, ans?: any, q?: Question) {
@@ -2532,24 +2663,36 @@ export class TeacherDashboardComponent implements OnInit {
 
   async quickFixTokenDirectly(q: Question, token: SpellCheckToken, suggestion: string) {
     let current = q.question_text || '';
-    let plainText = current.replace(/<[^>]*>/g, '');
-    const before = plainText.substring(0, token.startIndex);
-    const after = plainText.substring(token.endIndex);
-    const newText = before + suggestion + after;
+    let hasParagraph = false;
+    if (current.toLowerCase().startsWith('<p>') && current.toLowerCase().endsWith('</p>')) {
+      hasParagraph = true;
+      current = current.substring(3, current.length - 4);
+    }
+
+    // Robust replacement: verify token bounds, fallback to indexOf or exact replace
+    let replaced = current;
+    if (current.substring(token.startIndex, token.endIndex) === token.text) {
+      replaced = current.substring(0, token.startIndex) + suggestion + current.substring(token.endIndex);
+    } else {
+      const idx = current.indexOf(token.text);
+      if (idx !== -1) {
+        replaced = current.substring(0, idx) + suggestion + current.substring(idx + token.text.length);
+      } else {
+        replaced = current.replace(token.text, suggestion);
+      }
+    }
 
     this.savingInline.set(true);
     try {
-      let finalValue = normalizeSpecialGlyphs(newText.trim());
-      if (current.toLowerCase().startsWith('<p>') && current.toLowerCase().endsWith('</p>')) {
+      let finalValue = normalizeSpecialGlyphs(replaced.trim());
+      if (hasParagraph) {
         finalValue = `<p>${finalValue}</p>`;
       }
 
-      const { error } = await this.supabaseService.db
-        .from('questions')
-        .update({ question_text: finalValue, updated_at: new Date().toISOString() })
-        .eq('id', q.id);
-
-      if (error) throw error;
+      const ok = await this.persistQuestionText(q, finalValue);
+      if (!ok) {
+        throw new Error('Failed to save question to database. Please check permissions.');
+      }
 
       q.question_text = finalValue;
       const updater = (list: Question[]) => list.map(item => item.id === q.id ? { ...item, question_text: finalValue } : item);
@@ -2561,7 +2704,7 @@ export class TeacherDashboardComponent implements OnInit {
       this.invalidateQuestionSpellCache(q.id);
       this.showToast(`បានកែតម្រូវ «${token.text}» ➔ «${suggestion}»`, 'success');
     } catch (e: any) {
-      this.showToast(e.message, 'error');
+      this.showToast(e.message || 'Error updating question', 'error');
     } finally {
       this.savingInline.set(false);
     }
@@ -2620,7 +2763,7 @@ export class TeacherDashboardComponent implements OnInit {
         finalValue = `<p>${finalValue}</p>`;
       }
 
-      const ok = await this.persistChoiceText(ans, finalValue);
+      const ok = await this.persistChoiceText(ans, finalValue, q);
       if (!ok) {
         throw new Error('Failed to save choice to database. Please check permissions.');
       }
