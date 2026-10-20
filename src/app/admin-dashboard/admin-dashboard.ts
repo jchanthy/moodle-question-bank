@@ -919,12 +919,18 @@ export class AdminDashboardComponent implements OnInit {
         finalValue = `<p>${finalValue}</p>`;
       }
 
-      const { error } = await this.supabaseService.db
+      const { data: updData, error } = await this.supabaseService.db
         .from('questions')
         .update({ question_text: finalValue, updated_at: new Date().toISOString() })
-        .eq('id', q.id);
+        .eq('id', q.id)
+        .select();
 
       if (error) throw error;
+      if (!updData || updData.length === 0) {
+        throw new Error('Database update returned 0 modified rows. Please check permissions.');
+      }
+
+      q.question_text = finalValue;
 
       // Update in memory state
       const updated = this.allQuestions().map(item => {

@@ -622,9 +622,17 @@ export class QuestionFormComponent implements OnInit {
     if (!control) return;
     const current = control.value || '';
     this.spellUndoHistory.push(current);
-    const before = current.substring(0, token.startIndex);
-    const after = current.substring(token.endIndex);
-    const newText = before + suggestion + after;
+    let newText = current;
+    if (current.substring(token.startIndex, token.endIndex) === token.text) {
+      newText = current.substring(0, token.startIndex) + suggestion + current.substring(token.endIndex);
+    } else {
+      const idx = current.indexOf(token.text);
+      if (idx !== -1) {
+        newText = current.substring(0, idx) + suggestion + current.substring(idx + token.text.length);
+      } else {
+        newText = current.replace(token.text, suggestion);
+      }
+    }
     control.patchValue(newText);
     this.activeSuggestion.set(null);
     this.runSpellCheck();
@@ -648,9 +656,17 @@ export class QuestionFormComponent implements OnInit {
   applySpellSuggestion(token: SpellCheckToken, suggestion: string) {
     const currentText = this.questionForm.get('question_text')?.value || '';
     this.spellUndoHistory.push(currentText);
-    const before = currentText.substring(0, token.startIndex);
-    const after = currentText.substring(token.endIndex);
-    const newText = before + suggestion + after;
+    let newText = currentText;
+    if (currentText.substring(token.startIndex, token.endIndex) === token.text) {
+      newText = currentText.substring(0, token.startIndex) + suggestion + currentText.substring(token.endIndex);
+    } else {
+      const idx = currentText.indexOf(token.text);
+      if (idx !== -1) {
+        newText = currentText.substring(0, idx) + suggestion + currentText.substring(idx + token.text.length);
+      } else {
+        newText = currentText.replace(token.text, suggestion);
+      }
+    }
 
     this.questionForm.patchValue({ question_text: newText });
     this.activeSuggestion.set(null);
@@ -2076,6 +2092,11 @@ export class QuestionFormComponent implements OnInit {
     await this.saveQuestion(status as any, true);
   }
 
+  async saveExistingQuestion() {
+    const currentStatus = this.questionForm.get('status')?.value || 'draft';
+    await this.saveQuestion(currentStatus as any, false);
+  }
+
   async submitForReview() {
     const isAssistant = this.supabase.currentUserRole() === 'assistant_teacher';
     const targetStatus = isAssistant ? 'pending_teacher_review' : 'pending_review';
@@ -2105,7 +2126,18 @@ export class QuestionFormComponent implements OnInit {
     if (this.questionForm.invalid) return false;
     this.loading.set(true);
     try {
-      const user = this.supabase.currentUser();
+      let user = this.supabase.currentUser();
+      if (!user) {
+        try {
+          const { data: { session } } = await this.supabase.auth.getSession();
+          if (session?.user) {
+            this.supabase.currentUser.set(session.user);
+            user = session.user;
+          }
+        } catch (e) {
+          console.warn('saveQuestion: Failed to get session:', e);
+        }
+      }
       if (!user) throw new Error('User not authenticated');
 
       const formValue: any = this.questionForm.getRawValue();
@@ -2245,12 +2277,36 @@ export class QuestionFormComponent implements OnInit {
 
         if (uError) throw uError;
         if (!uData || uData.length === 0) {
-          throw new Error('Update failed. You may not have permission to modify this question.');
-        }
-        targetId = questionId!;
+          console.warn('Direct update returned 0 rows (RLS restriction). Branching to new version...');
+          const parentId = formValue.parent_id || questionId;
+          const { data: latestRecords } = await this.supabase.db
+            .from('questions')
+            .select('version')
+            .or(`id.eq.${parentId},parent_id.eq.${parentId}`)
+            .order('version', { ascending: false })
+            .limit(1);
 
-        // Refresh answers
-        await this.supabase.db.from('answers').delete().eq('question_id', targetId);
+          const maxVersion = latestRecords?.[0]?.version || formValue.version || 1;
+          const nextVersion = maxVersion + 1;
+
+          const { data: newQ, error: nError } = await this.supabase.db
+            .from('questions')
+            .insert({
+              ...insertData,
+              status: status,
+              version: nextVersion,
+              parent_id: parentId
+            })
+            .select()
+            .single();
+
+          if (nError) throw nError;
+          targetId = newQ.id;
+        } else {
+          targetId = questionId!;
+          // Refresh answers
+          await this.supabase.db.from('answers').delete().eq('question_id', targetId);
+        }
       } else {
         // Brand new question — use insertData which includes created_by
         const { data: newQ, error: iError } = await this.supabase.db
@@ -2416,7 +2472,13 @@ export class QuestionFormComponent implements OnInit {
   }
 
   onSubmit() {
-    this.submitForReview();
+    if (this.isReady) {
+      this.saveQuestion('approved', false);
+    } else if (this.questionForm.get('status')?.value === 'draft' || this.questionForm.get('status')?.value === 'rejected') {
+      this.submitForReview();
+    } else {
+      this.saveExistingQuestion();
+    }
   }
 
   cancel() {

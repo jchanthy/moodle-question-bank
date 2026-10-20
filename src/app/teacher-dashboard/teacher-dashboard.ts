@@ -1935,10 +1935,7 @@ export class TeacherDashboardComponent implements OnInit {
 
   async persistQuestionText(q: Question, finalValue: string): Promise<boolean> {
     try {
-      const user = this.supabaseService.currentUser();
-      if (!user) return false;
-
-      // 1. Try direct update with .select() to verify actual rows affected
+      // 1. Try direct update first with .select() to verify actual rows affected
       const { data: updData, error: updError } = await this.supabaseService.db
         .from('questions')
         .update({ question_text: finalValue, updated_at: new Date().toISOString() })
@@ -1949,8 +1946,25 @@ export class TeacherDashboardComponent implements OnInit {
         return true;
       }
 
-      // 2. If update returned 0 rows (Supabase RLS UPDATE policy restriction for non-owned questions),
+      // 2. If direct update returned 0 rows (Supabase RLS UPDATE policy restriction for non-owned questions),
       // seamlessly branch into a new version owned by the current teacher!
+      let user = this.supabaseService.currentUser();
+      if (!user) {
+        try {
+          const { data: { session } } = await this.supabaseService.auth.getSession();
+          if (session?.user) {
+            this.supabaseService.currentUser.set(session.user);
+            user = session.user;
+          }
+        } catch (e) {
+          console.warn('persistQuestionText: Failed to resolve session:', e);
+        }
+      }
+      if (!user) {
+        console.error('persistQuestionText: No authenticated user found');
+        return false;
+      }
+
       if (!updError && (!updData || updData.length === 0)) {
         console.warn('Direct update returned 0 rows (RLS restriction). Branching question into new version...');
         const parentId = q.parent_id || q.id;

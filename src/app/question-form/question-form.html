@@ -1439,6 +1439,17 @@
                 </svg>
                 {{ loading() ? 'Submitting...' : (isAssistant ? 'Submit to Teacher' : 'Submit for Review') }}
               </button>
+
+              <!-- Non-Draft / Non-Review Save Changes (e.g., testing or direct edit) -->
+              <button *ngIf="questionForm.get('status')?.value !== 'draft' && questionForm.get('status')?.value !== 'rejected' && !((isAdmin || isAssignedReviewer) && questionForm.get('status')?.value === 'pending_review') && !(isTeacher && questionForm.get('status')?.value === 'pending_teacher_review')"
+                type="button" (click)="saveExistingQuestion()" [disabled]="questionForm.invalid || loading()"
+                class="px-8 py-3 bg-blue-600 text-white rounded-none font-black shadow-xl shadow-blue-200 hover:bg-blue-700 transition flex items-center gap-2">
+                <span *ngIf="loading()" class="animate-spin h-5 w-5 border-3 border-white border-t-transparent rounded-none"></span>
+                <svg *ngIf="!loading()" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Save Changes
+              </button>
             </ng-container>
 
             <!-- If Already Ready, show New Version option -->
