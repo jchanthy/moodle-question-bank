@@ -15,6 +15,12 @@ export interface SpellCheckReport {
   errorCount: number;
 }
 
+const COMMON_2_CONSONANT_WORDS = new Set([
+  'កក', 'ករ', 'កល', 'ជន', 'ជល', 'ដក', 'ដង', 'ដប', 'ថត', 'ថយ',
+  'ទស', 'បទ', 'បរ', 'ផល', 'ពល', 'ភព', 'មក', 'យក', 'យស', 'រក',
+  'រង', 'រថ', 'រស', 'សព', 'ហង', 'អក', 'អរ'
+]);
+
 @Injectable({
   providedIn: 'root'
 })
@@ -85,7 +91,7 @@ export class KhmerSpellCheckService {
         'កម្មវិធីរុករក', 'ម៉ាស៊ីនស្វែងរក', 'កុំព្យូទ័រយួរដៃ', 'ថាប្លែត',
         'អ៊ីនធឺហ្វេស', 'ដានីឡា', 'អ៊ិនធឺណិត', 'អ៊ិនធឺណែត',
         // Encryption, IT, and Modern Morphology terms
-        'កូដនីយកម្ម', 'វិកូដនីយកម្ម', 'នីយកម្ម', 'នីយ', 'នីយភាព',
+        'កូដនីយកម្ម', 'វិកូដនីយកម្ម', 'នីយកម្ម', 'នីយ', 'នីយភាព', 'អ៊ីវ៉ង់', 'អ៊ីវង់',
         'កូដនីយកម្មទិន្នន័យ', 'កូដសម្ងាត់', 'គន្លឹះសម្ងាត់', 'ហត្ថលេខាឌីជីថល',
         'ប្លុកឆេន', 'ពិធីការ', 'សុវត្ថិភាពព័ត៌មាន', 'រចនាសម្ព័ន្ធទិន្នន័យ',
         'វិស្វកម្មទិន្នន័យ', 'វិទ្យាសាស្ត្រទិន្នន័យ', 'វិស្វកម្មឃ្លាបញ្ជា',
@@ -216,7 +222,11 @@ export class KhmerSpellCheckService {
 
   cleanKhmer(str: string): string {
     if (!str) return '';
-    return str.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+    return str
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      // Canonical Khmer Unicode order: diacritics (triisap/muusikatoan) before vowel signs
+      .replace(/([\u17B6-\u17C5])([\u17C9\u17CA])/g, (m, v, d) => d + v)
+      .trim();
   }
 
   private getClusterBoundaries(str: string): number[] {
@@ -266,6 +276,12 @@ export class KhmerSpellCheckService {
       const swapped = sub.includes('្ត')
         ? sub.replace(/្ត/g, '្ដ')
         : sub.replace(/្ដ/g, '្ត');
+      if (this.isWordValid(swapped, false)) return true;
+    }
+    if (sub.includes('\u17CB') || sub.includes('\u17C9')) {
+      const swapped = sub.includes('\u17CB')
+        ? sub.replace('\u17CB', '\u17C9')
+        : sub.replace('\u17C9', '\u17CB');
       if (this.isWordValid(swapped, false)) return true;
     }
     if (sub.includes('ំ')) {
@@ -506,6 +522,16 @@ export class KhmerSpellCheckService {
       if (this.isWordValid(s1, true) && !suggestions.includes(s1)) suggestions.push(s1);
     }
 
+    // Rule E: Muusikatoan <-> Bantoc swap (\u17C9 <-> \u17CB, b vs Shift+b on keyboard, e.g. វ់ង់ -> វ៉ង់)
+    if (cleanTarget.includes('\u17CB')) {
+      const toM = cleanTarget.replace('\u17CB', '\u17C9');
+      if (this.isWordValid(toM, true) && toM !== cleanTarget && !suggestions.includes(toM)) suggestions.push(toM);
+    }
+    if (cleanTarget.includes('\u17C9')) {
+      const toB = cleanTarget.replace('\u17C9', '\u17CB');
+      if (this.isWordValid(toB, true) && toB !== cleanTarget && !suggestions.includes(toB)) suggestions.push(toB);
+    }
+
     // Only run heavy Levenshtein if high-priority orthographic rules did not fill maxSuggestions
     if (suggestions.length < maxSuggestions) {
       const targetLen = cleanTarget.length;
@@ -523,6 +549,11 @@ export class KhmerSpellCheckService {
         if (w === cleanTarget) continue;
         // If typo is an isolated single consonant, do not suggest other isolated single consonants
         if (cleanTarget.length === 1 && w.length === 1) continue;
+
+        // Filter out obscure 2-consonant non-words (e.g. ងន, វន, វក, វណ, វយ, កញ, ឆវ)
+        if (w.length === 2 && /^[\u1780-\u17A2]{2}$/.test(w) && !COMMON_2_CONSONANT_WORDS.has(w)) {
+          continue;
+        }
 
         // Prioritize words with same initial consonant
         if (w[0] === cleanTarget[0]) {
