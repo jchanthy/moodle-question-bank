@@ -287,6 +287,18 @@
       <div class="mb-6 bg-white rounded-none border border-gray-100 shadow-sm p-4">
         <!-- Filters Header with Recalculate Metrics Action -->
         <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <!-- Khmer Spell Check Toggle -->
+          <button type="button"
+            (click)="toggleSpellCheck()"
+            class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 border shadow-sm cursor-pointer select-none"
+            [ngClass]="spellCheckActive() ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'"
+            title="បើក/បិទ ការត្រួតពិនិត្យអក្ខរាវិរុទ្ធភាសាខ្មែរ">
+            <span>🔍 ពិនិត្យអក្ខរាវិរុទ្ធ (Khmer Spell Check)</span>
+            <span *ngIf="spellCheckActive()" class="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-200 text-indigo-800">
+              ON
+            </span>
+          </button>
+          
           <div class="flex items-center gap-2 text-xs font-black text-gray-400 uppercase tracking-widest">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
               stroke="currentColor">
@@ -513,6 +525,19 @@
                 </span>
 
                 <!-- Status Badge -->
+                <!-- Khmer Spell Check Warning Badge -->
+                <div *ngIf="spellCheckActive() && getQuestionSpellErrors(q) > 0" 
+                     class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 border border-rose-200/80 rounded-lg text-rose-700 text-xs font-bold animate-in fade-in duration-200">
+                  <span>⚠️</span>
+                  <span>{{ getQuestionSpellErrors(q) }} កំហុសអក្ខរាវិរុទ្ធ</span>
+                  <button type="button" 
+                          (click)="fixAllSpellErrorsInQuestion(q, $event)" 
+                          [disabled]="autoFixAllInProgress()"
+                          class="ml-1 text-[11px] bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-extrabold px-2 py-0.5 rounded-md transition shadow-sm hover:shadow active:scale-95 flex items-center gap-1"
+                          title="កែកំហុសទាំងអស់ដោយស្វ័យប្រវត្តិតាមវចនានុក្រម">
+                    <span>⚡ កែទាំងអស់</span>
+                  </button>
+                </div>
                 <span *ngIf="q.status === 'testing'" class="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
                   <span class="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse"></span>
                   Testing Pool
@@ -596,24 +621,151 @@
                     ✏️ Click to Edit
                   </span>
                 </div>
-                <div *ngIf="editingTextQuestionId() === q.id" class="flex flex-col gap-2 mt-1">
-                  <textarea [ngModel]="editingTextValue"
-                            (ngModelChange)="editingTextValue = $event"
-                            [rows]="getTextareaRows(editingTextValue, 4)"
-                            class="w-full text-xl md:text-2xl font-bold text-gray-900 border-2 border-blue-400 p-4 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white leading-relaxed inline-edit-textarea"
-                            (keydown)="onTextKeyDown($event, q)"
-                            (blur)="onBlurText()"
-                            placeholder="Edit question text..."></textarea>
-                  <div class="flex gap-2 justify-end">
-                    <button (click)="editingTextQuestionId.set(null)" 
-                            class="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition">
-                      Cancel
-                    </button>
-                    <button (click)="saveInlineText(q)" 
-                            [disabled]="savingInline()"
-                            class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
-                      {{ savingInline() ? 'Saving...' : 'Save' }}
-                    </button>
+                <div *ngIf="editingTextQuestionId() === q.id" class="question-edit-box flex flex-col gap-2 mt-1 relative w-full">
+                  <!-- Spell Quick Fix Chips -->
+                  <div *ngIf="spellCheckActive() && spellCheckErrorsCount() > 0"
+                    class="flex flex-wrap items-center gap-1.5 p-2 bg-rose-50/90 border border-rose-200/60 rounded-xl mb-1 text-xs">
+                    <span class="font-bold text-rose-700 flex items-center gap-1">
+                      <span>⚠️</span> {{ spellCheckErrorsCount() }} ពាក្យសង្ស័យខុស:
+                    </span>
+                    <ng-container *ngFor="let token of spellCheckReport()?.tokens">
+                      <div *ngIf="!token.isValid && token.isKhmer"
+                        class="spell-trigger-chip inline-flex items-center bg-white border border-rose-300 text-rose-700 rounded-full text-xs font-bold shadow-xs hover:bg-rose-50 transition cursor-pointer">
+                        <span class="px-2 py-1" (click)="openSpellSuggestionForToken(token, $event)">{{ token.text }}</span>
+                        <button *ngIf="token.primarySuggestion"
+                          type="button"
+                          (click)="applySpellSuggestion(token, token.primarySuggestion!, q); $event.stopPropagation()"
+                          class="text-[9px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-1.5 py-1 font-bold rounded-r-full border-l border-rose-200 transition cursor-pointer"
+                          title="កែភ្លាមៗ">
+                          កែ ✓
+                        </button>
+                      </div>
+                    </ng-container>
+                  </div>
+
+                  <!-- Text Editor Container with Wavy Underline Backdrop -->
+                  <div class="relative w-full rounded-2xl border-2 border-blue-400 bg-white shadow-sm overflow-hidden focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-500 min-h-[140px]">
+                    <div *ngIf="spellCheckActive()"
+                         class="absolute inset-0 p-4 text-xl md:text-2xl font-bold leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
+                         style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 2px solid transparent; letter-spacing: normal; word-spacing: normal;"
+                         aria-hidden="true"><ng-container *ngFor="let token of spellCheckReport()?.tokens"><span *ngIf="!token.isValid; else validAdminToken" class="text-transparent bg-rose-200/70 underline decoration-wavy decoration-rose-500 decoration-2 select-none" style="text-underline-offset: 3px;">{{ token.text }}</span><ng-template #validAdminToken><span>{{ token.text }}</span></ng-template></ng-container></div>
+
+                    <textarea [ngModel]="editingTextValue"
+                              (ngModelChange)="onEditingTextChange($event)"
+                              (scroll)="syncBackdropScroll($event)"
+                              (click)="onEditorClick($event)"
+                              (contextmenu)="onEditorContextMenu($event)"
+                              (keydown)="onTextKeyDown($event, q)"
+                              [rows]="getTextareaRows(editingTextValue, 4)"
+                              class="relative z-10 w-full p-4 text-xl md:text-2xl font-bold text-gray-900 bg-transparent leading-relaxed outline-none resize-y inline-edit-textarea"
+                              style="box-sizing: border-box; margin: 0; border: 2px solid transparent;"
+                              placeholder="Edit question text..."></textarea>
+                  </div>
+
+                  <!-- Floating Suggestion Context Menu Popup -->
+                  <div *ngIf="activeSpellSuggestion() && !activeSpellSuggestion()?.isChoice"
+                    class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl shadow-2xl p-1.5 w-[350px] animate-in fade-in zoom-in-95 duration-150 select-none"
+                    [style.left.px]="activeSpellSuggestion()?.x"
+                    [style.top.px]="activeSpellSuggestion()?.y"
+                    (click)="$event.stopPropagation()">
+                    
+                    <!-- Drag Header -->
+                    <div (mousedown)="startDragPopup($event)" class="px-3 py-2 border-b border-slate-100 flex items-center justify-between cursor-move bg-slate-50/80 rounded-t-xl">
+                      <div class="flex items-center gap-2">
+                        <span class="text-slate-400 text-xs" title="អូសផ្លាស់ទី">⠿</span>
+                        <div>
+                          <div class="flex items-center gap-1.5">
+                            <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
+                            <a *ngIf="activeSpellSuggestion()?.token?.text"
+                               [href]="getKhmerDictUrl(activeSpellSuggestion()!.token.text)"
+                               target="_blank" rel="noopener noreferrer"
+                               (click)="$event.stopPropagation()"
+                               class="text-[9px] text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-0.5"
+                               title="ស្វែងរកក្នុងវចនានុក្រម KhmerDict">
+                              <span>📖 វចនានុក្រម ↗</span>
+                            </a>
+                          </div>
+                          <span class="text-sm font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-1" (mousedown)="$event.stopPropagation()">
+                        <button type="button" 
+                                (click)="togglePopupSide($event)" 
+                                class="text-slate-500 hover:text-blue-600 hover:bg-blue-50 text-[10px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition flex items-center gap-0.5 border border-slate-200" 
+                                [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
+                          {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
+                        </button>
+                        <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                      </div>
+                    </div>
+
+                    <!-- Compact Scrollable Suggestions List with Meaning -->
+                    <div class="p-1.5 space-y-1.5 max-h-72 overflow-y-auto">
+                      <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 px-1.5 py-0.5 block">ពាក្យកែតម្រូវ និងនិយមន័យ (Suggestions & Meaning)</span>
+                      <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noAdminSuggestions">
+                        <div *ngFor="let sug of activeSpellSuggestion()?.suggestions"
+                          (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug, q)"
+                          class="w-full text-left p-2 rounded-xl transition-all border border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/60 group cursor-pointer">
+                          <div class="flex items-center justify-between gap-1.5">
+                            <div class="flex items-center gap-1.5">
+                              <span class="text-sm font-extrabold text-slate-800 group-hover:text-emerald-700">{{ sug }}</span>
+                              <a [href]="getKhmerDictUrl(sug)" target="_blank" rel="noopener noreferrer"
+                                 (click)="$event.stopPropagation()"
+                                 class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-0.5 rounded text-[11px] transition"
+                                 title="មើលក្នុងវចនានុក្រម KhmerDict">
+                                📖
+                              </a>
+                            </div>
+                            <span class="text-[10px] text-emerald-700 bg-white group-hover:bg-emerald-600 group-hover:text-white font-bold px-2 py-0.5 rounded-md border border-emerald-200 transition shrink-0">
+                              ជ្រើសរើស ✓
+                            </span>
+                          </div>
+                          <p *ngIf="getWordDefinition(sug)" class="text-[11px] text-slate-600 font-normal leading-snug line-clamp-2 mt-1 select-text">
+                            {{ getWordDefinition(sug) }}
+                          </p>
+                        </div>
+                      </ng-container>
+                      <ng-template #noAdminSuggestions>
+                        <div class="px-2 py-1 text-[11px] text-slate-400 italic">គ្មានពាក្យស្រដៀង</div>
+                      </ng-template>
+                    </div>
+
+                    <!-- Footer Actions -->
+                    <div class="border-t border-slate-100 pt-1.5 mt-1 flex items-center gap-1.5">
+                      <button type="button"
+                        (click)="addWordToDictionary(activeSpellSuggestion()!.token)"
+                        class="flex-1 text-center px-2 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                        <span>➕</span> វចនានុក្រម (Add)
+                      </button>
+                      <button type="button"
+                        (click)="ignoreSpellWord(activeSpellSuggestion()!.token)"
+                        class="px-2.5 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                        <span>👁️</span> រំលង (Ignore)
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Footer Buttons -->
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-1.5">
+                      <button *ngIf="spellUndoHistory.length > 0"
+                              type="button"
+                              (click)="undoSpellCorrection()"
+                              class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold px-2.5 py-1 rounded-xl transition flex items-center gap-1">
+                        <span>↩</span> ត្រឡប់ដើម
+                      </button>
+                    </div>
+                    <div class="flex gap-2">
+                      <button (click)="editingTextQuestionId.set(null); activeSpellSuggestion.set(null)" 
+                              class="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition">
+                        Cancel
+                      </button>
+                      <button (click)="saveInlineText(q)" 
+                              [disabled]="savingInline()"
+                              class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
+                        {{ savingInline() ? 'Saving...' : 'Save' }}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -653,15 +805,106 @@
                       </div>
                       
                       <!-- Choice text edit input -->
-                      <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5">
-                        <textarea [ngModel]="editingChoiceText"
-                                  (ngModelChange)="editingChoiceText = $event"
-                                  [rows]="getTextareaRows(editingChoiceText, 2)"
-                                  class="w-full text-base font-bold text-slate-900 border border-slate-300 px-3 py-2 rounded-lg focus:border-blue-500 outline-none bg-white leading-relaxed inline-edit-choice-textarea"
-                                  (keydown)="onChoiceKeyDown($event, ans, q)"
-                                  (blur)="onBlurChoice()"></textarea>
+                      <div *ngIf="editingChoiceId() === ans.id" class="choice-edit-box flex flex-col gap-1.5 mt-0.5 relative w-full">
+                        <div class="relative w-full rounded-lg border border-slate-300 bg-white overflow-hidden focus-within:border-blue-500 min-h-[60px]">
+                          <div *ngIf="spellCheckActive()"
+                               class="absolute inset-0 px-3 py-2 text-base font-bold leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
+                               style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 1px solid transparent; letter-spacing: normal;"
+                               aria-hidden="true"><ng-container *ngFor="let token of choiceSpellReport()?.tokens"><span *ngIf="!token.isValid; else validAdminChoiceToken" class="text-transparent bg-rose-200/70 underline decoration-wavy decoration-rose-500 decoration-2 select-none" style="text-underline-offset: 3px;">{{ token.text }}</span><ng-template #validAdminChoiceToken><span>{{ token.text }}</span></ng-template></ng-container></div>
+
+                          <textarea [ngModel]="editingChoiceText"
+                                    (ngModelChange)="onEditingChoiceChange($event)"
+                                    (scroll)="syncBackdropScroll($event)"
+                                    (click)="onChoiceEditorClick($event)"
+                                    (contextmenu)="onChoiceEditorContextMenu($event)"
+                                    (keydown)="onChoiceKeyDown($event, ans, q)"
+                                    [rows]="getTextareaRows(editingChoiceText, 2)"
+                                    class="relative z-10 w-full text-base font-bold text-slate-900 bg-transparent px-3 py-2 outline-none resize-y inline-edit-choice-textarea"
+                                    style="box-sizing: border-box; margin: 0; border: 1px solid transparent;"></textarea>
+                        </div>
+
+                        <!-- Floating Suggestion Context Menu Popup for Choice -->
+                        <div *ngIf="activeSpellSuggestion() && activeSpellSuggestion()?.isChoice"
+                          class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl shadow-2xl p-1.5 w-[350px] animate-in fade-in zoom-in-95 duration-150 select-none"
+                          [style.left.px]="activeSpellSuggestion()?.x"
+                          [style.top.px]="activeSpellSuggestion()?.y"
+                          (click)="$event.stopPropagation()">
+                          
+                          <div (mousedown)="startDragPopup($event)" class="px-3 py-2 border-b border-slate-100 flex items-center justify-between cursor-move bg-slate-50/80 rounded-t-xl">
+                            <div class="flex items-center gap-2">
+                              <span class="text-slate-400 text-xs" title="អូសផ្លាស់ទី">⠿</span>
+                              <div>
+                                <div class="flex items-center gap-1.5">
+                                  <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
+                                  <a *ngIf="activeSpellSuggestion()?.token?.text"
+                                     [href]="getKhmerDictUrl(activeSpellSuggestion()!.token.text)"
+                                     target="_blank" rel="noopener noreferrer"
+                                     (click)="$event.stopPropagation()"
+                                     class="text-[9px] text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-0.5"
+                                     title="ស្វែងរកក្នុងវចនានុក្រម KhmerDict">
+                                    <span>📖 វចនានុក្រម ↗</span>
+                                  </a>
+                                </div>
+                                <span class="text-sm font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
+                              </div>
+                            </div>
+                            <div class="flex items-center gap-1" (mousedown)="$event.stopPropagation()">
+                              <button type="button" 
+                                      (click)="togglePopupSide($event)" 
+                                      class="text-slate-500 hover:text-blue-600 hover:bg-blue-50 text-[10px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition flex items-center gap-0.5 border border-slate-200" 
+                                      [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
+                                {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
+                              </button>
+                              <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                            </div>
+                          </div>
+
+                          <div class="p-1.5 space-y-1.5 max-h-72 overflow-y-auto">
+                            <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 px-1.5 py-0.5 block">ពាក្យកែតម្រូវ និងនិយមន័យ (Suggestions & Meaning)</span>
+                            <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noChoiceAdminSuggestions">
+                              <div *ngFor="let sug of activeSpellSuggestion()?.suggestions"
+                                (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug, q, ans)"
+                                class="w-full text-left p-2 rounded-xl transition-all border border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/60 group cursor-pointer">
+                                <div class="flex items-center justify-between gap-1.5">
+                                  <div class="flex items-center gap-1.5">
+                                    <span class="text-sm font-extrabold text-slate-800 group-hover:text-emerald-700">{{ sug }}</span>
+                                    <a [href]="getKhmerDictUrl(sug)" target="_blank" rel="noopener noreferrer"
+                                       (click)="$event.stopPropagation()"
+                                       class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-0.5 rounded text-[11px] transition"
+                                       title="មើលក្នុងវចនានុក្រម KhmerDict">
+                                      📖
+                                    </a>
+                                  </div>
+                                  <span class="text-[10px] text-emerald-700 bg-white group-hover:bg-emerald-600 group-hover:text-white font-bold px-2 py-0.5 rounded-md border border-emerald-200 transition shrink-0">
+                                    ជ្រើសរើស ✓
+                                  </span>
+                                </div>
+                                <p *ngIf="getWordDefinition(sug)" class="text-[11px] text-slate-600 font-normal leading-snug line-clamp-2 mt-1 select-text">
+                                  {{ getWordDefinition(sug) }}
+                                </p>
+                              </div>
+                            </ng-container>
+                            <ng-template #noChoiceAdminSuggestions>
+                              <div class="px-2 py-1 text-[11px] text-slate-400 italic">គ្មានពាក្យស្រដៀង</div>
+                            </ng-template>
+                          </div>
+
+                          <div class="border-t border-slate-100 pt-1.5 mt-1 flex items-center gap-1.5">
+                            <button type="button"
+                              (click)="addWordToDictionary(activeSpellSuggestion()!.token)"
+                              class="flex-1 text-center px-2 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                              <span>➕</span> វចនានុក្រម (Add)
+                            </button>
+                            <button type="button"
+                              (click)="ignoreSpellWord(activeSpellSuggestion()!.token)"
+                              class="px-2.5 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                              <span>👁️</span> រំលង (Ignore)
+                            </button>
+                          </div>
+                        </div>
+
                         <div class="flex gap-1 justify-end">
-                          <button (click)="editingChoiceId.set(null)" 
+                          <button (click)="editingChoiceId.set(null); activeSpellSuggestion.set(null)" 
                                   class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">
                             Cancel
                           </button>
@@ -935,6 +1178,19 @@
                 <span class="inline-flex items-center justify-center px-2 py-0.5 rounded bg-slate-800 text-white text-[10px] font-black tracking-wider uppercase shrink-0 shadow-sm border border-slate-700" title="Question Index Position">
                   #{{ q.sequenceNumber }}
                 </span>
+                <!-- Khmer Spell Check Warning Badge -->
+                <div *ngIf="spellCheckActive() && getQuestionSpellErrors(q) > 0" 
+                     class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 border border-rose-200/80 rounded-lg text-rose-700 text-xs font-bold animate-in fade-in duration-200">
+                  <span>⚠️</span>
+                  <span>{{ getQuestionSpellErrors(q) }} កំហុសអក្ខរាវិរុទ្ធ</span>
+                  <button type="button" 
+                          (click)="fixAllSpellErrorsInQuestion(q, $event)" 
+                          [disabled]="autoFixAllInProgress()"
+                          class="ml-1 text-[11px] bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-extrabold px-2 py-0.5 rounded-md transition shadow-sm hover:shadow active:scale-95 flex items-center gap-1"
+                          title="កែកំហុសទាំងអស់ដោយស្វ័យប្រវត្តិតាមវចនានុក្រម">
+                    <span>⚡ កែទាំងអស់</span>
+                  </button>
+                </div>
                 <span
                   class="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded">{{
                   q.qtype }}</span>
@@ -976,24 +1232,151 @@
                     ✏️ Click to Edit
                   </span>
                 </div>
-                <div *ngIf="editingTextQuestionId() === q.id" class="flex flex-col gap-2 mt-1">
-                  <textarea [ngModel]="editingTextValue"
-                            (ngModelChange)="editingTextValue = $event"
-                            [rows]="getTextareaRows(editingTextValue, 4)"
-                            class="w-full text-xl md:text-2xl font-bold text-gray-900 border-2 border-blue-400 p-4 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white leading-relaxed inline-edit-textarea"
-                            (keydown)="onTextKeyDown($event, q)"
-                            (blur)="onBlurText()"
-                            placeholder="Edit question text..."></textarea>
-                  <div class="flex gap-2 justify-end">
-                    <button (click)="editingTextQuestionId.set(null)" 
-                            class="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition">
-                      Cancel
-                    </button>
-                    <button (click)="saveInlineText(q)" 
-                            [disabled]="savingInline()"
-                            class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
-                      {{ savingInline() ? 'Saving...' : 'Save' }}
-                    </button>
+                <div *ngIf="editingTextQuestionId() === q.id" class="question-edit-box flex flex-col gap-2 mt-1 relative w-full">
+                  <!-- Spell Quick Fix Chips -->
+                  <div *ngIf="spellCheckActive() && spellCheckErrorsCount() > 0"
+                    class="flex flex-wrap items-center gap-1.5 p-2 bg-rose-50/90 border border-rose-200/60 rounded-xl mb-1 text-xs">
+                    <span class="font-bold text-rose-700 flex items-center gap-1">
+                      <span>⚠️</span> {{ spellCheckErrorsCount() }} ពាក្យសង្ស័យខុស:
+                    </span>
+                    <ng-container *ngFor="let token of spellCheckReport()?.tokens">
+                      <div *ngIf="!token.isValid && token.isKhmer"
+                        class="spell-trigger-chip inline-flex items-center bg-white border border-rose-300 text-rose-700 rounded-full text-xs font-bold shadow-xs hover:bg-rose-50 transition cursor-pointer">
+                        <span class="px-2 py-1" (click)="openSpellSuggestionForToken(token, $event)">{{ token.text }}</span>
+                        <button *ngIf="token.primarySuggestion"
+                          type="button"
+                          (click)="applySpellSuggestion(token, token.primarySuggestion!, q); $event.stopPropagation()"
+                          class="text-[9px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-1.5 py-1 font-bold rounded-r-full border-l border-rose-200 transition cursor-pointer"
+                          title="កែភ្លាមៗ">
+                          កែ ✓
+                        </button>
+                      </div>
+                    </ng-container>
+                  </div>
+
+                  <!-- Text Editor Container with Wavy Underline Backdrop -->
+                  <div class="relative w-full rounded-2xl border-2 border-blue-400 bg-white shadow-sm overflow-hidden focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-500 min-h-[140px]">
+                    <div *ngIf="spellCheckActive()"
+                         class="absolute inset-0 p-4 text-xl md:text-2xl font-bold leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
+                         style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 2px solid transparent; letter-spacing: normal; word-spacing: normal;"
+                         aria-hidden="true"><ng-container *ngFor="let token of spellCheckReport()?.tokens"><span *ngIf="!token.isValid; else validAdminToken" class="text-transparent bg-rose-200/70 underline decoration-wavy decoration-rose-500 decoration-2 select-none" style="text-underline-offset: 3px;">{{ token.text }}</span><ng-template #validAdminToken><span>{{ token.text }}</span></ng-template></ng-container></div>
+
+                    <textarea [ngModel]="editingTextValue"
+                              (ngModelChange)="onEditingTextChange($event)"
+                              (scroll)="syncBackdropScroll($event)"
+                              (click)="onEditorClick($event)"
+                              (contextmenu)="onEditorContextMenu($event)"
+                              (keydown)="onTextKeyDown($event, q)"
+                              [rows]="getTextareaRows(editingTextValue, 4)"
+                              class="relative z-10 w-full p-4 text-xl md:text-2xl font-bold text-gray-900 bg-transparent leading-relaxed outline-none resize-y inline-edit-textarea"
+                              style="box-sizing: border-box; margin: 0; border: 2px solid transparent;"
+                              placeholder="Edit question text..."></textarea>
+                  </div>
+
+                  <!-- Floating Suggestion Context Menu Popup -->
+                  <div *ngIf="activeSpellSuggestion() && !activeSpellSuggestion()?.isChoice"
+                    class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl shadow-2xl p-1.5 w-[350px] animate-in fade-in zoom-in-95 duration-150 select-none"
+                    [style.left.px]="activeSpellSuggestion()?.x"
+                    [style.top.px]="activeSpellSuggestion()?.y"
+                    (click)="$event.stopPropagation()">
+                    
+                    <!-- Drag Header -->
+                    <div (mousedown)="startDragPopup($event)" class="px-3 py-2 border-b border-slate-100 flex items-center justify-between cursor-move bg-slate-50/80 rounded-t-xl">
+                      <div class="flex items-center gap-2">
+                        <span class="text-slate-400 text-xs" title="អូសផ្លាស់ទី">⠿</span>
+                        <div>
+                          <div class="flex items-center gap-1.5">
+                            <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
+                            <a *ngIf="activeSpellSuggestion()?.token?.text"
+                               [href]="getKhmerDictUrl(activeSpellSuggestion()!.token.text)"
+                               target="_blank" rel="noopener noreferrer"
+                               (click)="$event.stopPropagation()"
+                               class="text-[9px] text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-0.5"
+                               title="ស្វែងរកក្នុងវចនានុក្រម KhmerDict">
+                              <span>📖 វចនានុក្រម ↗</span>
+                            </a>
+                          </div>
+                          <span class="text-sm font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-1" (mousedown)="$event.stopPropagation()">
+                        <button type="button" 
+                                (click)="togglePopupSide($event)" 
+                                class="text-slate-500 hover:text-blue-600 hover:bg-blue-50 text-[10px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition flex items-center gap-0.5 border border-slate-200" 
+                                [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
+                          {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
+                        </button>
+                        <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                      </div>
+                    </div>
+
+                    <!-- Compact Scrollable Suggestions List with Meaning -->
+                    <div class="p-1.5 space-y-1.5 max-h-72 overflow-y-auto">
+                      <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 px-1.5 py-0.5 block">ពាក្យកែតម្រូវ និងនិយមន័យ (Suggestions & Meaning)</span>
+                      <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noAdminSuggestions">
+                        <div *ngFor="let sug of activeSpellSuggestion()?.suggestions"
+                          (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug, q)"
+                          class="w-full text-left p-2 rounded-xl transition-all border border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/60 group cursor-pointer">
+                          <div class="flex items-center justify-between gap-1.5">
+                            <div class="flex items-center gap-1.5">
+                              <span class="text-sm font-extrabold text-slate-800 group-hover:text-emerald-700">{{ sug }}</span>
+                              <a [href]="getKhmerDictUrl(sug)" target="_blank" rel="noopener noreferrer"
+                                 (click)="$event.stopPropagation()"
+                                 class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-0.5 rounded text-[11px] transition"
+                                 title="មើលក្នុងវចនានុក្រម KhmerDict">
+                                📖
+                              </a>
+                            </div>
+                            <span class="text-[10px] text-emerald-700 bg-white group-hover:bg-emerald-600 group-hover:text-white font-bold px-2 py-0.5 rounded-md border border-emerald-200 transition shrink-0">
+                              ជ្រើសរើស ✓
+                            </span>
+                          </div>
+                          <p *ngIf="getWordDefinition(sug)" class="text-[11px] text-slate-600 font-normal leading-snug line-clamp-2 mt-1 select-text">
+                            {{ getWordDefinition(sug) }}
+                          </p>
+                        </div>
+                      </ng-container>
+                      <ng-template #noAdminSuggestions>
+                        <div class="px-2 py-1 text-[11px] text-slate-400 italic">គ្មានពាក្យស្រដៀង</div>
+                      </ng-template>
+                    </div>
+
+                    <!-- Footer Actions -->
+                    <div class="border-t border-slate-100 pt-1.5 mt-1 flex items-center gap-1.5">
+                      <button type="button"
+                        (click)="addWordToDictionary(activeSpellSuggestion()!.token)"
+                        class="flex-1 text-center px-2 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                        <span>➕</span> វចនានុក្រម (Add)
+                      </button>
+                      <button type="button"
+                        (click)="ignoreSpellWord(activeSpellSuggestion()!.token)"
+                        class="px-2.5 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                        <span>👁️</span> រំលង (Ignore)
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Footer Buttons -->
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-1.5">
+                      <button *ngIf="spellUndoHistory.length > 0"
+                              type="button"
+                              (click)="undoSpellCorrection()"
+                              class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold px-2.5 py-1 rounded-xl transition flex items-center gap-1">
+                        <span>↩</span> ត្រឡប់ដើម
+                      </button>
+                    </div>
+                    <div class="flex gap-2">
+                      <button (click)="editingTextQuestionId.set(null); activeSpellSuggestion.set(null)" 
+                              class="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition">
+                        Cancel
+                      </button>
+                      <button (click)="saveInlineText(q)" 
+                              [disabled]="savingInline()"
+                              class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
+                        {{ savingInline() ? 'Saving...' : 'Save' }}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1033,15 +1416,106 @@
                       </div>
                       
                       <!-- Choice text edit input -->
-                      <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5">
-                        <textarea [ngModel]="editingChoiceText"
-                                  (ngModelChange)="editingChoiceText = $event"
-                                  [rows]="getTextareaRows(editingChoiceText, 2)"
-                                  class="w-full text-base font-bold text-slate-900 border border-slate-300 px-3 py-2 rounded-lg focus:border-blue-500 outline-none bg-white leading-relaxed inline-edit-choice-textarea"
-                                  (keydown)="onChoiceKeyDown($event, ans, q)"
-                                  (blur)="onBlurChoice()"></textarea>
+                      <div *ngIf="editingChoiceId() === ans.id" class="choice-edit-box flex flex-col gap-1.5 mt-0.5 relative w-full">
+                        <div class="relative w-full rounded-lg border border-slate-300 bg-white overflow-hidden focus-within:border-blue-500 min-h-[60px]">
+                          <div *ngIf="spellCheckActive()"
+                               class="absolute inset-0 px-3 py-2 text-base font-bold leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
+                               style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 1px solid transparent; letter-spacing: normal;"
+                               aria-hidden="true"><ng-container *ngFor="let token of choiceSpellReport()?.tokens"><span *ngIf="!token.isValid; else validAdminChoiceToken" class="text-transparent bg-rose-200/70 underline decoration-wavy decoration-rose-500 decoration-2 select-none" style="text-underline-offset: 3px;">{{ token.text }}</span><ng-template #validAdminChoiceToken><span>{{ token.text }}</span></ng-template></ng-container></div>
+
+                          <textarea [ngModel]="editingChoiceText"
+                                    (ngModelChange)="onEditingChoiceChange($event)"
+                                    (scroll)="syncBackdropScroll($event)"
+                                    (click)="onChoiceEditorClick($event)"
+                                    (contextmenu)="onChoiceEditorContextMenu($event)"
+                                    (keydown)="onChoiceKeyDown($event, ans, q)"
+                                    [rows]="getTextareaRows(editingChoiceText, 2)"
+                                    class="relative z-10 w-full text-base font-bold text-slate-900 bg-transparent px-3 py-2 outline-none resize-y inline-edit-choice-textarea"
+                                    style="box-sizing: border-box; margin: 0; border: 1px solid transparent;"></textarea>
+                        </div>
+
+                        <!-- Floating Suggestion Context Menu Popup for Choice -->
+                        <div *ngIf="activeSpellSuggestion() && activeSpellSuggestion()?.isChoice"
+                          class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl shadow-2xl p-1.5 w-[350px] animate-in fade-in zoom-in-95 duration-150 select-none"
+                          [style.left.px]="activeSpellSuggestion()?.x"
+                          [style.top.px]="activeSpellSuggestion()?.y"
+                          (click)="$event.stopPropagation()">
+                          
+                          <div (mousedown)="startDragPopup($event)" class="px-3 py-2 border-b border-slate-100 flex items-center justify-between cursor-move bg-slate-50/80 rounded-t-xl">
+                            <div class="flex items-center gap-2">
+                              <span class="text-slate-400 text-xs" title="អូសផ្លាស់ទី">⠿</span>
+                              <div>
+                                <div class="flex items-center gap-1.5">
+                                  <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
+                                  <a *ngIf="activeSpellSuggestion()?.token?.text"
+                                     [href]="getKhmerDictUrl(activeSpellSuggestion()!.token.text)"
+                                     target="_blank" rel="noopener noreferrer"
+                                     (click)="$event.stopPropagation()"
+                                     class="text-[9px] text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-0.5"
+                                     title="ស្វែងរកក្នុងវចនានុក្រម KhmerDict">
+                                    <span>📖 វចនានុក្រម ↗</span>
+                                  </a>
+                                </div>
+                                <span class="text-sm font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
+                              </div>
+                            </div>
+                            <div class="flex items-center gap-1" (mousedown)="$event.stopPropagation()">
+                              <button type="button" 
+                                      (click)="togglePopupSide($event)" 
+                                      class="text-slate-500 hover:text-blue-600 hover:bg-blue-50 text-[10px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition flex items-center gap-0.5 border border-slate-200" 
+                                      [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
+                                {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
+                              </button>
+                              <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                            </div>
+                          </div>
+
+                          <div class="p-1.5 space-y-1.5 max-h-72 overflow-y-auto">
+                            <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 px-1.5 py-0.5 block">ពាក្យកែតម្រូវ និងនិយមន័យ (Suggestions & Meaning)</span>
+                            <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noChoiceAdminSuggestions">
+                              <div *ngFor="let sug of activeSpellSuggestion()?.suggestions"
+                                (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug, q, ans)"
+                                class="w-full text-left p-2 rounded-xl transition-all border border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/60 group cursor-pointer">
+                                <div class="flex items-center justify-between gap-1.5">
+                                  <div class="flex items-center gap-1.5">
+                                    <span class="text-sm font-extrabold text-slate-800 group-hover:text-emerald-700">{{ sug }}</span>
+                                    <a [href]="getKhmerDictUrl(sug)" target="_blank" rel="noopener noreferrer"
+                                       (click)="$event.stopPropagation()"
+                                       class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-0.5 rounded text-[11px] transition"
+                                       title="មើលក្នុងវចនានុក្រម KhmerDict">
+                                      📖
+                                    </a>
+                                  </div>
+                                  <span class="text-[10px] text-emerald-700 bg-white group-hover:bg-emerald-600 group-hover:text-white font-bold px-2 py-0.5 rounded-md border border-emerald-200 transition shrink-0">
+                                    ជ្រើសរើស ✓
+                                  </span>
+                                </div>
+                                <p *ngIf="getWordDefinition(sug)" class="text-[11px] text-slate-600 font-normal leading-snug line-clamp-2 mt-1 select-text">
+                                  {{ getWordDefinition(sug) }}
+                                </p>
+                              </div>
+                            </ng-container>
+                            <ng-template #noChoiceAdminSuggestions>
+                              <div class="px-2 py-1 text-[11px] text-slate-400 italic">គ្មានពាក្យស្រដៀង</div>
+                            </ng-template>
+                          </div>
+
+                          <div class="border-t border-slate-100 pt-1.5 mt-1 flex items-center gap-1.5">
+                            <button type="button"
+                              (click)="addWordToDictionary(activeSpellSuggestion()!.token)"
+                              class="flex-1 text-center px-2 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                              <span>➕</span> វចនានុក្រម (Add)
+                            </button>
+                            <button type="button"
+                              (click)="ignoreSpellWord(activeSpellSuggestion()!.token)"
+                              class="px-2.5 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                              <span>👁️</span> រំលង (Ignore)
+                            </button>
+                          </div>
+                        </div>
+
                         <div class="flex gap-1 justify-end">
-                          <button (click)="editingChoiceId.set(null)" 
+                          <button (click)="editingChoiceId.set(null); activeSpellSuggestion.set(null)" 
                                   class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">
                             Cancel
                           </button>
@@ -1170,6 +1644,19 @@
                 <span class="inline-flex items-center justify-center px-2 py-0.5 rounded bg-slate-800 text-white text-[10px] font-black tracking-wider uppercase shrink-0 shadow-sm border border-slate-700" title="Question Index Position">
                   #{{ q.sequenceNumber }}
                 </span>
+                <!-- Khmer Spell Check Warning Badge -->
+                <div *ngIf="spellCheckActive() && getQuestionSpellErrors(q) > 0" 
+                     class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 border border-rose-200/80 rounded-lg text-rose-700 text-xs font-bold animate-in fade-in duration-200">
+                  <span>⚠️</span>
+                  <span>{{ getQuestionSpellErrors(q) }} កំហុសអក្ខរាវិរុទ្ធ</span>
+                  <button type="button" 
+                          (click)="fixAllSpellErrorsInQuestion(q, $event)" 
+                          [disabled]="autoFixAllInProgress()"
+                          class="ml-1 text-[11px] bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-extrabold px-2 py-0.5 rounded-md transition shadow-sm hover:shadow active:scale-95 flex items-center gap-1"
+                          title="កែកំហុសទាំងអស់ដោយស្វ័យប្រវត្តិតាមវចនានុក្រម">
+                    <span>⚡ កែទាំងអស់</span>
+                  </button>
+                </div>
                 <span
                   class="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded">{{
                   q.qtype }}</span>
@@ -1210,24 +1697,151 @@
                     ✏️ Click to Edit
                   </span>
                 </div>
-                <div *ngIf="editingTextQuestionId() === q.id" class="flex flex-col gap-2 mt-1">
-                  <textarea [ngModel]="editingTextValue"
-                            (ngModelChange)="editingTextValue = $event"
-                            [rows]="getTextareaRows(editingTextValue, 4)"
-                            class="w-full text-xl md:text-2xl font-bold text-gray-900 border-2 border-blue-400 p-4 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white leading-relaxed inline-edit-textarea"
-                            (keydown)="onTextKeyDown($event, q)"
-                            (blur)="onBlurText()"
-                            placeholder="Edit question text..."></textarea>
-                  <div class="flex gap-2 justify-end">
-                    <button (click)="editingTextQuestionId.set(null)" 
-                            class="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition">
-                      Cancel
-                    </button>
-                    <button (click)="saveInlineText(q)" 
-                            [disabled]="savingInline()"
-                            class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
-                      {{ savingInline() ? 'Saving...' : 'Save' }}
-                    </button>
+                <div *ngIf="editingTextQuestionId() === q.id" class="question-edit-box flex flex-col gap-2 mt-1 relative w-full">
+                  <!-- Spell Quick Fix Chips -->
+                  <div *ngIf="spellCheckActive() && spellCheckErrorsCount() > 0"
+                    class="flex flex-wrap items-center gap-1.5 p-2 bg-rose-50/90 border border-rose-200/60 rounded-xl mb-1 text-xs">
+                    <span class="font-bold text-rose-700 flex items-center gap-1">
+                      <span>⚠️</span> {{ spellCheckErrorsCount() }} ពាក្យសង្ស័យខុស:
+                    </span>
+                    <ng-container *ngFor="let token of spellCheckReport()?.tokens">
+                      <div *ngIf="!token.isValid && token.isKhmer"
+                        class="spell-trigger-chip inline-flex items-center bg-white border border-rose-300 text-rose-700 rounded-full text-xs font-bold shadow-xs hover:bg-rose-50 transition cursor-pointer">
+                        <span class="px-2 py-1" (click)="openSpellSuggestionForToken(token, $event)">{{ token.text }}</span>
+                        <button *ngIf="token.primarySuggestion"
+                          type="button"
+                          (click)="applySpellSuggestion(token, token.primarySuggestion!, q); $event.stopPropagation()"
+                          class="text-[9px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-1.5 py-1 font-bold rounded-r-full border-l border-rose-200 transition cursor-pointer"
+                          title="កែភ្លាមៗ">
+                          កែ ✓
+                        </button>
+                      </div>
+                    </ng-container>
+                  </div>
+
+                  <!-- Text Editor Container with Wavy Underline Backdrop -->
+                  <div class="relative w-full rounded-2xl border-2 border-blue-400 bg-white shadow-sm overflow-hidden focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-500 min-h-[140px]">
+                    <div *ngIf="spellCheckActive()"
+                         class="absolute inset-0 p-4 text-xl md:text-2xl font-bold leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
+                         style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 2px solid transparent; letter-spacing: normal; word-spacing: normal;"
+                         aria-hidden="true"><ng-container *ngFor="let token of spellCheckReport()?.tokens"><span *ngIf="!token.isValid; else validAdminToken" class="text-transparent bg-rose-200/70 underline decoration-wavy decoration-rose-500 decoration-2 select-none" style="text-underline-offset: 3px;">{{ token.text }}</span><ng-template #validAdminToken><span>{{ token.text }}</span></ng-template></ng-container></div>
+
+                    <textarea [ngModel]="editingTextValue"
+                              (ngModelChange)="onEditingTextChange($event)"
+                              (scroll)="syncBackdropScroll($event)"
+                              (click)="onEditorClick($event)"
+                              (contextmenu)="onEditorContextMenu($event)"
+                              (keydown)="onTextKeyDown($event, q)"
+                              [rows]="getTextareaRows(editingTextValue, 4)"
+                              class="relative z-10 w-full p-4 text-xl md:text-2xl font-bold text-gray-900 bg-transparent leading-relaxed outline-none resize-y inline-edit-textarea"
+                              style="box-sizing: border-box; margin: 0; border: 2px solid transparent;"
+                              placeholder="Edit question text..."></textarea>
+                  </div>
+
+                  <!-- Floating Suggestion Context Menu Popup -->
+                  <div *ngIf="activeSpellSuggestion() && !activeSpellSuggestion()?.isChoice"
+                    class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl shadow-2xl p-1.5 w-[350px] animate-in fade-in zoom-in-95 duration-150 select-none"
+                    [style.left.px]="activeSpellSuggestion()?.x"
+                    [style.top.px]="activeSpellSuggestion()?.y"
+                    (click)="$event.stopPropagation()">
+                    
+                    <!-- Drag Header -->
+                    <div (mousedown)="startDragPopup($event)" class="px-3 py-2 border-b border-slate-100 flex items-center justify-between cursor-move bg-slate-50/80 rounded-t-xl">
+                      <div class="flex items-center gap-2">
+                        <span class="text-slate-400 text-xs" title="អូសផ្លាស់ទី">⠿</span>
+                        <div>
+                          <div class="flex items-center gap-1.5">
+                            <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
+                            <a *ngIf="activeSpellSuggestion()?.token?.text"
+                               [href]="getKhmerDictUrl(activeSpellSuggestion()!.token.text)"
+                               target="_blank" rel="noopener noreferrer"
+                               (click)="$event.stopPropagation()"
+                               class="text-[9px] text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-0.5"
+                               title="ស្វែងរកក្នុងវចនានុក្រម KhmerDict">
+                              <span>📖 វចនានុក្រម ↗</span>
+                            </a>
+                          </div>
+                          <span class="text-sm font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-1" (mousedown)="$event.stopPropagation()">
+                        <button type="button" 
+                                (click)="togglePopupSide($event)" 
+                                class="text-slate-500 hover:text-blue-600 hover:bg-blue-50 text-[10px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition flex items-center gap-0.5 border border-slate-200" 
+                                [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
+                          {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
+                        </button>
+                        <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                      </div>
+                    </div>
+
+                    <!-- Compact Scrollable Suggestions List with Meaning -->
+                    <div class="p-1.5 space-y-1.5 max-h-72 overflow-y-auto">
+                      <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 px-1.5 py-0.5 block">ពាក្យកែតម្រូវ និងនិយមន័យ (Suggestions & Meaning)</span>
+                      <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noAdminSuggestions">
+                        <div *ngFor="let sug of activeSpellSuggestion()?.suggestions"
+                          (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug, q)"
+                          class="w-full text-left p-2 rounded-xl transition-all border border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/60 group cursor-pointer">
+                          <div class="flex items-center justify-between gap-1.5">
+                            <div class="flex items-center gap-1.5">
+                              <span class="text-sm font-extrabold text-slate-800 group-hover:text-emerald-700">{{ sug }}</span>
+                              <a [href]="getKhmerDictUrl(sug)" target="_blank" rel="noopener noreferrer"
+                                 (click)="$event.stopPropagation()"
+                                 class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-0.5 rounded text-[11px] transition"
+                                 title="មើលក្នុងវចនានុក្រម KhmerDict">
+                                📖
+                              </a>
+                            </div>
+                            <span class="text-[10px] text-emerald-700 bg-white group-hover:bg-emerald-600 group-hover:text-white font-bold px-2 py-0.5 rounded-md border border-emerald-200 transition shrink-0">
+                              ជ្រើសរើស ✓
+                            </span>
+                          </div>
+                          <p *ngIf="getWordDefinition(sug)" class="text-[11px] text-slate-600 font-normal leading-snug line-clamp-2 mt-1 select-text">
+                            {{ getWordDefinition(sug) }}
+                          </p>
+                        </div>
+                      </ng-container>
+                      <ng-template #noAdminSuggestions>
+                        <div class="px-2 py-1 text-[11px] text-slate-400 italic">គ្មានពាក្យស្រដៀង</div>
+                      </ng-template>
+                    </div>
+
+                    <!-- Footer Actions -->
+                    <div class="border-t border-slate-100 pt-1.5 mt-1 flex items-center gap-1.5">
+                      <button type="button"
+                        (click)="addWordToDictionary(activeSpellSuggestion()!.token)"
+                        class="flex-1 text-center px-2 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                        <span>➕</span> វចនានុក្រម (Add)
+                      </button>
+                      <button type="button"
+                        (click)="ignoreSpellWord(activeSpellSuggestion()!.token)"
+                        class="px-2.5 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                        <span>👁️</span> រំលង (Ignore)
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Footer Buttons -->
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-1.5">
+                      <button *ngIf="spellUndoHistory.length > 0"
+                              type="button"
+                              (click)="undoSpellCorrection()"
+                              class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold px-2.5 py-1 rounded-xl transition flex items-center gap-1">
+                        <span>↩</span> ត្រឡប់ដើម
+                      </button>
+                    </div>
+                    <div class="flex gap-2">
+                      <button (click)="editingTextQuestionId.set(null); activeSpellSuggestion.set(null)" 
+                              class="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition">
+                        Cancel
+                      </button>
+                      <button (click)="saveInlineText(q)" 
+                              [disabled]="savingInline()"
+                              class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
+                        {{ savingInline() ? 'Saving...' : 'Save' }}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1267,15 +1881,106 @@
                       </div>
                       
                       <!-- Choice text edit input -->
-                      <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5">
-                        <textarea [ngModel]="editingChoiceText"
-                                  (ngModelChange)="editingChoiceText = $event"
-                                  [rows]="getTextareaRows(editingChoiceText, 2)"
-                                  class="w-full text-base font-bold text-slate-900 border border-slate-300 px-3 py-2 rounded-lg focus:border-blue-500 outline-none bg-white leading-relaxed inline-edit-choice-textarea"
-                                  (keydown)="onChoiceKeyDown($event, ans, q)"
-                                  (blur)="onBlurChoice()"></textarea>
+                      <div *ngIf="editingChoiceId() === ans.id" class="choice-edit-box flex flex-col gap-1.5 mt-0.5 relative w-full">
+                        <div class="relative w-full rounded-lg border border-slate-300 bg-white overflow-hidden focus-within:border-blue-500 min-h-[60px]">
+                          <div *ngIf="spellCheckActive()"
+                               class="absolute inset-0 px-3 py-2 text-base font-bold leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
+                               style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 1px solid transparent; letter-spacing: normal;"
+                               aria-hidden="true"><ng-container *ngFor="let token of choiceSpellReport()?.tokens"><span *ngIf="!token.isValid; else validAdminChoiceToken" class="text-transparent bg-rose-200/70 underline decoration-wavy decoration-rose-500 decoration-2 select-none" style="text-underline-offset: 3px;">{{ token.text }}</span><ng-template #validAdminChoiceToken><span>{{ token.text }}</span></ng-template></ng-container></div>
+
+                          <textarea [ngModel]="editingChoiceText"
+                                    (ngModelChange)="onEditingChoiceChange($event)"
+                                    (scroll)="syncBackdropScroll($event)"
+                                    (click)="onChoiceEditorClick($event)"
+                                    (contextmenu)="onChoiceEditorContextMenu($event)"
+                                    (keydown)="onChoiceKeyDown($event, ans, q)"
+                                    [rows]="getTextareaRows(editingChoiceText, 2)"
+                                    class="relative z-10 w-full text-base font-bold text-slate-900 bg-transparent px-3 py-2 outline-none resize-y inline-edit-choice-textarea"
+                                    style="box-sizing: border-box; margin: 0; border: 1px solid transparent;"></textarea>
+                        </div>
+
+                        <!-- Floating Suggestion Context Menu Popup for Choice -->
+                        <div *ngIf="activeSpellSuggestion() && activeSpellSuggestion()?.isChoice"
+                          class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl shadow-2xl p-1.5 w-[350px] animate-in fade-in zoom-in-95 duration-150 select-none"
+                          [style.left.px]="activeSpellSuggestion()?.x"
+                          [style.top.px]="activeSpellSuggestion()?.y"
+                          (click)="$event.stopPropagation()">
+                          
+                          <div (mousedown)="startDragPopup($event)" class="px-3 py-2 border-b border-slate-100 flex items-center justify-between cursor-move bg-slate-50/80 rounded-t-xl">
+                            <div class="flex items-center gap-2">
+                              <span class="text-slate-400 text-xs" title="អូសផ្លាស់ទី">⠿</span>
+                              <div>
+                                <div class="flex items-center gap-1.5">
+                                  <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
+                                  <a *ngIf="activeSpellSuggestion()?.token?.text"
+                                     [href]="getKhmerDictUrl(activeSpellSuggestion()!.token.text)"
+                                     target="_blank" rel="noopener noreferrer"
+                                     (click)="$event.stopPropagation()"
+                                     class="text-[9px] text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-0.5"
+                                     title="ស្វែងរកក្នុងវចនានុក្រម KhmerDict">
+                                    <span>📖 វចនានុក្រម ↗</span>
+                                  </a>
+                                </div>
+                                <span class="text-sm font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
+                              </div>
+                            </div>
+                            <div class="flex items-center gap-1" (mousedown)="$event.stopPropagation()">
+                              <button type="button" 
+                                      (click)="togglePopupSide($event)" 
+                                      class="text-slate-500 hover:text-blue-600 hover:bg-blue-50 text-[10px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition flex items-center gap-0.5 border border-slate-200" 
+                                      [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
+                                {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
+                              </button>
+                              <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                            </div>
+                          </div>
+
+                          <div class="p-1.5 space-y-1.5 max-h-72 overflow-y-auto">
+                            <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 px-1.5 py-0.5 block">ពាក្យកែតម្រូវ និងនិយមន័យ (Suggestions & Meaning)</span>
+                            <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noChoiceAdminSuggestions">
+                              <div *ngFor="let sug of activeSpellSuggestion()?.suggestions"
+                                (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug, q, ans)"
+                                class="w-full text-left p-2 rounded-xl transition-all border border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/60 group cursor-pointer">
+                                <div class="flex items-center justify-between gap-1.5">
+                                  <div class="flex items-center gap-1.5">
+                                    <span class="text-sm font-extrabold text-slate-800 group-hover:text-emerald-700">{{ sug }}</span>
+                                    <a [href]="getKhmerDictUrl(sug)" target="_blank" rel="noopener noreferrer"
+                                       (click)="$event.stopPropagation()"
+                                       class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-0.5 rounded text-[11px] transition"
+                                       title="មើលក្នុងវចនានុក្រម KhmerDict">
+                                      📖
+                                    </a>
+                                  </div>
+                                  <span class="text-[10px] text-emerald-700 bg-white group-hover:bg-emerald-600 group-hover:text-white font-bold px-2 py-0.5 rounded-md border border-emerald-200 transition shrink-0">
+                                    ជ្រើសរើស ✓
+                                  </span>
+                                </div>
+                                <p *ngIf="getWordDefinition(sug)" class="text-[11px] text-slate-600 font-normal leading-snug line-clamp-2 mt-1 select-text">
+                                  {{ getWordDefinition(sug) }}
+                                </p>
+                              </div>
+                            </ng-container>
+                            <ng-template #noChoiceAdminSuggestions>
+                              <div class="px-2 py-1 text-[11px] text-slate-400 italic">គ្មានពាក្យស្រដៀង</div>
+                            </ng-template>
+                          </div>
+
+                          <div class="border-t border-slate-100 pt-1.5 mt-1 flex items-center gap-1.5">
+                            <button type="button"
+                              (click)="addWordToDictionary(activeSpellSuggestion()!.token)"
+                              class="flex-1 text-center px-2 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                              <span>➕</span> វចនានុក្រម (Add)
+                            </button>
+                            <button type="button"
+                              (click)="ignoreSpellWord(activeSpellSuggestion()!.token)"
+                              class="px-2.5 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                              <span>👁️</span> រំលង (Ignore)
+                            </button>
+                          </div>
+                        </div>
+
                         <div class="flex gap-1 justify-end">
-                          <button (click)="editingChoiceId.set(null)" 
+                          <button (click)="editingChoiceId.set(null); activeSpellSuggestion.set(null)" 
                                   class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">
                             Cancel
                           </button>
@@ -1407,6 +2112,19 @@
                 <span class="inline-flex items-center justify-center px-2 py-0.5 rounded bg-slate-800 text-white text-[10px] font-black tracking-wider uppercase shrink-0 shadow-sm border border-slate-700" title="Question Index Position">
                   #{{ q.sequenceNumber }}
                 </span>
+                <!-- Khmer Spell Check Warning Badge -->
+                <div *ngIf="spellCheckActive() && getQuestionSpellErrors(q) > 0" 
+                     class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 border border-rose-200/80 rounded-lg text-rose-700 text-xs font-bold animate-in fade-in duration-200">
+                  <span>⚠️</span>
+                  <span>{{ getQuestionSpellErrors(q) }} កំហុសអក្ខរាវិរុទ្ធ</span>
+                  <button type="button" 
+                          (click)="fixAllSpellErrorsInQuestion(q, $event)" 
+                          [disabled]="autoFixAllInProgress()"
+                          class="ml-1 text-[11px] bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-extrabold px-2 py-0.5 rounded-md transition shadow-sm hover:shadow active:scale-95 flex items-center gap-1"
+                          title="កែកំហុសទាំងអស់ដោយស្វ័យប្រវត្តិតាមវចនានុក្រម">
+                    <span>⚡ កែទាំងអស់</span>
+                  </button>
+                </div>
                 <span
                   class="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded">{{
                   q.qtype }}</span>
@@ -1433,24 +2151,151 @@
                     ✏️ Click to Edit
                   </span>
                 </div>
-                <div *ngIf="editingTextQuestionId() === q.id" class="flex flex-col gap-2 mt-1">
-                  <textarea [ngModel]="editingTextValue"
-                            (ngModelChange)="editingTextValue = $event"
-                            [rows]="getTextareaRows(editingTextValue, 4)"
-                            class="w-full text-xl md:text-2xl font-bold text-gray-900 border-2 border-blue-400 p-4 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white leading-relaxed inline-edit-textarea"
-                            (keydown)="onTextKeyDown($event, q)"
-                            (blur)="onBlurText()"
-                            placeholder="Edit question text..."></textarea>
-                  <div class="flex gap-2 justify-end">
-                    <button (click)="editingTextQuestionId.set(null)" 
-                            class="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition">
-                      Cancel
-                    </button>
-                    <button (click)="saveInlineText(q)" 
-                            [disabled]="savingInline()"
-                            class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
-                      {{ savingInline() ? 'Saving...' : 'Save' }}
-                    </button>
+                <div *ngIf="editingTextQuestionId() === q.id" class="question-edit-box flex flex-col gap-2 mt-1 relative w-full">
+                  <!-- Spell Quick Fix Chips -->
+                  <div *ngIf="spellCheckActive() && spellCheckErrorsCount() > 0"
+                    class="flex flex-wrap items-center gap-1.5 p-2 bg-rose-50/90 border border-rose-200/60 rounded-xl mb-1 text-xs">
+                    <span class="font-bold text-rose-700 flex items-center gap-1">
+                      <span>⚠️</span> {{ spellCheckErrorsCount() }} ពាក្យសង្ស័យខុស:
+                    </span>
+                    <ng-container *ngFor="let token of spellCheckReport()?.tokens">
+                      <div *ngIf="!token.isValid && token.isKhmer"
+                        class="spell-trigger-chip inline-flex items-center bg-white border border-rose-300 text-rose-700 rounded-full text-xs font-bold shadow-xs hover:bg-rose-50 transition cursor-pointer">
+                        <span class="px-2 py-1" (click)="openSpellSuggestionForToken(token, $event)">{{ token.text }}</span>
+                        <button *ngIf="token.primarySuggestion"
+                          type="button"
+                          (click)="applySpellSuggestion(token, token.primarySuggestion!, q); $event.stopPropagation()"
+                          class="text-[9px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-1.5 py-1 font-bold rounded-r-full border-l border-rose-200 transition cursor-pointer"
+                          title="កែភ្លាមៗ">
+                          កែ ✓
+                        </button>
+                      </div>
+                    </ng-container>
+                  </div>
+
+                  <!-- Text Editor Container with Wavy Underline Backdrop -->
+                  <div class="relative w-full rounded-2xl border-2 border-blue-400 bg-white shadow-sm overflow-hidden focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-500 min-h-[140px]">
+                    <div *ngIf="spellCheckActive()"
+                         class="absolute inset-0 p-4 text-xl md:text-2xl font-bold leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
+                         style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 2px solid transparent; letter-spacing: normal; word-spacing: normal;"
+                         aria-hidden="true"><ng-container *ngFor="let token of spellCheckReport()?.tokens"><span *ngIf="!token.isValid; else validAdminToken" class="text-transparent bg-rose-200/70 underline decoration-wavy decoration-rose-500 decoration-2 select-none" style="text-underline-offset: 3px;">{{ token.text }}</span><ng-template #validAdminToken><span>{{ token.text }}</span></ng-template></ng-container></div>
+
+                    <textarea [ngModel]="editingTextValue"
+                              (ngModelChange)="onEditingTextChange($event)"
+                              (scroll)="syncBackdropScroll($event)"
+                              (click)="onEditorClick($event)"
+                              (contextmenu)="onEditorContextMenu($event)"
+                              (keydown)="onTextKeyDown($event, q)"
+                              [rows]="getTextareaRows(editingTextValue, 4)"
+                              class="relative z-10 w-full p-4 text-xl md:text-2xl font-bold text-gray-900 bg-transparent leading-relaxed outline-none resize-y inline-edit-textarea"
+                              style="box-sizing: border-box; margin: 0; border: 2px solid transparent;"
+                              placeholder="Edit question text..."></textarea>
+                  </div>
+
+                  <!-- Floating Suggestion Context Menu Popup -->
+                  <div *ngIf="activeSpellSuggestion() && !activeSpellSuggestion()?.isChoice"
+                    class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl shadow-2xl p-1.5 w-[350px] animate-in fade-in zoom-in-95 duration-150 select-none"
+                    [style.left.px]="activeSpellSuggestion()?.x"
+                    [style.top.px]="activeSpellSuggestion()?.y"
+                    (click)="$event.stopPropagation()">
+                    
+                    <!-- Drag Header -->
+                    <div (mousedown)="startDragPopup($event)" class="px-3 py-2 border-b border-slate-100 flex items-center justify-between cursor-move bg-slate-50/80 rounded-t-xl">
+                      <div class="flex items-center gap-2">
+                        <span class="text-slate-400 text-xs" title="អូសផ្លាស់ទី">⠿</span>
+                        <div>
+                          <div class="flex items-center gap-1.5">
+                            <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
+                            <a *ngIf="activeSpellSuggestion()?.token?.text"
+                               [href]="getKhmerDictUrl(activeSpellSuggestion()!.token.text)"
+                               target="_blank" rel="noopener noreferrer"
+                               (click)="$event.stopPropagation()"
+                               class="text-[9px] text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-0.5"
+                               title="ស្វែងរកក្នុងវចនានុក្រម KhmerDict">
+                              <span>📖 វចនានុក្រម ↗</span>
+                            </a>
+                          </div>
+                          <span class="text-sm font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-1" (mousedown)="$event.stopPropagation()">
+                        <button type="button" 
+                                (click)="togglePopupSide($event)" 
+                                class="text-slate-500 hover:text-blue-600 hover:bg-blue-50 text-[10px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition flex items-center gap-0.5 border border-slate-200" 
+                                [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
+                          {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
+                        </button>
+                        <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                      </div>
+                    </div>
+
+                    <!-- Compact Scrollable Suggestions List with Meaning -->
+                    <div class="p-1.5 space-y-1.5 max-h-72 overflow-y-auto">
+                      <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 px-1.5 py-0.5 block">ពាក្យកែតម្រូវ និងនិយមន័យ (Suggestions & Meaning)</span>
+                      <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noAdminSuggestions">
+                        <div *ngFor="let sug of activeSpellSuggestion()?.suggestions"
+                          (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug, q)"
+                          class="w-full text-left p-2 rounded-xl transition-all border border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/60 group cursor-pointer">
+                          <div class="flex items-center justify-between gap-1.5">
+                            <div class="flex items-center gap-1.5">
+                              <span class="text-sm font-extrabold text-slate-800 group-hover:text-emerald-700">{{ sug }}</span>
+                              <a [href]="getKhmerDictUrl(sug)" target="_blank" rel="noopener noreferrer"
+                                 (click)="$event.stopPropagation()"
+                                 class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-0.5 rounded text-[11px] transition"
+                                 title="មើលក្នុងវចនានុក្រម KhmerDict">
+                                📖
+                              </a>
+                            </div>
+                            <span class="text-[10px] text-emerald-700 bg-white group-hover:bg-emerald-600 group-hover:text-white font-bold px-2 py-0.5 rounded-md border border-emerald-200 transition shrink-0">
+                              ជ្រើសរើស ✓
+                            </span>
+                          </div>
+                          <p *ngIf="getWordDefinition(sug)" class="text-[11px] text-slate-600 font-normal leading-snug line-clamp-2 mt-1 select-text">
+                            {{ getWordDefinition(sug) }}
+                          </p>
+                        </div>
+                      </ng-container>
+                      <ng-template #noAdminSuggestions>
+                        <div class="px-2 py-1 text-[11px] text-slate-400 italic">គ្មានពាក្យស្រដៀង</div>
+                      </ng-template>
+                    </div>
+
+                    <!-- Footer Actions -->
+                    <div class="border-t border-slate-100 pt-1.5 mt-1 flex items-center gap-1.5">
+                      <button type="button"
+                        (click)="addWordToDictionary(activeSpellSuggestion()!.token)"
+                        class="flex-1 text-center px-2 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                        <span>➕</span> វចនានុក្រម (Add)
+                      </button>
+                      <button type="button"
+                        (click)="ignoreSpellWord(activeSpellSuggestion()!.token)"
+                        class="px-2.5 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                        <span>👁️</span> រំលង (Ignore)
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Footer Buttons -->
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-1.5">
+                      <button *ngIf="spellUndoHistory.length > 0"
+                              type="button"
+                              (click)="undoSpellCorrection()"
+                              class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold px-2.5 py-1 rounded-xl transition flex items-center gap-1">
+                        <span>↩</span> ត្រឡប់ដើម
+                      </button>
+                    </div>
+                    <div class="flex gap-2">
+                      <button (click)="editingTextQuestionId.set(null); activeSpellSuggestion.set(null)" 
+                              class="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition">
+                        Cancel
+                      </button>
+                      <button (click)="saveInlineText(q)" 
+                              [disabled]="savingInline()"
+                              class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
+                        {{ savingInline() ? 'Saving...' : 'Save' }}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1490,15 +2335,106 @@
                       </div>
                       
                       <!-- Choice text edit input -->
-                      <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5">
-                        <textarea [ngModel]="editingChoiceText"
-                                  (ngModelChange)="editingChoiceText = $event"
-                                  [rows]="getTextareaRows(editingChoiceText, 2)"
-                                  class="w-full text-base font-bold text-slate-900 border border-slate-300 px-3 py-2 rounded-lg focus:border-blue-500 outline-none bg-white leading-relaxed inline-edit-choice-textarea"
-                                  (keydown)="onChoiceKeyDown($event, ans, q)"
-                                  (blur)="onBlurChoice()"></textarea>
+                      <div *ngIf="editingChoiceId() === ans.id" class="choice-edit-box flex flex-col gap-1.5 mt-0.5 relative w-full">
+                        <div class="relative w-full rounded-lg border border-slate-300 bg-white overflow-hidden focus-within:border-blue-500 min-h-[60px]">
+                          <div *ngIf="spellCheckActive()"
+                               class="absolute inset-0 px-3 py-2 text-base font-bold leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
+                               style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 1px solid transparent; letter-spacing: normal;"
+                               aria-hidden="true"><ng-container *ngFor="let token of choiceSpellReport()?.tokens"><span *ngIf="!token.isValid; else validAdminChoiceToken" class="text-transparent bg-rose-200/70 underline decoration-wavy decoration-rose-500 decoration-2 select-none" style="text-underline-offset: 3px;">{{ token.text }}</span><ng-template #validAdminChoiceToken><span>{{ token.text }}</span></ng-template></ng-container></div>
+
+                          <textarea [ngModel]="editingChoiceText"
+                                    (ngModelChange)="onEditingChoiceChange($event)"
+                                    (scroll)="syncBackdropScroll($event)"
+                                    (click)="onChoiceEditorClick($event)"
+                                    (contextmenu)="onChoiceEditorContextMenu($event)"
+                                    (keydown)="onChoiceKeyDown($event, ans, q)"
+                                    [rows]="getTextareaRows(editingChoiceText, 2)"
+                                    class="relative z-10 w-full text-base font-bold text-slate-900 bg-transparent px-3 py-2 outline-none resize-y inline-edit-choice-textarea"
+                                    style="box-sizing: border-box; margin: 0; border: 1px solid transparent;"></textarea>
+                        </div>
+
+                        <!-- Floating Suggestion Context Menu Popup for Choice -->
+                        <div *ngIf="activeSpellSuggestion() && activeSpellSuggestion()?.isChoice"
+                          class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl shadow-2xl p-1.5 w-[350px] animate-in fade-in zoom-in-95 duration-150 select-none"
+                          [style.left.px]="activeSpellSuggestion()?.x"
+                          [style.top.px]="activeSpellSuggestion()?.y"
+                          (click)="$event.stopPropagation()">
+                          
+                          <div (mousedown)="startDragPopup($event)" class="px-3 py-2 border-b border-slate-100 flex items-center justify-between cursor-move bg-slate-50/80 rounded-t-xl">
+                            <div class="flex items-center gap-2">
+                              <span class="text-slate-400 text-xs" title="អូសផ្លាស់ទី">⠿</span>
+                              <div>
+                                <div class="flex items-center gap-1.5">
+                                  <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
+                                  <a *ngIf="activeSpellSuggestion()?.token?.text"
+                                     [href]="getKhmerDictUrl(activeSpellSuggestion()!.token.text)"
+                                     target="_blank" rel="noopener noreferrer"
+                                     (click)="$event.stopPropagation()"
+                                     class="text-[9px] text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-0.5"
+                                     title="ស្វែងរកក្នុងវចនានុក្រម KhmerDict">
+                                    <span>📖 វចនានុក្រម ↗</span>
+                                  </a>
+                                </div>
+                                <span class="text-sm font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
+                              </div>
+                            </div>
+                            <div class="flex items-center gap-1" (mousedown)="$event.stopPropagation()">
+                              <button type="button" 
+                                      (click)="togglePopupSide($event)" 
+                                      class="text-slate-500 hover:text-blue-600 hover:bg-blue-50 text-[10px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition flex items-center gap-0.5 border border-slate-200" 
+                                      [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
+                                {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
+                              </button>
+                              <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                            </div>
+                          </div>
+
+                          <div class="p-1.5 space-y-1.5 max-h-72 overflow-y-auto">
+                            <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 px-1.5 py-0.5 block">ពាក្យកែតម្រូវ និងនិយមន័យ (Suggestions & Meaning)</span>
+                            <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noChoiceAdminSuggestions">
+                              <div *ngFor="let sug of activeSpellSuggestion()?.suggestions"
+                                (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug, q, ans)"
+                                class="w-full text-left p-2 rounded-xl transition-all border border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/60 group cursor-pointer">
+                                <div class="flex items-center justify-between gap-1.5">
+                                  <div class="flex items-center gap-1.5">
+                                    <span class="text-sm font-extrabold text-slate-800 group-hover:text-emerald-700">{{ sug }}</span>
+                                    <a [href]="getKhmerDictUrl(sug)" target="_blank" rel="noopener noreferrer"
+                                       (click)="$event.stopPropagation()"
+                                       class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-0.5 rounded text-[11px] transition"
+                                       title="មើលក្នុងវចនានុក្រម KhmerDict">
+                                      📖
+                                    </a>
+                                  </div>
+                                  <span class="text-[10px] text-emerald-700 bg-white group-hover:bg-emerald-600 group-hover:text-white font-bold px-2 py-0.5 rounded-md border border-emerald-200 transition shrink-0">
+                                    ជ្រើសរើស ✓
+                                  </span>
+                                </div>
+                                <p *ngIf="getWordDefinition(sug)" class="text-[11px] text-slate-600 font-normal leading-snug line-clamp-2 mt-1 select-text">
+                                  {{ getWordDefinition(sug) }}
+                                </p>
+                              </div>
+                            </ng-container>
+                            <ng-template #noChoiceAdminSuggestions>
+                              <div class="px-2 py-1 text-[11px] text-slate-400 italic">គ្មានពាក្យស្រដៀង</div>
+                            </ng-template>
+                          </div>
+
+                          <div class="border-t border-slate-100 pt-1.5 mt-1 flex items-center gap-1.5">
+                            <button type="button"
+                              (click)="addWordToDictionary(activeSpellSuggestion()!.token)"
+                              class="flex-1 text-center px-2 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                              <span>➕</span> វចនានុក្រម (Add)
+                            </button>
+                            <button type="button"
+                              (click)="ignoreSpellWord(activeSpellSuggestion()!.token)"
+                              class="px-2.5 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                              <span>👁️</span> រំលង (Ignore)
+                            </button>
+                          </div>
+                        </div>
+
                         <div class="flex gap-1 justify-end">
-                          <button (click)="editingChoiceId.set(null)" 
+                          <button (click)="editingChoiceId.set(null); activeSpellSuggestion.set(null)" 
                                   class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded transition">
                             Cancel
                           </button>
@@ -1705,14 +2641,109 @@
                     ✏️ Click to Edit
                   </span>
                 </div>
-                  <div *ngIf="editingTextQuestionId() === q.id" class="flex flex-col gap-2 mt-1">
-                    <textarea [ngModel]="editingTextValue" (ngModelChange)="editingTextValue = $event"
-                      [rows]="getTextareaRows(editingTextValue, 4)"
-                      class="w-full text-xl font-bold text-gray-900 border-2 border-blue-400 p-4 rounded-2xl outline-none bg-white leading-relaxed"
-                      (keydown)="onTextKeyDown($event, q)" (blur)="onBlurText()"></textarea>
+                  <div *ngIf="editingTextQuestionId() === q.id" class="question-edit-box flex flex-col gap-2 mt-1 relative w-full">
+                    <!-- Text Editor Container with Wavy Underline Backdrop -->
+                    <div class="relative w-full rounded-2xl border-2 border-blue-400 bg-white shadow-sm overflow-hidden focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-500 min-h-[140px]">
+                      <div *ngIf="spellCheckActive()"
+                           class="absolute inset-0 p-4 text-xl md:text-2xl font-bold leading-relaxed whitespace-pre-wrap break-words pointer-events-none select-none overflow-y-auto"
+                           style="color: transparent; box-sizing: border-box; font-family: inherit; margin: 0; border: 2px solid transparent; letter-spacing: normal; word-spacing: normal;"
+                           aria-hidden="true"><ng-container *ngFor="let token of spellCheckReport()?.tokens"><span *ngIf="!token.isValid; else validTestingToken" class="text-transparent bg-rose-200/70 underline decoration-wavy decoration-rose-500 decoration-2 select-none" style="text-underline-offset: 3px;">{{ token.text }}</span><ng-template #validTestingToken><span>{{ token.text }}</span></ng-template></ng-container></div>
+
+                      <textarea [ngModel]="editingTextValue"
+                                (ngModelChange)="onEditingTextChange($event)"
+                                (scroll)="syncBackdropScroll($event)"
+                                (click)="onEditorClick($event)"
+                                (contextmenu)="onEditorContextMenu($event)"
+                                (keydown)="onTextKeyDown($event, q)"
+                                [rows]="getTextareaRows(editingTextValue, 4)"
+                                class="relative z-10 w-full p-4 text-xl md:text-2xl font-bold text-gray-900 bg-transparent leading-relaxed outline-none resize-y inline-edit-textarea"
+                                style="box-sizing: border-box; margin: 0; border: 2px solid transparent;"
+                                placeholder="Edit question text..."></textarea>
+                    </div>
+
+                    <!-- Floating Suggestion Context Menu Popup -->
+                    <div *ngIf="activeSpellSuggestion() && !activeSpellSuggestion()?.isChoice"
+                      class="spell-suggestion-popup absolute z-[9999] bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl shadow-2xl p-1.5 w-[350px] animate-in fade-in zoom-in-95 duration-150 select-none"
+                      [style.left.px]="activeSpellSuggestion()?.x"
+                      [style.top.px]="activeSpellSuggestion()?.y"
+                      (click)="$event.stopPropagation()">
+                      
+                      <div (mousedown)="startDragPopup($event)" class="px-3 py-2 border-b border-slate-100 flex items-center justify-between cursor-move bg-slate-50/80 rounded-t-xl">
+                        <div class="flex items-center gap-2">
+                          <span class="text-slate-400 text-xs" title="អូសផ្លាស់ទី">⠿</span>
+                          <div>
+                            <div class="flex items-center gap-1.5">
+                              <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
+                              <a *ngIf="activeSpellSuggestion()?.token?.text"
+                                 [href]="getKhmerDictUrl(activeSpellSuggestion()!.token.text)"
+                                 target="_blank" rel="noopener noreferrer"
+                                 (click)="$event.stopPropagation()"
+                                 class="text-[9px] text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-0.5"
+                                 title="ស្វែងរកក្នុងវចនានុក្រម KhmerDict">
+                                <span>📖 វចនានុក្រម ↗</span>
+                              </a>
+                            </div>
+                            <span class="text-sm font-extrabold text-rose-600 leading-tight">{{ activeSpellSuggestion()?.token?.text }}</span>
+                          </div>
+                        </div>
+                        <div class="flex items-center gap-1" (mousedown)="$event.stopPropagation()">
+                          <button type="button" 
+                                  (click)="togglePopupSide($event)" 
+                                  class="text-slate-500 hover:text-blue-600 hover:bg-blue-50 text-[10px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition flex items-center gap-0.5 border border-slate-200" 
+                                  [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
+                            {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
+                          </button>
+                          <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                        </div>
+                      </div>
+
+                      <div class="p-1.5 space-y-1.5 max-h-72 overflow-y-auto">
+                        <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 px-1.5 py-0.5 block">ពាក្យកែតម្រូវ និងនិយមន័យ (Suggestions & Meaning)</span>
+                        <ng-container *ngIf="activeSpellSuggestion()?.suggestions?.length; else noAdminTestingSuggestions">
+                          <div *ngFor="let sug of activeSpellSuggestion()?.suggestions"
+                            (click)="applySpellSuggestion(activeSpellSuggestion()!.token, sug, q)"
+                            class="w-full text-left p-2 rounded-xl transition-all border border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/60 group cursor-pointer">
+                            <div class="flex items-center justify-between gap-1.5">
+                              <div class="flex items-center gap-1.5">
+                                <span class="text-sm font-extrabold text-slate-800 group-hover:text-emerald-700">{{ sug }}</span>
+                                <a [href]="getKhmerDictUrl(sug)" target="_blank" rel="noopener noreferrer"
+                                   (click)="$event.stopPropagation()"
+                                   class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-0.5 rounded text-[11px] transition"
+                                   title="មើលក្នុងវចនានុក្រម KhmerDict">
+                                  📖
+                                </a>
+                              </div>
+                              <span class="text-[10px] text-emerald-700 bg-white group-hover:bg-emerald-600 group-hover:text-white font-bold px-2 py-0.5 rounded-md border border-emerald-200 transition shrink-0">
+                                ជ្រើសរើស ✓
+                              </span>
+                            </div>
+                            <p *ngIf="getWordDefinition(sug)" class="text-[11px] text-slate-600 font-normal leading-snug line-clamp-2 mt-1 select-text">
+                              {{ getWordDefinition(sug) }}
+                            </p>
+                          </div>
+                        </ng-container>
+                        <ng-template #noAdminTestingSuggestions>
+                          <div class="px-2 py-1 text-[11px] text-slate-400 italic">គ្មានពាក្យស្រដៀង</div>
+                        </ng-template>
+                      </div>
+
+                      <div class="border-t border-slate-100 pt-1.5 mt-1 flex items-center gap-1.5">
+                        <button type="button"
+                          (click)="addWordToDictionary(activeSpellSuggestion()!.token)"
+                          class="flex-1 text-center px-2 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                          <span>➕</span> វចនានុក្រម (Add)
+                        </button>
+                        <button type="button"
+                          (click)="ignoreSpellWord(activeSpellSuggestion()!.token)"
+                          class="px-2.5 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                          <span>👁️</span> រំលង (Ignore)
+                        </button>
+                      </div>
+                    </div>
+
                     <div class="flex gap-2 justify-end">
-                      <button (click)="editingTextQuestionId.set(null)" class="px-4 py-1.5 bg-gray-100 text-gray-600 font-bold text-xs rounded-xl">Cancel</button>
-                      <button (click)="saveInlineText(q)" class="px-4 py-1.5 bg-blue-600 text-white font-bold text-xs rounded-xl">Save</button>
+                      <button (click)="editingTextQuestionId.set(null); activeSpellSuggestion.set(null)" class="px-4 py-1.5 bg-gray-100 text-gray-600 font-bold text-xs rounded-xl">Cancel</button>
+                      <button (click)="saveInlineText(q)" [disabled]="savingInline()" class="px-4 py-1.5 bg-blue-600 text-white font-bold text-xs rounded-xl">Save</button>
                     </div>
                   </div>
                 </div>
