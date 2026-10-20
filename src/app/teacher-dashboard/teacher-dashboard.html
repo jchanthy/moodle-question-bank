@@ -912,20 +912,7 @@
                     </select>
                   </div>
 
-                  <!-- Spell Check Indicator Badge on Question Header -->
-                  <div *ngIf="spellCheckActive()" class="flex items-center">
-                    <span *ngIf="getQuestionTextErrorCount(question) > 0"
-                          (click)="startEditingText(question)"
-                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 font-extrabold text-[10px] cursor-pointer hover:bg-rose-100 transition shadow-2xs"
-                          title="មានកំហុសអក្ខរាវិរុទ្ធក្នុងសំណួរ ចុចដើម្បីកែប្រែ">
-                      <span>⚠️</span> {{ getQuestionTextErrorCount(question) }} កំហុស
-                    </span>
-                    <span *ngIf="getQuestionTextErrorCount(question) === 0"
-                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-extrabold text-[10px]"
-                          title="សំណួរត្រឹមត្រូវ">
-                      <span>✓</span> អក្ខរាវិរុទ្ធត្រឹមត្រូវ
-                    </span>
-                  </div>
+
 
                   <!-- Comments Badge -->
                   <button (click)="openComments(question)" 
@@ -1076,13 +1063,13 @@
                           class="text-[11px] font-bold px-2.5 py-0.5 hover:bg-rose-50 rounded-l-full transition flex items-center gap-1 cursor-pointer"
                           [title]="'ចុចដើម្បីជ្រើសរើសពាក្យត្រឹមត្រូវពីវចនានុក្រម'">
                           <span class="line-through opacity-75">{{ token.text }}</span>
-                          <span *ngIf="getPrimarySuggestion(token.text)" class="text-emerald-700 font-extrabold">➔ {{ getPrimarySuggestion(token.text) }}</span>
-                          <span *ngIf="!getPrimarySuggestion(token.text)" class="text-amber-600 font-mono text-[10px]">?</span>
+                          <span *ngIf="token.primarySuggestion" class="text-emerald-700 font-extrabold">➔ {{ token.primarySuggestion }}</span>
+                          <span *ngIf="!token.primarySuggestion" class="text-amber-600 font-mono text-[10px]">?</span>
                           <span class="text-[9px] text-gray-400">▾</span>
                         </button>
-                        <button *ngIf="getPrimarySuggestion(token.text)"
+                        <button *ngIf="token.primarySuggestion"
                           type="button"
-                          (click)="quickFixTokenDirectly(question, token, getPrimarySuggestion(token.text)!); $event.stopPropagation()"
+                          (click)="quickFixTokenDirectly(question, token, token.primarySuggestion!); $event.stopPropagation()"
                           class="text-[9px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-1.5 py-1 font-bold rounded-r-full border-l border-rose-200 transition cursor-pointer"
                           title="កែភ្លាមៗ និងរក្សាទុក">
                           កែ ✓
@@ -1150,13 +1137,13 @@
                             class="text-[11px] font-bold px-2.5 py-0.5 hover:bg-rose-50 rounded-l-full transition flex items-center gap-1 cursor-pointer"
                             [title]="'ចុចដើម្បីជ្រើសរើសពាក្យត្រឹមត្រូវពីវចនានុក្រម'">
                             <span class="line-through opacity-75">{{ token.text }}</span>
-                            <span *ngIf="getPrimarySuggestion(token.text)" class="text-emerald-700 font-extrabold">➔ {{ getPrimarySuggestion(token.text) }}</span>
-                            <span *ngIf="!getPrimarySuggestion(token.text)" class="text-amber-600 font-mono text-[10px]">?</span>
+                            <span *ngIf="token.primarySuggestion" class="text-emerald-700 font-extrabold">➔ {{ token.primarySuggestion }}</span>
+                            <span *ngIf="!token.primarySuggestion" class="text-amber-600 font-mono text-[10px]">?</span>
                             <span class="text-[9px] text-gray-400">▾</span>
                           </button>
-                          <button *ngIf="getPrimarySuggestion(token.text)"
+                          <button *ngIf="token.primarySuggestion"
                             type="button"
-                            (click)="quickFixToken(token, getPrimarySuggestion(token.text)!); $event.stopPropagation()"
+                            (click)="quickFixToken(token, token.primarySuggestion!); $event.stopPropagation()"
                             class="text-[9px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-1.5 py-1 font-bold rounded-r-full border-l border-rose-200 transition cursor-pointer"
                             title="កែភ្លាមៗ">
                             កែ ✓
@@ -1322,13 +1309,13 @@
                                   class="text-[10px] font-bold px-2 py-0.5 hover:bg-rose-50 rounded-l-full transition flex items-center gap-1 cursor-pointer"
                                   [title]="'ចុចដើម្បីជ្រើសរើសពាក្យត្រឹមត្រូវពីវចនានុក្រម'">
                                   <span class="line-through opacity-75">{{ token.text }}</span>
-                                  <span *ngIf="getPrimarySuggestion(token.text)" class="text-emerald-700 font-extrabold">➔ {{ getPrimarySuggestion(token.text) }}</span>
-                                  <span *ngIf="!getPrimarySuggestion(token.text)" class="text-amber-600 font-mono text-[9px]">?</span>
+                                  <span *ngIf="token.primarySuggestion" class="text-emerald-700 font-extrabold">➔ {{ token.primarySuggestion }}</span>
+                                  <span *ngIf="!token.primarySuggestion" class="text-amber-600 font-mono text-[9px]">?</span>
                                   <span class="text-[8px] text-gray-400">▾</span>
                                 </button>
-                                <button *ngIf="getPrimarySuggestion(token.text)"
+                                <button *ngIf="token.primarySuggestion"
                                   type="button"
-                                  (click)="quickFixChoiceToken(token, getPrimarySuggestion(token.text)!); $event.stopPropagation()"
+                                  (click)="quickFixChoiceToken(token, token.primarySuggestion!); $event.stopPropagation()"
                                   class="text-[8px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-1.5 py-1 font-bold rounded-r-full border-l border-rose-200 transition cursor-pointer"
                                   title="កែភ្លាមៗ">
                                   កែ ✓

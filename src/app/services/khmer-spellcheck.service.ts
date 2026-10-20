@@ -7,6 +7,7 @@ export interface SpellCheckToken {
   startIndex: number;
   endIndex: number;
   suggestions?: string[];
+  primarySuggestion?: string | null;
 }
 
 export interface SpellCheckReport {
@@ -27,6 +28,7 @@ export class KhmerSpellCheckService {
 
   // High-performance memoization cache (0ms lookup for repeated checks)
   private reportCache = new Map<string, SpellCheckReport>();
+  private suggestionCache = new Map<string, string[]>();
   private readonly MAX_CACHE_SIZE = 300;
 
   isLoaded = signal(false);
@@ -89,6 +91,7 @@ export class KhmerSpellCheckService {
     if (!clean) return;
     this.customWords.add(clean);
     this.reportCache.clear();
+    this.suggestionCache.clear();
     try {
       localStorage.setItem('khmer_custom_dictionary', JSON.stringify(Array.from(this.customWords)));
     } catch (e) {
@@ -361,6 +364,10 @@ export class KhmerSpellCheckService {
     const cleanTarget = this.cleanKhmer(misspelledWord);
     if (!cleanTarget || !this.isLoaded()) return [];
 
+    const cacheKey = `${cleanTarget}_${maxSuggestions}`;
+    const cached = this.suggestionCache.get(cacheKey);
+    if (cached) return cached;
+
     const suggestions: string[] = [];
 
     // 1. Multiple ៗ check (e.g. ឆាប់ៗៗ -> suggests ឆាប់ៗ, ឆាប់)
@@ -415,36 +422,43 @@ export class KhmerSpellCheckService {
       if (this.isWordValid(s1, true) && !suggestions.includes(s1)) suggestions.push(s1);
     }
 
-    // 2. Bucketed Levenshtein lookup (target length +/- 2)
-    const targetLen = cleanTarget.length;
-    const candidates = [
-      ...(this.wordsByLength.get(targetLen) || []),
-      ...(this.wordsByLength.get(targetLen - 1) || []),
-      ...(this.wordsByLength.get(targetLen + 1) || []),
-      ...(this.wordsByLength.get(targetLen - 2) || []),
-      ...(this.wordsByLength.get(targetLen + 2) || [])
-    ];
+    // Only run heavy Levenshtein if high-priority orthographic rules did not fill maxSuggestions
+    if (suggestions.length < maxSuggestions) {
+      const targetLen = cleanTarget.length;
+      const candidates = [
+        ...(this.wordsByLength.get(targetLen) || []),
+        ...(this.wordsByLength.get(targetLen - 1) || []),
+        ...(this.wordsByLength.get(targetLen + 1) || []),
+        ...(this.wordsByLength.get(targetLen - 2) || []),
+        ...(this.wordsByLength.get(targetLen + 2) || [])
+      ];
 
-    const scored: { word: string; dist: number }[] = [];
-    for (const w of candidates) {
-      // Prioritize words with same initial consonant
-      if (w[0] === cleanTarget[0]) {
-        const dist = this.levenshtein(cleanTarget, w);
-        if (dist <= 2) {
-          scored.push({ word: w, dist });
+      const scored: { word: string; dist: number }[] = [];
+      for (const w of candidates) {
+        // Prioritize words with same initial consonant
+        if (w[0] === cleanTarget[0]) {
+          const dist = this.levenshtein(cleanTarget, w);
+          if (dist <= 2) {
+            scored.push({ word: w, dist });
+          }
         }
       }
-    }
 
-    scored.sort((a, b) => a.dist - b.dist);
-    for (const item of scored) {
-      if (!suggestions.includes(item.word)) {
-        suggestions.push(item.word);
+      scored.sort((a, b) => a.dist - b.dist);
+      for (const item of scored) {
+        if (!suggestions.includes(item.word)) {
+          suggestions.push(item.word);
+        }
+        if (suggestions.length >= maxSuggestions) break;
       }
-      if (suggestions.length >= maxSuggestions) break;
     }
 
-    return suggestions.slice(0, maxSuggestions);
+    const result = suggestions.slice(0, maxSuggestions);
+    if (this.suggestionCache.size > 2000) {
+      this.suggestionCache.clear();
+    }
+    this.suggestionCache.set(cacheKey, result);
+    return result;
   }
 
   private levenshtein(a: string, b: string): number {

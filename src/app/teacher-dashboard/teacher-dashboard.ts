@@ -1752,6 +1752,7 @@ export class TeacherDashboardComponent implements OnInit {
     this.editingTextValue = before + suggestion + after;
     this.activeSpellSuggestion.set(null);
     this.questionTextSpellCache.clear();
+    this.questionChoicesSpellCache.clear();
     this.runInlineSpellCheck();
   }
 
@@ -1864,6 +1865,10 @@ export class TeacherDashboardComponent implements OnInit {
     for (const t of tokens) {
       if (!t.isValid && t.isKhmer && !seen.has(t.text)) {
         seen.add(t.text);
+        if (!t.suggestions) {
+          t.suggestions = this.spellCheckService.getSuggestions(t.text, 5);
+          t.primarySuggestion = t.suggestions.length > 0 ? t.suggestions[0] : null;
+        }
         res.push(t);
       }
     }
@@ -1963,6 +1968,10 @@ export class TeacherDashboardComponent implements OnInit {
     for (const t of tokens) {
       if (!t.isValid && t.isKhmer && !seen.has(t.text)) {
         seen.add(t.text);
+        if (!t.suggestions) {
+          t.suggestions = this.spellCheckService.getSuggestions(t.text, 5);
+          t.primarySuggestion = t.suggestions.length > 0 ? t.suggestions[0] : null;
+        }
         res.push(t);
       }
     }
@@ -2099,6 +2108,9 @@ export class TeacherDashboardComponent implements OnInit {
     for (const t of report.tokens) {
       if (!t.isValid && t.isKhmer && !seen.has(t.text)) {
         seen.add(t.text);
+        const sugs = this.spellCheckService.getSuggestions(t.text, 5);
+        t.suggestions = sugs;
+        t.primarySuggestion = sugs.length > 0 ? sugs[0] : null;
         invalidTokens.push(t);
       }
     }
@@ -2176,13 +2188,33 @@ export class TeacherDashboardComponent implements OnInit {
     }
   }
 
+  private questionChoicesSpellCache = new Map<string, number>();
+
   getQuestionChoicesErrorCount(q: Question): number {
     if (!this.spellCheckActive() || !q.answers || !this.spellCheckService.isLoaded()) return 0;
+    if (this.editingChoiceId()) {
+      let total = 0;
+      for (const ans of q.answers) {
+        if (this.editingChoiceId() === ans.id) {
+          total += this.choiceSpellErrorsCount();
+        } else if (ans.answer_text) {
+          let txt = ans.answer_text;
+          if (txt.toLowerCase().startsWith('<p>') && txt.toLowerCase().endsWith('</p>')) {
+            txt = txt.substring(3, txt.length - 4);
+          }
+          total += this.spellCheckService.checkText(txt).errorCount;
+        }
+      }
+      return total;
+    }
+
+    const key = q.id;
+    const cached = this.questionChoicesSpellCache.get(key);
+    if (cached !== undefined) return cached;
+
     let total = 0;
     for (const ans of q.answers) {
-      if (this.editingChoiceId() === ans.id) {
-        total += this.choiceSpellErrorsCount();
-      } else if (ans.answer_text) {
+      if (ans.answer_text) {
         let txt = ans.answer_text;
         if (txt.toLowerCase().startsWith('<p>') && txt.toLowerCase().endsWith('</p>')) {
           txt = txt.substring(3, txt.length - 4);
@@ -2190,6 +2222,7 @@ export class TeacherDashboardComponent implements OnInit {
         total += this.spellCheckService.checkText(txt).errorCount;
       }
     }
+    this.questionChoicesSpellCache.set(key, total);
     return total;
   }
 
@@ -2212,6 +2245,7 @@ export class TeacherDashboardComponent implements OnInit {
 
       // Update in memory state
       ans.answer_text = finalValue;
+      this.questionChoicesSpellCache.clear();
       const choiceUpdater = (list: Question[]) => list.map(item => {
         if (item.id === q.id && item.answers) {
           const updatedAnswers = item.answers.map((a: any) => {
