@@ -1751,8 +1751,7 @@ export class TeacherDashboardComponent implements OnInit {
     const after = current.substring(token.endIndex);
     this.editingTextValue = before + suggestion + after;
     this.activeSpellSuggestion.set(null);
-    this.questionTextSpellCache.clear();
-    this.questionChoicesSpellCache.clear();
+    this.invalidateQuestionSpellCache(this.editingTextQuestionId() || undefined);
     this.runInlineSpellCheck();
   }
 
@@ -1925,7 +1924,7 @@ export class TeacherDashboardComponent implements OnInit {
 
       // Update question in-place directly on object
       q.question_text = finalValue;
-      this.questionTextSpellCache.clear();
+      this.invalidateQuestionSpellCache(q.id);
 
       // Update in memory state across all collections
       const updater = (list: Question[]) => list.map(item => item.id === q.id ? { ...item, question_text: finalValue } : item);
@@ -2113,6 +2112,20 @@ export class TeacherDashboardComponent implements OnInit {
   // Cache for question text spell check to avoid re-evaluating on every frame
   private questionTextSpellCache = new Map<string, { errorCount: number; invalidTokens: SpellCheckToken[] }>();
 
+  private invalidateQuestionSpellCache(qId?: string) {
+    if (qId) {
+      for (const k of this.questionTextSpellCache.keys()) {
+        if (k.startsWith(qId + '_')) {
+          this.questionTextSpellCache.delete(k);
+        }
+      }
+      this.questionChoicesSpellCache.delete(qId);
+    } else {
+      this.questionTextSpellCache.clear();
+      this.questionChoicesSpellCache.clear();
+    }
+  }
+
   getQuestionTextSpellReport(q: Question): { errorCount: number; invalidTokens: SpellCheckToken[] } {
     if (!this.spellCheckActive() || !q.question_text || !this.spellCheckService.isLoaded()) {
       return { errorCount: 0, invalidTokens: [] };
@@ -2199,7 +2212,7 @@ export class TeacherDashboardComponent implements OnInit {
       this.assignedQuestions.set(updater(this.assignedQuestions()));
       this.assistantSubmissions.set(updater(this.assistantSubmissions()));
 
-      this.questionTextSpellCache.clear();
+      this.invalidateQuestionSpellCache(q.id);
       this.showToast(`បានកែតម្រូវ «${token.text}» ➔ «${suggestion}»`, 'success');
     } catch (e: any) {
       this.showToast(e.message, 'error');
@@ -2265,7 +2278,7 @@ export class TeacherDashboardComponent implements OnInit {
 
       // Update in memory state
       ans.answer_text = finalValue;
-      this.questionChoicesSpellCache.clear();
+      this.invalidateQuestionSpellCache(q.id);
       const choiceUpdater = (list: Question[]) => list.map(item => {
         if (item.id === q.id && item.answers) {
           const updatedAnswers = item.answers.map((a: any) => {

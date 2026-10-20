@@ -194,6 +194,26 @@ export class KhmerSpellCheckService {
     return minD;
   }
 
+  private isFastTypoCandidate(sub: string): boolean {
+    if (sub.includes('្ត') || sub.includes('្ដ')) {
+      const swapped = sub.includes('្ត')
+        ? sub.replace(/្ត/g, '្ដ')
+        : sub.replace(/្ដ/g, '្ត');
+      if (this.isWordValid(swapped, false)) return true;
+    }
+    if (sub.includes('ំ')) {
+      const swapped = sub.replace(/([ក-អ])ំ([ក-អ])/g, (m, c1, c2) => c1 + 'ម្' + c2);
+      if (this.isWordValid(swapped, false)) return true;
+    }
+    if (sub.includes('្ត្រ') || sub.includes('្រ្ត')) {
+      const swapped = sub.includes('្ត្រ')
+        ? sub.replace(/្ត្រ/g, '្រ្ត')
+        : sub.replace(/្រ្ត/g, '្ត្រ');
+      if (this.isWordValid(swapped, false)) return true;
+    }
+    return false;
+  }
+
   /**
    * Segments and analyzes a block of text into tokens with high speed (<5ms).
    */
@@ -298,14 +318,11 @@ export class KhmerSpellCheckService {
                 dp[j] = dp[c] + cost;
                 parent[j] = c;
               }
-            } else {
-              const d = this.getNearestDistance(sub);
-              if (d <= 2) {
-                const cost = d === 1 ? 2.0 : 3.0;
-                if (dp[c] + cost < dp[j]) {
-                  dp[j] = dp[c] + cost;
-                  parent[j] = c;
-                }
+            } else if (this.isFastTypoCandidate(sub)) {
+              const cost = 2.0;
+              if (dp[c] + cost < dp[j]) {
+                dp[j] = dp[c] + cost;
+                parent[j] = c;
               }
             }
           }
