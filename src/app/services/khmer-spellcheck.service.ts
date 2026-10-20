@@ -83,7 +83,15 @@ export class KhmerSpellCheckService {
         'សឺវើរ', 'អាល់ហ្គោរីត', 'អាល់ហ្គោរីធឹម', 'ឆាតបូត',
         'ប្រព័ន្ធប្រតិបត្តិការ', 'មីក្រូសូហ្វ', 'យូធូប', 'ហ្វេសប៊ុក',
         'កម្មវិធីរុករក', 'ម៉ាស៊ីនស្វែងរក', 'កុំព្យូទ័រយួរដៃ', 'ថាប្លែត',
-        'អ៊ីនធឺហ្វេស', 'ដានីឡា', 'អ៊ិនធឺណិត', 'អ៊ិនធឺណែត'
+        'អ៊ីនធឺហ្វេស', 'ដានីឡា', 'អ៊ិនធឺណិត', 'អ៊ិនធឺណែត',
+        // Encryption, IT, and Modern Morphology terms
+        'កូដនីយកម្ម', 'វិកូដនីយកម្ម', 'នីយកម្ម', 'នីយ', 'នីយភាព',
+        'កូដនីយកម្មទិន្នន័យ', 'កូដសម្ងាត់', 'គន្លឹះសម្ងាត់', 'ហត្ថលេខាឌីជីថល',
+        'ប្លុកឆេន', 'ពិធីការ', 'សុវត្ថិភាពព័ត៌មាន', 'រចនាសម្ព័ន្ធទិន្នន័យ',
+        'វិស្វកម្មទិន្នន័យ', 'វិទ្យាសាស្ត្រទិន្នន័យ', 'វិស្វកម្មឃ្លាបញ្ជា',
+        'ស្វ័យប្រវត្តិនីយកម្ម', 'ឌីជីថលនីយកម្ម', 'ទំនើបនីយកម្ម',
+        'ស្តង់ដារនីយកម្ម', 'ប្រក្រតីនីយកម្ម', 'សកលភាវូបនីយកម្ម',
+        'និម្មិតនីយកម្ម', 'ឯកជននីយកម្ម', 'កណ្តាលនីយកម្ម', 'វិមជ្ឈការនីយកម្ម'
       ];
       for (const t of defaultTechTerms) {
         words.push(t);
@@ -160,6 +168,30 @@ export class KhmerSpellCheckService {
     // Homoglyph equivalence fallback: ផ + ្ដ <-> ផ + ្ត
     if (clean.includes('\u1795\u17D2\u178A') && this.dictionary.has(clean.replace(/\u1795\u17D2\u178A/g, '\u1795\u17D2\u178F'))) return true;
     if (clean.includes('\u1795\u17D2\u178F') && this.dictionary.has(clean.replace(/\u1795\u17D2\u178F/g, '\u1795\u17D2\u178A'))) return true;
+
+    // Morphological suffix: -នីយកម្ម (-ization / -fication) e.g. កូដនីយកម្ម, ទំនើបនីយកម្ម
+    if (clean.endsWith('នីយកម្ម') && clean.length > 7) {
+      const base = clean.slice(0, -7);
+      if (this.dictionary.has(base) || this.customWords.has(base) || this.isWordValid(base, true)) {
+        return true;
+      }
+    }
+
+    // Morphological suffix: -នីយភាព (-bility)
+    if (clean.endsWith('នីយភាព') && clean.length > 6) {
+      const base = clean.slice(0, -6);
+      if (this.dictionary.has(base) || this.customWords.has(base) || this.isWordValid(base, true)) {
+        return true;
+      }
+    }
+
+    // Morphological prefix: វិ- (e.g. វិកូដនីយកម្ម = Decryption)
+    if (clean.startsWith('វិ') && clean.length > 2) {
+      const base = clean.slice(2);
+      if (this.dictionary.has(base) || this.customWords.has(base) || this.isWordValid(base, true)) {
+        return true;
+      }
+    }
 
     // Support Khmer repetition sign 'ៗ' (U+17D7)
     // Rules:
@@ -487,6 +519,11 @@ export class KhmerSpellCheckService {
 
       const scored: { word: string; dist: number }[] = [];
       for (const w of candidates) {
+        // Never suggest the identical string as a correction for itself
+        if (w === cleanTarget) continue;
+        // If typo is an isolated single consonant, do not suggest other isolated single consonants
+        if (cleanTarget.length === 1 && w.length === 1) continue;
+
         // Prioritize words with same initial consonant
         if (w[0] === cleanTarget[0]) {
           const dist = this.levenshtein(cleanTarget, w);
@@ -498,14 +535,14 @@ export class KhmerSpellCheckService {
 
       scored.sort((a, b) => a.dist - b.dist);
       for (const item of scored) {
-        if (!suggestions.includes(item.word)) {
+        if (item.word !== cleanTarget && !suggestions.includes(item.word)) {
           suggestions.push(item.word);
         }
         if (suggestions.length >= maxSuggestions) break;
       }
     }
 
-    const result = suggestions.slice(0, maxSuggestions);
+    const result = suggestions.filter(s => s !== cleanTarget && (cleanTarget.length > 1 || s.length > 1)).slice(0, maxSuggestions);
     if (this.suggestionCache.size > 2000) {
       this.suggestionCache.clear();
     }
