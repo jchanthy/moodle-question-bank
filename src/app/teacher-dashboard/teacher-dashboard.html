@@ -864,6 +864,7 @@
       <div class="space-y-6 mb-6" *ngIf="!loading()">
         <div *ngFor="let question of paginatedQuestions()" 
              [id]="'question-card-' + question.id"
+             [class.z-40]="isQuestionActive(question)"
              [class.bg-blue-50/20]="selectedIds().has(question.id)"
              [class.border-blue-200]="selectedIds().has(question.id)"
              [class.ring-4]="lastEditedId() === question.id"
@@ -1091,7 +1092,7 @@
                       ✏️ Click to Edit Text
                     </span>
                   </div>
-                  <div *ngIf="editingTextQuestionId() === question.id" class="flex flex-col gap-2 mt-1 relative question-edit-box">
+                  <div *ngIf="editingTextQuestionId() === question.id" class="flex flex-col gap-2 mt-1 relative z-30 question-edit-box">
                     <!-- Inline Spell Check Trigger Bar -->
                     <div class="flex items-center justify-between">
                       <div class="flex items-center gap-2">
@@ -1288,6 +1289,7 @@
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div *ngFor="let ans of question.answers" 
                          [class]="ans.fraction > 0 ? 'bg-emerald-50/50 text-emerald-800 border-emerald-200 font-bold' : 'bg-slate-50 text-slate-600 border-slate-200'"
+                         [class.z-30]="editingChoiceId() === ans.id"
                          class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md relative group/choice">
                       <!-- Toggle Correct Button -->
                       <button (click)="toggleChoiceCorrect(ans, question)"
@@ -1311,7 +1313,7 @@
                         </div>
                         
                         <!-- Choice text edit input -->
-                        <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5 relative choice-edit-box">
+                        <div *ngIf="editingChoiceId() === ans.id" class="flex flex-col gap-1.5 mt-0.5 relative z-30 choice-edit-box">
                           <!-- Quick-fix Chips for Choice -->
                           <div *ngIf="spellCheckActive() && choiceSpellErrorsCount() > 0" 
                                class="flex items-center gap-1.5 flex-wrap p-1.5 bg-rose-50/70 border border-rose-200/80 rounded-lg">

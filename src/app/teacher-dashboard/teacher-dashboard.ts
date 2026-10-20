@@ -1799,7 +1799,11 @@ export class TeacherDashboardComponent implements OnInit {
     
     // Position on the right side so it never covers chips or text
     const x = Math.max(16, containerRect.width - popupWidth - 16);
-    const y = rect.bottom - containerRect.top + 6;
+    let y = rect.bottom - containerRect.top + 6;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    if (spaceBelow < 280 && rect.top > 300) {
+      y = Math.max(0, rect.top - containerRect.top - 250);
+    }
 
     this.activeSpellSuggestion.set({
       token,
@@ -1807,6 +1811,15 @@ export class TeacherDashboardComponent implements OnInit {
       y,
       suggestions
     });
+  }
+
+  isQuestionActive(question: Question): boolean {
+    if (this.editingTextQuestionId() === question.id) return true;
+    const choiceId = this.editingChoiceId();
+    if (choiceId && question.answers && question.answers.some((a: any) => a.id === choiceId)) {
+      return true;
+    }
+    return false;
   }
 
   getEditingQuestion(): Question | undefined {
@@ -1956,7 +1969,11 @@ export class TeacherDashboardComponent implements OnInit {
 
       const textareaTopInContainer = textareaRect.top - containerRect.top;
       const clickYInContainer = event.clientY - containerRect.top;
-      const y = Math.max(textareaTopInContainer + 8, Math.min(clickYInContainer - 25, containerRect.height - 220));
+      let y = Math.max(textareaTopInContainer, clickYInContainer - 25);
+      const spaceBelow = window.innerHeight - event.clientY;
+      if (spaceBelow < 280 && event.clientY > 300) {
+        y = Math.max(0, clickYInContainer - 250);
+      }
 
       this.activeSpellSuggestion.set({
         token,
@@ -1993,8 +2010,9 @@ export class TeacherDashboardComponent implements OnInit {
       const clickXInContainer = event.clientX - containerRect.left;
 
       // Smart Aside Positioning:
+      const side: 'left' | 'right' = clickXInContainer < containerRect.width * 0.6 ? 'right' : 'left';
       let x = 16;
-      if (clickXInContainer < containerRect.width * 0.6) {
+      if (side === 'right') {
         x = Math.max(16, containerRect.width - popupWidth - 16);
       } else {
         x = 16;
@@ -2002,10 +2020,15 @@ export class TeacherDashboardComponent implements OnInit {
 
       const textareaTopInContainer = textareaRect.top - containerRect.top;
       const clickYInContainer = event.clientY - containerRect.top;
-      const y = Math.max(textareaTopInContainer + 8, Math.min(clickYInContainer - 25, containerRect.height - 220));
+      let y = Math.max(textareaTopInContainer, clickYInContainer - 25);
+      const spaceBelow = window.innerHeight - event.clientY;
+      if (spaceBelow < 280 && event.clientY > 300) {
+        y = Math.max(0, clickYInContainer - 250);
+      }
 
       this.activeSpellSuggestion.set({
         token,
+        side,
         x,
         y,
         suggestions
@@ -2180,7 +2203,11 @@ export class TeacherDashboardComponent implements OnInit {
     if (containerRect.width >= 320) {
       x = Math.max(8, containerRect.width - popupWidth - 8);
     }
-    const y = rect.bottom - containerRect.top + 6;
+    let y = rect.bottom - containerRect.top + 6;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    if (spaceBelow < 280 && rect.top > 300) {
+      y = Math.max(-240, rect.top - containerRect.top - 250);
+    }
 
     this.activeSpellSuggestion.set({
       token,
@@ -2231,7 +2258,12 @@ export class TeacherDashboardComponent implements OnInit {
       if (containerRect.width < 340) {
         y = textareaBottomInContainer + 4;
       } else {
-        y = Math.max(4, Math.min(event.clientY - containerRect.top - 20, containerRect.height - 180));
+        const spaceBelow = window.innerHeight - event.clientY;
+        if (spaceBelow < 280 && event.clientY > 300) {
+          y = Math.max(-240, textareaTopInContainer - 250);
+        } else {
+          y = textareaTopInContainer;
+        }
       }
 
       this.activeSpellSuggestion.set({
@@ -2269,11 +2301,14 @@ export class TeacherDashboardComponent implements OnInit {
       const textareaRect = textarea.getBoundingClientRect();
       const clickXInContainer = event.clientX - containerRect.left;
 
+      let side: 'left' | 'right' = 'right';
       let x = 8;
       if (containerRect.width >= 320) {
         if (clickXInContainer < containerRect.width * 0.5) {
+          side = 'right';
           x = Math.max(8, containerRect.width - popupWidth - 8);
         } else {
+          side = 'left';
           x = 8;
         }
       }
@@ -2284,12 +2319,18 @@ export class TeacherDashboardComponent implements OnInit {
       if (containerRect.width < 340) {
         y = textareaBottomInContainer + 4;
       } else {
-        y = Math.max(4, Math.min(event.clientY - containerRect.top - 20, containerRect.height - 180));
+        const spaceBelow = window.innerHeight - event.clientY;
+        if (spaceBelow < 280 && event.clientY > 300) {
+          y = Math.max(-240, textareaTopInContainer - 250);
+        } else {
+          y = textareaTopInContainer;
+        }
       }
 
       this.activeSpellSuggestion.set({
         token,
         isChoice: true,
+        side,
         x,
         y,
         suggestions
