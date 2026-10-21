@@ -336,27 +336,53 @@
 
     <!-- Category Management -->
     <div class="mb-6">
-      <div class="flex items-center justify-between mb-3">
-        <button (click)="showCategoryPanel.set(!showCategoryPanel())" 
-                class="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-          </svg>
-          Categories
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 transition-transform" 
-               [class.rotate-180]="showCategoryPanel()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div class="flex items-center gap-3">
+          <button (click)="showCategoryPanel.set(!showCategoryPanel())" 
+                  class="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+            Categories
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 transition-transform" 
+                 [class.rotate-180]="showCategoryPanel()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <!-- Toggle Hide Empty Categories Button -->
+          <button type="button"
+                  (click)="toggleHideEmptyCategories()"
+                  [class.bg-blue-50]="hideEmptyCategories()"
+                  [class.text-blue-700]="hideEmptyCategories()"
+                  [class.border-blue-300]="hideEmptyCategories()"
+                  [class.bg-white]="!hideEmptyCategories()"
+                  [class.text-gray-600]="!hideEmptyCategories()"
+                  [class.border-gray-200]="!hideEmptyCategories()"
+                  class="text-xs font-bold border px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 hover:border-gray-300 shadow-2xs cursor-pointer select-none"
+                  [title]="hideEmptyCategories() ? 'Click to show all categories' : 'Click to hide categories with 0 questions'">
+            <span class="text-xs">{{ hideEmptyCategories() ? '👁️' : '👁️‍🗨️' }}</span>
+            <span>{{ hideEmptyCategories() ? 'Active Only' : 'Hide Empty' }}</span>
+            <span *ngIf="emptyCategoryCount() > 0" 
+                  class="text-[10px] px-1.5 py-0.2 rounded-full font-extrabold leading-tight"
+                  [class.bg-blue-200]="hideEmptyCategories()"
+                  [class.text-blue-800]="hideEmptyCategories()"
+                  [class.bg-gray-100]="!hideEmptyCategories()"
+                  [class.text-gray-500]="!hideEmptyCategories()">
+              {{ emptyCategoryCount() }} empty
+            </span>
+          </button>
+        </div>
+
         <div class="flex items-center gap-3">
           <button *ngIf="selectedCategoryId()" (click)="selectCategory(null)" 
-                  class="text-xs font-bold text-blue-600 hover:underline px-2 transition-all">
+                  class="text-xs font-bold text-blue-600 hover:underline px-2 transition-all cursor-pointer">
             Show All
           </button>
           
           <!-- Import Questions Button -->
           <button (click)="showImportModal.set(true); resetImport()" 
-                  class="flex items-center gap-2 border border-gray-200 text-gray-600 px-4 py-2 rounded-none font-bold text-sm hover:bg-gray-50 transition h-[42px] min-w-[140px] justify-center">
+                  class="flex items-center gap-2 border border-gray-200 text-gray-600 px-4 py-2 rounded-none font-bold text-sm hover:bg-gray-50 transition h-[42px] min-w-[140px] justify-center cursor-pointer">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M12 12V4m0 0L8 8m4-4l4 4" />
             </svg>
@@ -371,24 +397,40 @@
       </div>
 
       <!-- Category Filter Pills (always visible) -->
-      <div class="flex flex-wrap gap-2 mb-4" *ngIf="categories().length > 0">
+      <div class="flex flex-wrap items-center gap-2 mb-4" *ngIf="categories().length > 0">
         <button (click)="selectCategory(null)"
                 [class.bg-blue-600]="!selectedCategoryId()"
                 [class.text-white]="!selectedCategoryId()"
                 [class.bg-gray-100]="selectedCategoryId()"
                 [class.text-gray-600]="selectedCategoryId()"
-                class="px-4 py-2 rounded-none text-sm font-bold transition-all hover:shadow-md">
-          All
+                class="px-4 py-2 rounded-none text-sm font-bold transition-all hover:shadow-md flex items-center gap-2 cursor-pointer">
+          <span>All</span>
+          <span [class.bg-white/20]="!selectedCategoryId()"
+                [class.text-white]="!selectedCategoryId()"
+                [class.bg-gray-200]="selectedCategoryId()"
+                [class.text-gray-700]="selectedCategoryId()"
+                class="text-xs px-2 py-0.5 rounded-full font-bold">
+            {{ myQuestionsCount() }}
+          </span>
         </button>
-        <ng-container *ngFor="let cat of flatCategories()">
+        <ng-container *ngFor="let cat of visibleCategories()">
           <button (click)="selectCategory(cat.id)"
                   [class.bg-blue-600]="selectedCategoryId() === cat.id"
                   [class.text-white]="selectedCategoryId() === cat.id"
                   [class.bg-gray-100]="selectedCategoryId() !== cat.id"
-                  [class.text-gray-600]="selectedCategoryId() !== cat.id"
-                  class="px-4 py-2 rounded-none text-sm font-bold transition-all hover:shadow-md"
+                  [class.text-gray-700]="selectedCategoryId() !== cat.id"
+                  class="px-4 py-2 rounded-none text-sm font-bold transition-all hover:shadow-md flex items-center gap-2 cursor-pointer"
                   [style.margin-left.px]="cat.depth * 12">
-            {{ cat.depth > 0 ? '↳ ' : '' }}{{ cat.name }}
+            <span>{{ cat.depth > 0 ? '↳ ' : '' }}{{ cat.name }}</span>
+            <span [class.bg-white/25]="selectedCategoryId() === cat.id"
+                  [class.text-white]="selectedCategoryId() === cat.id"
+                  [class.bg-blue-100]="selectedCategoryId() !== cat.id && (myCategoryCounts().get(cat.id) || 0) > 0"
+                  [class.text-blue-700]="selectedCategoryId() !== cat.id && (myCategoryCounts().get(cat.id) || 0) > 0"
+                  [class.bg-gray-200/90]="selectedCategoryId() !== cat.id && (myCategoryCounts().get(cat.id) || 0) === 0"
+                  [class.text-gray-400]="selectedCategoryId() !== cat.id && (myCategoryCounts().get(cat.id) || 0) === 0"
+                  class="text-xs px-2 py-0.5 rounded-full font-bold">
+              {{ myCategoryCounts().get(cat.id) || 0 }}
+            </span>
           </button>
         </ng-container>
       </div>

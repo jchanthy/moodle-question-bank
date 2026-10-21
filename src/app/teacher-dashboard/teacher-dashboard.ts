@@ -1245,6 +1245,7 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
   }
 
   myQuestionsCount = signal(0);
+  myCategoryCounts = signal<Map<string, number>>(new Map());
 
   async loadMyQuestionsCount() {
     const user = this.supabaseService.currentUser();
@@ -1259,6 +1260,31 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
       this.myQuestionsCount.set(count || 0);
     } catch (err) {
       console.error('Failed to load my questions count:', err);
+    }
+    this.loadMyCategoryCounts();
+  }
+
+  async loadMyCategoryCounts() {
+    const user = this.supabaseService.currentUser();
+    if (!user) return;
+    try {
+      const { data, error } = await this.supabaseService.db
+        .from('questions')
+        .select('category_id')
+        .is('deleted_at', null)
+        .or(`created_by.eq.${user.id},metadata->>author_id.eq.${user.id}`);
+      
+      if (data) {
+        const counts = new Map<string, number>();
+        data.forEach((q: any) => {
+          if (q.category_id) {
+            counts.set(q.category_id, (counts.get(q.category_id) || 0) + 1);
+          }
+        });
+        this.myCategoryCounts.set(counts);
+      }
+    } catch (err) {
+      console.error('Failed to load my category counts:', err);
     }
   }
 
@@ -1564,6 +1590,7 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
         this.selectedCategoryId.set(null);
       }
     });
+    this.loadMyCategoryCounts();
   }
 
   flatCategories = computed(() => {
@@ -1578,6 +1605,31 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
     build(null, 0);
     return flat;
   });
+
+  hideEmptyCategories = signal<boolean>(
+    typeof localStorage !== 'undefined' && localStorage.getItem('teacher_hide_empty_categories') === 'true'
+  );
+
+  emptyCategoryCount = computed(() => {
+    const counts = this.myCategoryCounts();
+    return this.flatCategories().filter(c => (counts.get(c.id) || 0) === 0).length;
+  });
+
+  visibleCategories = computed(() => {
+    const all = this.flatCategories();
+    if (!this.hideEmptyCategories()) return all;
+    const counts = this.myCategoryCounts();
+    const selectedId = this.selectedCategoryId();
+    return all.filter(c => (counts.get(c.id) || 0) > 0 || c.id === selectedId);
+  });
+
+  toggleHideEmptyCategories() {
+    const newVal = !this.hideEmptyCategories();
+    this.hideEmptyCategories.set(newVal);
+    try {
+      localStorage.setItem('teacher_hide_empty_categories', String(newVal));
+    } catch (e) {}
+  }
 
   selectCategory(id: string | null) {
     this.selectedCategoryId.set(id);
