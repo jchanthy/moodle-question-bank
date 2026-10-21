@@ -3568,7 +3568,6 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   }
 
   lastLookupTypo: string = '';
-  dictClipboardCandidate = signal<{ typo: string; replacement: string } | null>(null);
   private dictReplacementSub?: Subscription;
 
   getKhmerDictUrl(word: string, q?: Question, typo?: string): string {
@@ -3599,7 +3598,6 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       } else {
         await this.applySpellSuggestion(active.token, cleanRepl, undefined, undefined);
       }
-      this.dictClipboardCandidate.set(null);
       this.focusActiveTextarea();
       this.showToast(`✨ បានកែតម្រូវ «${active.token.text}» ➔ «${cleanRepl}» ដោយជោគជ័យ!`, 'success');
       return;
@@ -3620,7 +3618,6 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
         if (targetQ) {
           await this.saveInlineText(targetQ);
         }
-        this.dictClipboardCandidate.set(null);
         this.focusActiveTextarea();
         this.showToast(`✨ បានកែតម្រូវ «${cleanTypo}» ➔ «${cleanRepl}» ដោយជោគជ័យ!`, 'success');
         return;
@@ -3639,7 +3636,6 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
         const choiceId = this.editingChoiceId();
         let finalVal = normalizeSpecialGlyphs(this.editingChoiceText.trim());
         await this.persistChoiceText({ id: choiceId }, finalVal);
-        this.dictClipboardCandidate.set(null);
         this.focusActiveTextarea();
         this.showToast(`✨ បានកែតម្រូវ «${cleanTypo}» ➔ «${cleanRepl}» ដោយជោគជ័យ!`, 'success');
         return;
@@ -3654,7 +3650,6 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       const updated = orig.split(cleanTypo).join(cleanRepl);
       targetQ.question_text = updated;
       await this.saveInlineText(targetQ);
-      this.dictClipboardCandidate.set(null);
       this.showToast(`✨ បានកែតម្រូវ «${cleanTypo}» ➔ «${cleanRepl}» ដោយជោគជ័យ!`, 'success');
       return;
     }
@@ -3670,24 +3665,6 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
         } catch (e) {}
       }
     }, 60);
-  }
-
-  @HostListener('window:focus')
-  async onWindowFocusCheckClipboard() {
-    try {
-      if (!navigator.clipboard?.readText) return;
-      const text = await navigator.clipboard.readText();
-      const clean = text ? text.trim() : '';
-      if (clean && clean.length > 0 && clean.length < 50 && /[\u1780-\u17FF]/.test(clean)) {
-        const activeTypo = this.activeSpellSuggestion()?.token?.text || this.lastLookupTypo;
-        if (activeTypo && activeTypo !== clean) {
-          const currentText = this.editingTextValue || this.editingChoiceText || '';
-          if (currentText.includes(activeTypo)) {
-            this.dictClipboardCandidate.set({ typo: activeTypo, replacement: clean });
-          }
-        }
-      }
-    } catch (e) {}
   }
 
 }

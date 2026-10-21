@@ -405,7 +405,6 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
   }
 
   lastLookupTypo: string = '';
-  dictClipboardCandidate = signal<{ typo: string; replacement: string } | null>(null);
   private dictReplacementSub?: Subscription;
 
   getKhmerDictUrl(word: string, question?: Question, typo?: string): string {
@@ -2446,7 +2445,6 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
       } else {
         await this.applySpellSuggestion(active.token, cleanRepl);
       }
-      this.dictClipboardCandidate.set(null);
       this.focusActiveTextarea();
       this.showToast(`✨ បានកែតម្រូវ «${active.token.text}» ➔ «${cleanRepl}» ដោយជោគជ័យ!`, 'success');
       return;
@@ -2473,7 +2471,6 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
           targetQ.question_text = finalVal;
           await this.persistQuestionText(targetQ, finalVal);
         }
-        this.dictClipboardCandidate.set(null);
         this.focusActiveTextarea();
         this.showToast(`✨ បានកែតម្រូវ «${cleanTypo}» ➔ «${cleanRepl}» ដោយជោគជ័យ!`, 'success');
         return;
@@ -2504,7 +2501,6 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
             await this.persistChoiceText(targetAns, finalVal, targetQ);
           }
         }
-        this.dictClipboardCandidate.set(null);
         this.focusActiveTextarea();
         this.showToast(`✨ បានកែតម្រូវ «${cleanTypo}» ➔ «${cleanRepl}» ដោយជោគជ័យ!`, 'success');
         return;
@@ -2518,7 +2514,6 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
       const updated = orig.split(cleanTypo).join(cleanRepl);
       selQ.question_text = updated;
       await this.persistQuestionText(selQ, updated);
-      this.dictClipboardCandidate.set(null);
       this.showToast(`✨ បានកែតម្រូវ «${cleanTypo}» ➔ «${cleanRepl}» ដោយជោគជ័យ!`, 'success');
       return;
     }
@@ -2535,24 +2530,6 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
         } catch (e) {}
       }
     }, 60);
-  }
-
-  @HostListener('window:focus')
-  async onWindowFocusCheckClipboard() {
-    try {
-      if (!navigator.clipboard?.readText) return;
-      const text = await navigator.clipboard.readText();
-      const clean = text ? text.trim() : '';
-      if (clean && clean.length > 0 && clean.length < 50 && /[\u1780-\u17FF]/.test(clean)) {
-        const activeTypo = this.activeSpellSuggestion()?.token?.text || this.lastLookupTypo;
-        if (activeTypo && activeTypo !== clean) {
-          const currentText = this.editingTextValue || this.editingChoiceText || this.selectedQuestion()?.question_text || '';
-          if (currentText.includes(activeTypo)) {
-            this.dictClipboardCandidate.set({ typo: activeTypo, replacement: clean });
-          }
-        }
-      }
-    } catch (e) {}
   }
 
     onEditorClick(event: MouseEvent) {

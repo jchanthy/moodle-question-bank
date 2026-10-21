@@ -726,7 +726,6 @@ export class QuestionFormComponent implements OnInit, OnDestroy {
   }
 
   lastLookupTypo: string = '';
-  dictClipboardCandidate = signal<{ typo: string; replacement: string } | null>(null);
   private dictReplacementSub?: Subscription;
 
   ngOnDestroy() {
@@ -757,7 +756,6 @@ export class QuestionFormComponent implements OnInit, OnDestroy {
     const active = this.activeSuggestion();
     if (active && (!cleanTypo || active.token.text === cleanTypo)) {
       this.applySuggestion(active.token, cleanRepl);
-      this.dictClipboardCandidate.set(null);
       this.focusActiveTextarea();
       return;
     }
@@ -770,7 +768,6 @@ export class QuestionFormComponent implements OnInit, OnDestroy {
       this.questionForm.patchValue({ question_text: newText });
       this.activeSuggestion.set(null);
       this.runSpellCheck();
-      this.dictClipboardCandidate.set(null);
       this.focusActiveTextarea();
       return;
     }
@@ -785,7 +782,6 @@ export class QuestionFormComponent implements OnInit, OnDestroy {
           answersArray.at(i).patchValue({ answer_text: updated });
           this.activeSuggestion.set(null);
           this.runSpellCheck();
-          this.dictClipboardCandidate.set(null);
           this.focusActiveTextarea();
           return;
         }
@@ -801,24 +797,6 @@ export class QuestionFormComponent implements OnInit, OnDestroy {
         } catch (e) {}
       }
     }, 60);
-  }
-
-  @HostListener('window:focus')
-  async onWindowFocusCheckClipboard() {
-    try {
-      if (!navigator.clipboard?.readText) return;
-      const text = await navigator.clipboard.readText();
-      const clean = text ? text.trim() : '';
-      if (clean && clean.length > 0 && clean.length < 50 && /[\u1780-\u17FF]/.test(clean)) {
-        const activeTypo = this.activeSuggestion()?.token?.text || this.lastLookupTypo;
-        if (activeTypo && activeTypo !== clean) {
-          const currentText = this.questionForm.get('question_text')?.value || '';
-          if (currentText.includes(activeTypo)) {
-            this.dictClipboardCandidate.set({ typo: activeTypo, replacement: clean });
-          }
-        }
-      }
-    } catch (e) {}
   }
 
   onEditorClick(event: MouseEvent) {

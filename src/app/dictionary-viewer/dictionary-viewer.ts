@@ -11,7 +11,7 @@ import { KhmerSpellCheckService, MptcTerm } from '../services/khmer-spellcheck.s
   template: `
     <div class="flex flex-col h-screen w-screen bg-slate-100 overflow-hidden font-kantumruy select-none">
       <!-- Top Navigation Bar -->
-      <header (mouseenter)="checkClipboard()" class="bg-gradient-to-r from-blue-700 via-indigo-700 to-indigo-800 text-white px-4 py-2 flex items-center justify-between shrink-0 shadow-md gap-3">
+      <header class="bg-gradient-to-r from-blue-700 via-indigo-700 to-indigo-800 text-white px-4 py-2 flex items-center justify-between shrink-0 shadow-md gap-3">
         <div class="flex items-center gap-2.5 min-w-0">
           <div class="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center text-base shrink-0 shadow-xs">
             📖
@@ -90,7 +90,7 @@ import { KhmerSpellCheckService, MptcTerm } from '../services/khmer-spellcheck.s
       </div>
 
       <!-- Quick Typo Replacement Banner (Auto-replaces typo in question) -->
-      <div *ngIf="typoWord()" (mouseenter)="checkClipboard()" class="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-700 text-white px-4 py-2 flex items-center justify-between gap-3 shadow-inner shrink-0 flex-wrap">
+      <div *ngIf="typoWord()" class="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-700 text-white px-4 py-2 flex items-center justify-between gap-3 shadow-inner shrink-0 flex-wrap">
         <div class="flex items-center gap-2 min-w-0">
           <span class="text-sm">⚡</span>
           <div class="flex items-center gap-1.5 text-xs">
@@ -106,22 +106,6 @@ import { KhmerSpellCheckService, MptcTerm } from '../services/khmer-spellcheck.s
                 (click)="applyReplacement(currentWord())"
                 class="px-3.5 py-1.5 bg-yellow-400 hover:bg-yellow-300 text-slate-900 font-extrabold text-xs rounded-xl shadow transition flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0">
           <span>{{ lastReplaced() === currentWord() ? '✓ បានជំនួសរួច' : '✅ ជំនួសពាក្យនេះចូលសំណួរ (Replace)' }}</span>
-        </button>
-      </div>
-
-      <!-- Clipboard Copy Catcher Notification Banner -->
-      <div *ngIf="clipboardWord()" 
-           (mouseenter)="checkClipboard()"
-           class="bg-blue-50 border-b border-blue-200 px-4 py-1.5 flex items-center justify-between gap-2 shrink-0 animate-in fade-in duration-150">
-        <div class="flex items-center gap-1.5 text-xs text-blue-900 min-w-0">
-          <span>📋</span>
-          <span class="font-medium">អ្នកបានចម្លង (Copied):</span>
-          <span class="font-extrabold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded truncate max-w-[180px]">{{ clipboardWord() }}</span>
-        </div>
-        <button type="button" 
-                (click)="applyReplacement(clipboardWord()!)"
-                class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition shrink-0 cursor-pointer shadow-xs">
-          យកពាក្យដែលចម្លងនេះទៅជំនួស ✓
         </button>
       </div>
 
@@ -158,13 +142,7 @@ export class DictionaryViewerComponent implements OnInit, OnDestroy {
   rawUrl = signal<string>('');
   safeUrl = signal<SafeResourceUrl | null>(null);
   lastReplaced = signal<string | null>(null);
-  clipboardWord = signal<string | null>(null);
   mptcTerm = signal<MptcTerm | null>(null);
-
-  private clipboardTimer: any = null;
-  private onFocusHandler = () => this.checkClipboard();
-  private onVisibilityHandler = () => { if (!document.hidden) this.checkClipboard(); };
-  private onCopyHandler = () => setTimeout(() => this.checkClipboard(), 100);
 
   ngOnInit() {
     // Assign persistent window name so subsequent window.open calls target this same window
@@ -205,46 +183,11 @@ export class DictionaryViewerComponent implements OnInit, OnDestroy {
         }
       };
     } catch (e) {}
-
-    // Listen to copy event or window focus to detect copied text from KhmerDict
-    window.addEventListener('focus', this.onFocusHandler);
-    document.addEventListener('visibilitychange', this.onVisibilityHandler);
-    document.addEventListener('copy', this.onCopyHandler);
-
-    // Periodically verify clipboard if window is focused
-    try {
-      this.clipboardTimer = setInterval(() => {
-        if (typeof document !== 'undefined' && document.hasFocus()) {
-          this.checkClipboard();
-        }
-      }, 1200);
-    } catch (e) {}
   }
 
   ngOnDestroy() {
     try {
       this.broadcastChannel?.close();
-    } catch (e) {}
-    try {
-      window.removeEventListener('focus', this.onFocusHandler);
-      document.removeEventListener('visibilitychange', this.onVisibilityHandler);
-      document.removeEventListener('copy', this.onCopyHandler);
-    } catch (e) {}
-    if (this.clipboardTimer) {
-      clearInterval(this.clipboardTimer);
-      this.clipboardTimer = null;
-    }
-  }
-
-  async checkClipboard() {
-    try {
-      const text = await navigator.clipboard.readText();
-      const clean = text ? text.trim() : '';
-      if (clean && clean.length > 0 && clean.length < 50 && /[\u1780-\u17FF]/.test(clean)) {
-        if (clean !== this.currentWord() && clean !== this.typoWord()) {
-          this.clipboardWord.set(clean);
-        }
-      }
     } catch (e) {}
   }
 
@@ -282,7 +225,6 @@ export class DictionaryViewerComponent implements OnInit, OnDestroy {
     const typo = this.typoWord() || this.currentWord();
     this.spellCheckService.sendReplacement(typo, replacement);
     this.lastReplaced.set(replacement);
-    this.clipboardWord.set(null);
     try {
       if (window.opener && !window.opener.closed) {
         window.opener.focus();
