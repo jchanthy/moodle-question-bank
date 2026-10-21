@@ -549,7 +549,7 @@ export class QuestionFormComponent implements OnInit {
     );
 
     if (token) {
-      event.preventDefault();
+      // Do not prevent default so caret and typing are never blocked
       event.stopPropagation();
       const suggestions = this.spellCheckService.getSuggestions(token.text);
       const popupWidth = 288;

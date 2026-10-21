@@ -2412,12 +2412,52 @@ export class TeacherDashboardComponent implements OnInit {
     this.showToast(`បានរំលងពាក្យ «${token.text}» (Ignored)`, 'info');
   }
 
-  onEditorClick(event: MouseEvent) {
-    // When clicking inside textarea to edit/type, dismiss any floating suggestion popup
-    // so the cursor and text are never obstructed, and allow normal focus/caret placement.
-    if (this.activeSpellSuggestion()) {
-      this.activeSpellSuggestion.set(null);
-    }
+    onEditorClick(event: MouseEvent) {
+    if (!this.spellCheckActive()) return;
+    const textarea = event.target as HTMLTextAreaElement;
+    setTimeout(() => {
+      const pos = textarea.selectionStart;
+      const token = this.spellCheckReport()?.tokens.find(
+        t => !t.isValid && t.isKhmer && (
+          (pos >= t.startIndex && pos <= t.endIndex) ||
+          (pos === t.startIndex - 1 && pos >= 0)
+        )
+      );
+
+      if (token) {
+        // Safe Aside Positioning: Docked to right side, NEVER blocks caret or typing
+        const suggestions = this.spellCheckService.getSuggestions(token.text);
+        const popupWidth = 350;
+        const container = (textarea.closest('.question-edit-box') || textarea.closest('.flex.flex-col.gap-2.mt-1.relative') || textarea.parentElement?.parentElement) as HTMLElement;
+        const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+
+        let side: 'left' | 'right' = 'right';
+        let x = 16;
+        if (containerRect.width >= 350) {
+          x = Math.max(16, containerRect.width - popupWidth - 16);
+        }
+
+        const textareaRect = textarea.getBoundingClientRect();
+        const textareaTopInContainer = textareaRect.top - containerRect.top;
+        const textareaBottomInContainer = textareaRect.bottom - containerRect.top;
+        let y = textareaTopInContainer;
+        if (containerRect.width < 700) {
+          y = textareaBottomInContainer + 8;
+        }
+
+        this.activeSpellSuggestion.set({
+          token,
+          side,
+          x,
+          y,
+          suggestions
+        });
+      } else {
+        if (this.activeSpellSuggestion()) {
+          this.activeSpellSuggestion.set(null);
+        }
+      }
+    }, 0);
   }
 
   onEditorContextMenu(event: MouseEvent) {
@@ -2682,12 +2722,52 @@ export class TeacherDashboardComponent implements OnInit {
     });
   }
 
-  onChoiceEditorClick(event: MouseEvent) {
-    // When clicking inside textarea to edit/type, dismiss any floating suggestion popup
-    // so the cursor and text are never obstructed, and allow normal focus/caret placement.
-    if (this.activeSpellSuggestion()) {
-      this.activeSpellSuggestion.set(null);
-    }
+    onChoiceEditorClick(event: MouseEvent) {
+    if (!this.spellCheckActive()) return;
+    const textarea = event.target as HTMLTextAreaElement;
+    setTimeout(() => {
+      const pos = textarea.selectionStart;
+      const token = this.choiceSpellReport()?.tokens.find(
+        t => !t.isValid && t.isKhmer && (
+          (pos >= t.startIndex && pos <= t.endIndex) ||
+          (pos === t.startIndex - 1 && pos >= 0)
+        )
+      );
+
+      if (token) {
+        const suggestions = this.spellCheckService.getSuggestions(token.text);
+        const popupWidth = 350;
+        const container = (textarea.closest('.choice-edit-box') || textarea.closest('.flex.flex-col.gap-1.5.mt-0.5.relative') || textarea.parentElement?.parentElement) as HTMLElement;
+        const containerRect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+
+        let side: 'left' | 'right' = 'right';
+        let x = 8;
+        if (containerRect.width >= 320) {
+          x = Math.max(8, containerRect.width - popupWidth - 8);
+        }
+
+        const textareaRect = textarea.getBoundingClientRect();
+        const textareaTopInContainer = textareaRect.top - containerRect.top;
+        const textareaBottomInContainer = textareaRect.bottom - containerRect.top;
+        let y = textareaTopInContainer;
+        if (containerRect.width < 700) {
+          y = textareaBottomInContainer + 4;
+        }
+
+        this.activeSpellSuggestion.set({
+          token,
+          isChoice: true,
+          side,
+          x,
+          y,
+          suggestions
+        });
+      } else {
+        if (this.activeSpellSuggestion()) {
+          this.activeSpellSuggestion.set(null);
+        }
+      }
+    }, 0);
   }
 
   onChoiceEditorContextMenu(event: MouseEvent) {

@@ -1,10 +1,12 @@
-import { Component, signal, HostListener } from '@angular/core';
+import { Component, signal, HostListener, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { KhmerSpellCheckService } from './services/khmer-spellcheck.service';
 import { RouterOutlet } from '@angular/router';
 import { gitCommit } from '../environments/version';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, CommonModule],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -12,6 +14,14 @@ export class App {
   protected readonly title = signal('moodle-question-bank');
   protected readonly gitCommit = gitCommit;
   protected readonly showScrollTop = signal(false);
+  protected readonly spellCheckService = inject(KhmerSpellCheckService);
+
+  @HostListener('window:keydown.escape')
+  onEscapeKey() {
+    if (this.spellCheckService.activeDictDrawer()) {
+      this.spellCheckService.closeDictionaryModal();
+    }
+  }
 
   @HostListener('window:scroll', [])
   onWindowScroll() {
