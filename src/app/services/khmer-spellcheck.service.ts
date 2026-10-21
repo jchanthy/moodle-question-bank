@@ -146,13 +146,6 @@ export class KhmerSpellCheckService {
         } else if (w.includes('\u17D2\u178F')) {
           addWord(w.replace(/\u17D2\u178F/g, '\u17D2\u178A'));
         }
-        // Orthographic equivalence: អ៊ី (\u17A2\u17CA\u17B8) and អ៉ី (\u17A2\u17C9\u17B8)
-        // e.g. អ៊ីរ៉ង់ <-> អ៉ីរ៉ង់, អ៊ីរ៉ាក់ <-> អ៉ីរ៉ាក់, អ៊ីតាលី <-> អ៉ីតាលី
-        if (w.includes('\u17A2\u17CA\u17B8')) {
-          addWord(w.replace(/\u17A2\u17CA\u17B8/g, '\u17A2\u17C9\u17B8'));
-        } else if (w.includes('\u17A2\u17C9\u17B8')) {
-          addWord(w.replace(/\u17A2\u17C9\u17B8/g, '\u17A2\u17CA\u17B8'));
-        }
       }
       this.isLoaded.set(true);
     } catch (err) {
@@ -677,6 +670,14 @@ export class KhmerSpellCheckService {
     // Rule F: Accidental Vowel U + Vowel II mistyped for Triisap + Vowel II (e.g. អុីមែល -> អ៊ីមែល, សុី -> ស៊ី)
     if (cleanTarget.includes('\u17BB\u17B8') || cleanTarget.includes('\u17B8\u17BB')) {
       const toTriisap = cleanTarget.replace(/\u17BB\u17B8|\u17B8\u17BB/g, '\u17CA\u17B8');
+      if (this.isWordValid(toTriisap, true) && toTriisap !== cleanTarget && !suggestions.includes(toTriisap)) {
+        suggestions.unshift(toTriisap);
+      }
+    }
+
+    // Rule: Mistyped Muusikatoan (៉) on initial អ before vowel II (e.g. អ៉ីមែល -> អ៊ីមែល)
+    if (cleanTarget.includes('\u17A2\u17C9\u17B8')) {
+      const toTriisap = cleanTarget.replace(/\u17A2\u17C9\u17B8/g, '\u17A2\u17CA\u17B8');
       if (this.isWordValid(toTriisap, true) && toTriisap !== cleanTarget && !suggestions.includes(toTriisap)) {
         suggestions.unshift(toTriisap);
       }
