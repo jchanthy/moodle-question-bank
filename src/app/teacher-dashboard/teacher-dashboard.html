@@ -1210,7 +1210,7 @@
                                   [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ (Move to right)' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង (Move to left)'">
                             {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
                           </button>
-                          <button type="button" (mousedown)="$event.preventDefault()" (click)="closeSpellSuggestion($event)" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                          <button type="button" (mousedown)="$event.preventDefault(); $event.stopPropagation()" (click)="closeSpellSuggestion($event)" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
                         </div>
                       </div>
 
@@ -1433,7 +1433,7 @@
                                         title="ផ្លាស់ប្តូរទៅម្ខាងទៀត (Move to other side)">
                                   ⇄ ម្ខាងទៀត
                                 </button>
-                                <button type="button" (mousedown)="$event.preventDefault()" (click)="closeSpellSuggestion($event)" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                                <button type="button" (mousedown)="$event.preventDefault(); $event.stopPropagation()" (click)="closeSpellSuggestion($event)" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
                               </div>
                             </div>
 

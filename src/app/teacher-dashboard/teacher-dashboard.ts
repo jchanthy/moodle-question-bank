@@ -109,6 +109,7 @@ export class TeacherDashboardComponent implements OnInit {
   choiceSpellReport = signal<SpellCheckReport | null>(null);
   activeSpellSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; isChoice?: boolean; side?: 'left' | 'right'; cursorPos?: number } | null>(null);
   private lastActiveTextarea: HTMLTextAreaElement | null = null;
+  dismissedSpellWord: string | null = null;
 
   // Draggable popup support
   isDraggingPopup = false;
@@ -2426,6 +2427,14 @@ export class TeacherDashboardComponent implements OnInit {
         )
       );
 
+      if (token && this.dismissedSpellWord === token.text) {
+        return;
+      }
+
+      if (!token || (this.dismissedSpellWord && token.text !== this.dismissedSpellWord)) {
+        this.dismissedSpellWord = null;
+      }
+
       if (token) {
         // Safe Aside Positioning: Docked to right side, NEVER blocks caret or typing
         const suggestions = this.spellCheckService.getSuggestions(token.text);
@@ -2464,6 +2473,7 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   onEditorContextMenu(event: MouseEvent) {
+    this.dismissedSpellWord = null;
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;
     this.lastActiveTextarea = textarea;
@@ -2550,25 +2560,37 @@ export class TeacherDashboardComponent implements OnInit {
     await this.applySpellSuggestion(token, suggestion, q);
   }
 
-    closeSpellSuggestion(event?: Event) {
+      closeSpellSuggestion(event?: Event) {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
     }
     const active = this.activeSpellSuggestion();
+    if (active?.token) {
+      this.dismissedSpellWord = active.token.text;
+    }
     this.activeSpellSuggestion.set(null);
 
-    const textarea = this.lastActiveTextarea;
+    const textarea = this.lastActiveTextarea
+      || (document.querySelector('.inline-edit-textarea') as HTMLTextAreaElement)
+      || (document.querySelector('.inline-edit-choice-textarea') as HTMLTextAreaElement);
+
     if (textarea && active?.token) {
-      setTimeout(() => {
+      const pos = (active.cursorPos !== undefined && active.cursorPos >= active.token.startIndex && active.cursorPos <= active.token.endIndex)
+        ? active.cursorPos
+        : active.token.endIndex;
+
+      const applyFocus = () => {
         try {
           textarea.focus();
-          const pos = (active.cursorPos !== undefined && active.cursorPos >= active.token.startIndex && active.cursorPos <= active.token.endIndex)
-            ? active.cursorPos
-            : active.token.endIndex;
           textarea.setSelectionRange(pos, pos);
         } catch (e) {}
-      }, 0);
+      };
+
+      applyFocus();
+      setTimeout(applyFocus, 20);
+      setTimeout(applyFocus, 80);
+      setTimeout(applyFocus, 180);
     }
   }
 
@@ -2634,6 +2656,7 @@ export class TeacherDashboardComponent implements OnInit {
   private choiceSpellDebounceTimer: any = null;
   onEditingChoiceTextChange(val: string) {
     this.editingChoiceText = normalizeSpecialGlyphs(val);
+    this.dismissedSpellWord = null;
     if (this.activeSpellSuggestion()) {
       this.activeSpellSuggestion.set(null);
     }
@@ -2714,6 +2737,7 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   onChoiceWordAction(token: SpellCheckToken, event: MouseEvent) {
+    this.dismissedSpellWord = null;
     if (token.isValid || !token.isKhmer) return;
     event.preventDefault();
     event.stopPropagation();
@@ -2757,6 +2781,14 @@ export class TeacherDashboardComponent implements OnInit {
         )
       );
 
+      if (token && this.dismissedSpellWord === token.text) {
+        return;
+      }
+
+      if (!token || (this.dismissedSpellWord && token.text !== this.dismissedSpellWord)) {
+        this.dismissedSpellWord = null;
+      }
+
       if (token) {
         const suggestions = this.spellCheckService.getSuggestions(token.text);
         const popupWidth = 350;
@@ -2795,6 +2827,7 @@ export class TeacherDashboardComponent implements OnInit {
   }
 
   onChoiceEditorContextMenu(event: MouseEvent) {
+    this.dismissedSpellWord = null;
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;
     this.lastActiveTextarea = textarea;
