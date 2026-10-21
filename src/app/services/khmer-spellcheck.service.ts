@@ -283,6 +283,18 @@ export class KhmerSpellCheckService {
       });
     } catch (e) {}
 
+    // Calculate optimal popup dimensions docked to top-right
+    let windowFeatures = '';
+    try {
+      const screenW = window.screen ? window.screen.availWidth : 1280;
+      const screenH = window.screen ? window.screen.availHeight : 800;
+      const winW = Math.min(580, Math.floor(screenW * 0.48));
+      const winH = Math.min(840, screenH - 60);
+      const winLeft = Math.max(0, screenW - winW - 10);
+      const winTop = 30;
+      windowFeatures = `width=${winW},height=${winH},left=${winLeft},top=${winTop},resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no`;
+    } catch (e) {}
+
     // 2. Reuse window if reference is still active and open
     try {
       if (this.dictWindow && !this.dictWindow.closed) {
@@ -291,17 +303,17 @@ export class KhmerSpellCheckService {
         return;
       }
     } catch (e) {
-      // In case cross-origin security throws on .closed, proceed to window.open
+      // In case security check fails, proceed to window.open
     }
 
-    // 3. Open or target the same-origin window named 'khmerdict_tab' (reusable across clicks)
+    // 3. Open or target the single reusable window named 'khmerdict_window'
     try {
-      this.dictWindow = window.open(targetUrl, 'khmerdict_tab');
+      this.dictWindow = window.open(targetUrl, 'khmerdict_window', windowFeatures);
       if (this.dictWindow) {
         this.dictWindow.focus();
       }
     } catch (e) {
-      window.open(targetUrl, 'khmerdict_tab');
+      window.open(targetUrl, 'khmerdict_window');
     }
   }
 
