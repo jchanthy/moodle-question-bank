@@ -26,24 +26,24 @@ import { KhmerSpellCheckService, MptcTerm } from '../services/khmer-spellcheck.s
 
         <!-- Action Buttons -->
         <div class="flex items-center gap-2 shrink-0">
-          <!-- Return to Question Button -->
-          <button type="button"
-                  (click)="returnToEditor()"
-                  class="px-3 py-1.5 text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-900 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
-                  title="ត្រឡប់ទៅផ្ទាំងកែសម្រួលសំណួរវិញ">
-            <span>⬅</span>
-            <span>ត្រឡប់ទៅកែសំណួរ (Back)</span>
-          </button>
-
           <!-- Direct Link to KhmerDict.com -->
           <a *ngIf="rawUrl()" 
              [href]="rawUrl()" 
              target="_blank" 
              rel="noopener noreferrer"
-             class="px-2.5 py-1.5 text-xs font-bold bg-white/15 hover:bg-white/25 rounded-xl transition text-blue-100 hover:text-white hidden md:flex items-center gap-1 cursor-pointer"
+             class="px-2.5 py-1.5 text-xs font-bold bg-white/15 hover:bg-white/25 rounded-xl transition text-blue-100 hover:text-white flex items-center gap-1 cursor-pointer"
              title="បើកផ្ទាល់ក្នុង KhmerDict.com">
             <span>បើកផ្ទាល់ ↗</span>
           </a>
+
+          <!-- Close Window Button -->
+          <button type="button"
+                  (click)="closeWindow()"
+                  class="px-3 py-1.5 text-xs font-bold bg-white/15 hover:bg-red-500 hover:text-white rounded-xl transition text-white flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                  title="បិទផ្ទាំងវចនានុក្រម (Close)">
+            <span>✕</span>
+            <span>បិទ (Close)</span>
+          </button>
         </div>
       </header>
 
@@ -194,11 +194,13 @@ export class DictionaryViewerComponent implements OnInit, OnDestroy {
     } catch (e) {}
   }
 
-  returnToEditor() {
+  closeWindow() {
     try {
-      if (window.opener && !window.opener.closed) {
-        window.opener.focus();
-        return;
+      window.parent?.postMessage('close_dict_pip', '*');
+    } catch (e) {}
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.close();
       }
     } catch (e) {}
     try {

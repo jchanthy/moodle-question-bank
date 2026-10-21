@@ -56,6 +56,7 @@ export class KhmerSpellCheckService {
 
   constructor() {
     this.initDictionaryChannel();
+    this.initPipCloseListener();
     this.loadCustomDictionary();
     this.loadMptcGlossary();
     this.loadDictionary().then(() => {
@@ -305,8 +306,24 @@ export class KhmerSpellCheckService {
 
   private dictChannel: BroadcastChannel | null = null;
   private dictWindow: Window | null = null;
+  private pipWindow: any = null;
   private replacementSubject = new Subject<{ typo: string; replacement: string }>();
   public replacement$: Observable<{ typo: string; replacement: string }> = this.replacementSubject.asObservable();
+
+  private initPipCloseListener(): void {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('message', (event) => {
+        if (event?.data === 'close_dict_pip') {
+          try {
+            if (this.pipWindow && !this.pipWindow.closed) {
+              this.pipWindow.close();
+              this.pipWindow = null;
+            }
+          } catch (e) {}
+        }
+      });
+    }
+  }
 
   private initDictionaryChannel(): void {
     try {
@@ -357,7 +374,7 @@ export class KhmerSpellCheckService {
     } catch (e) {}
   }
 
-  openDictionary(wordOrUrl: string, event?: Event, questionContext?: string, typo?: string): void {
+  async openDictionary(wordOrUrl: string, event?: Event, questionContext?: string, typo?: string): Promise<void> {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -399,29 +416,87 @@ export class KhmerSpellCheckService {
     } catch (e) {}
 
     // Calculate optimal popup dimensions docked to top-right
+    let winW = 560;
+    let winH = 820;
+    let winLeft = 0;
+    let winTop = 30;
     let windowFeatures = '';
     try {
       const screenW = window.screen ? window.screen.availWidth : 1280;
       const screenH = window.screen ? window.screen.availHeight : 800;
-      const winW = Math.min(580, Math.floor(screenW * 0.48));
-      const winH = Math.min(840, screenH - 60);
-      const winLeft = Math.max(0, screenW - winW - 10);
-      const winTop = 30;
+      winW = Math.min(560, Math.floor(screenW * 0.48));
+      winH = Math.min(840, screenH - 60);
+      winLeft = Math.max(0, screenW - winW - 10);
+      winTop = 30;
       windowFeatures = `width=${winW},height=${winH},left=${winLeft},top=${winTop},resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no`;
     } catch (e) {}
 
-    // 2. Reuse window if reference is still active and open
+    // 2. ALWAYS-ON-TOP: Document Picture-in-Picture API (Chrome / Edge 116+)
+    // Keeps the dictionary window stay on top while user edits questions without hiding behind the main window
+    if (typeof window !== 'undefined' && 'documentPictureInPicture' in window) {
+      try {
+        if (this.pipWindow && !this.pipWindow.closed) {
+          const iframe = this.pipWindow.document.querySelector('iframe');
+          if (iframe) {
+            iframe.src = targetUrl;
+          }
+          this.pipWindow.document.title = `📖 វចនានុក្រមខ្មែរ - ${cleanWord}`;
+          this.pipWindow.focus();
+          return;
+        }
+
+        const pip = (window as any).documentPictureInPicture;
+        if (pip && typeof pip.requestWindow === 'function') {
+          const pipWin = await pip.requestWindow({
+            width: winW,
+            height: winH
+          });
+          this.pipWindow = pipWin;
+
+          pipWin.document.title = `📖 វចនានុក្រមខ្មែរ - ${cleanWord}`;
+
+          pipWin.document.documentElement.style.margin = '0';
+          pipWin.document.documentElement.style.padding = '0';
+          pipWin.document.documentElement.style.height = '100%';
+          pipWin.document.documentElement.style.overflow = 'hidden';
+
+          pipWin.document.body.style.margin = '0';
+          pipWin.document.body.style.padding = '0';
+          pipWin.document.body.style.height = '100%';
+          pipWin.document.body.style.overflow = 'hidden';
+          pipWin.document.body.style.backgroundColor = '#f1f5f9';
+
+          const iframe = pipWin.document.createElement('iframe');
+          iframe.src = targetUrl;
+          iframe.style.width = '100%';
+          iframe.style.height = '100%';
+          iframe.style.border = 'none';
+          iframe.style.display = 'block';
+          iframe.allow = 'clipboard-read; clipboard-write';
+
+          pipWin.document.body.appendChild(iframe);
+
+          pipWin.addEventListener('pagehide', () => {
+            this.pipWindow = null;
+          });
+
+          return;
+        }
+      } catch (pipErr) {
+        console.warn('Document Picture-in-Picture failed or unavailable, falling back to popup window:', pipErr);
+      }
+    }
+
+    // 3. Fallback: Reuse standard popup window if active
     try {
       if (this.dictWindow && !this.dictWindow.closed) {
         this.dictWindow.location.href = targetUrl;
         this.dictWindow.focus();
         return;
       }
-    } catch (e) {
-      // In case security check fails, proceed to window.open
-    }
+    } catch (e) {}
 
-    // 3. Open or target the single reusable window named 'khmerdict_window'
+    // 4. Open or target the single reusable window named 'khmerdict_window'
     try {
       this.dictWindow = window.open(targetUrl, 'khmerdict_window', windowFeatures);
       if (this.dictWindow) {
