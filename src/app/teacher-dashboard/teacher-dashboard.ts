@@ -976,16 +976,40 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
   });
 
   dashboardStats = computed(() => {
+    const user = this.supabaseService.currentUser();
     const authored = this.allQuestions();
     const assigned = this.assignedQuestions();
     const assistant = this.assistantSubmissions();
+    const view = this.currentView();
+    const catId = this.selectedCategoryId();
     
     // Combine and deduplicate
     const combinedMap = new Map<string, Question>();
     authored.forEach(q => combinedMap.set(q.id, q));
     assigned.forEach(q => combinedMap.set(q.id, q));
     assistant.forEach(q => combinedMap.set(q.id, q));
-    const list = Array.from(combinedMap.values());
+    let list = Array.from(combinedMap.values());
+
+    // Filter by Category if selected
+    if (catId) {
+      list = list.filter(q => q.category_id === catId);
+    }
+
+    // Filter by active View to keep stat cards 100% synchronized with the question list below
+    if (view === 'assigned') {
+      const assignedIds = new Set(assigned.map(q => q.id));
+      list = list.filter(q => assignedIds.has(q.id));
+    } else if (view === 'assistant_submissions') {
+      const assistantIds = new Set(assistant.map(q => q.id));
+      list = list.filter(q => assistantIds.has(q.id));
+    } else if (view === 'archive') {
+      list = list.filter(q => q.deleted_at !== null && user && (q.created_by === user.id || q.metadata?.author_id === user.id));
+    } else {
+      // 'my' view: only questions authored by the current teacher
+      if (user) {
+        list = list.filter(q => q.created_by === user.id || q.metadata?.author_id === user.id);
+      }
+    }
 
     // Filter for latest versions in family just like filteredQuestions() does
     const familyMap = new Map<string, Question>();
@@ -999,8 +1023,8 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
 
     const latestList = Array.from(familyMap.values());
     const role = this.supabaseService.currentUserRole();
-    const assignedPending = this.assignedQuestions().filter(q => !q.assignment_completed_at).length;
-    const assistantPending = this.assistantSubmissions().length;
+    const assignedPending = this.assignedQuestions().filter(q => !q.assignment_completed_at && (!catId || q.category_id === catId)).length;
+    const assistantPending = this.assistantSubmissions().filter(q => !catId || q.category_id === catId).length;
 
     return {
       total: latestList.length,
@@ -1284,11 +1308,11 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
         .from('questions')
         .select('*, answers(*)', { count: 'exact' });
 
-      // If no category is selected, show only my questions
-      // If a category is selected, we show questions in that category
-      if (!this.selectedCategoryId()) {
-        query = query.or(`created_by.eq.${user.id},metadata->>author_id.eq.${user.id}`);
-      } else {
+      // Scope to the current teacher's authored questions
+      query = query.or(`created_by.eq.${user.id},metadata->>author_id.eq.${user.id}`);
+
+      // Apply category filter if selected
+      if (this.selectedCategoryId()) {
         query = query.eq('category_id', this.selectedCategoryId()!);
       }
 
@@ -1299,10 +1323,6 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
         if (!this.filterHidden()) {
           query = query.is('deleted_at', null);
         }
-      }
-      
-      if (this.selectedCategoryId()) {
-        query = query.eq('category_id', this.selectedCategoryId()!);
       }
 
       if (this.filterType()) {
