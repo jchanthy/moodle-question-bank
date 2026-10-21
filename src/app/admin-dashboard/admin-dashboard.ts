@@ -116,11 +116,15 @@ export class AdminDashboardComponent implements OnInit {
   spellCheckVersion = signal(0);
   activeSelectionLookup = signal<{
     word: string;
+    isValid: boolean;
+    suggestions: string[];
+    subWords: string[];
     definition: string | null;
     url: string;
     x: number;
     y: number;
     placeAbove: boolean;
+    activeTab: 'all' | 'spelling' | 'meaning';
   } | null>(null);
 
   // Draggable popup support
@@ -198,12 +202,114 @@ export class AdminDashboardComponent implements OnInit {
     }, 30);
   }
 
+  @HostListener('document:dblclick', ['$event'])
+  onDocumentDoubleClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (target.closest('.dict-lookup-popup') || target.closest('.spell-suggestion-popup')) {
+      return;
+    }
+    setTimeout(() => {
+      this.handleTextSelection();
+    }, 30);
+  }
+
   closeSelectionLookup(event?: MouseEvent) {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
     }
     this.activeSelectionLookup.set(null);
+  }
+
+  setLookupTab(tab: 'all' | 'spelling' | 'meaning', event?: MouseEvent) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const curr = this.activeSelectionLookup();
+    if (curr) {
+      this.activeSelectionLookup.set({ ...curr, activeTab: tab });
+    }
+  }
+
+  selectSubWordInLookup(subWord: string, event?: MouseEvent) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const curr = this.activeSelectionLookup();
+    if (!curr) return;
+    const cleanWord = this.spellCheckService.cleanKhmer(subWord) || subWord.trim();
+    const isValid = this.spellCheckService.isWordValid(cleanWord, true);
+    const suggestions = !isValid ? this.spellCheckService.getSuggestions(cleanWord, 4) : [];
+    const definition = this.spellCheckService.getDefinition(cleanWord);
+    const url = this.spellCheckService.getDictionaryUrl(cleanWord);
+
+    this.activeSelectionLookup.set({
+      ...curr,
+      word: cleanWord,
+      isValid,
+      suggestions,
+      definition,
+      url
+    });
+  }
+
+  addWordToDictionaryFromLookup(word: string, event?: MouseEvent) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    this.spellCheckService.addToCustomDictionary(word);
+    this.invalidateQuestionSpellCache();
+    const curr = this.activeSelectionLookup();
+    if (curr) {
+      this.activeSelectionLookup.set({
+        ...curr,
+        isValid: true,
+        suggestions: []
+      });
+    }
+    this.showToast(`បានបញ្ចូលពាក្យ «${word}» ទៅក្នុងវចនានុក្រមដោយជោគជ័យ`, 'success');
+  }
+
+  copyWordText(text: string, event?: MouseEvent) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      this.showToast(`បានចម្លង «${text}»`, 'info');
+    }).catch(() => {});
+  }
+
+  applySuggestionFromLookup(sug: string, event?: MouseEvent) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const curr = this.activeSelectionLookup();
+    if (!curr) return;
+    const word = curr.word;
+
+    if (this.editingTextQuestionId()) {
+      this.editingTextValue = this.editingTextValue.split(word).join(sug);
+      this.runInlineSpellCheck();
+      this.showToast(`បានកែ «${word}» ➔ «${sug}»`, 'success');
+      this.activeSelectionLookup.set(null);
+      return;
+    }
+
+    if (this.editingChoiceId()) {
+      this.editingChoiceText = this.editingChoiceText.split(word).join(sug);
+      this.runChoiceSpellCheck();
+      this.showToast(`បានកែ «${word}» ➔ «${sug}»`, 'success');
+      this.activeSelectionLookup.set(null);
+      return;
+    }
+
+    // Otherwise copy to clipboard
+    this.copyWordText(sug);
   }
 
   handleTextSelection() {
@@ -239,23 +345,39 @@ export class AdminDashboardComponent implements OnInit {
         return;
       }
 
+      const isValid = this.spellCheckService.isWordValid(cleanWord, true);
+      const suggestions = !isValid ? this.spellCheckService.getSuggestions(cleanWord, 4) : [];
       const definition = this.spellCheckService.getDefinition(cleanWord);
       const url = this.spellCheckService.getDictionaryUrl(cleanWord);
 
-      const popupWidth = 330;
+      // Segment compound phrase into subwords if any
+      let subWords: string[] = [];
+      if (cleanWord.length > 4) {
+        const segReport = this.spellCheckService.checkText(cleanWord);
+        const tokens = segReport.tokens.filter(t => t.isKhmer && t.text.length > 1);
+        if (tokens.length > 1) {
+          subWords = tokens.map(t => t.text);
+        }
+      }
+
+      const popupWidth = 350;
       let x = rect.left + (rect.width / 2) - (popupWidth / 2);
       x = Math.max(16, Math.min(x, window.innerWidth - popupWidth - 16));
 
-      const placeAbove = rect.top > 210;
+      const placeAbove = rect.top > 250;
       const y = placeAbove ? (rect.top - 8) : (rect.bottom + 8);
 
       this.activeSelectionLookup.set({
         word: cleanWord,
+        isValid,
+        suggestions,
+        subWords,
         definition,
         url,
         x,
         y,
-        placeAbove
+        placeAbove,
+        activeTab: 'all'
       });
 
       // If definitions dictionary is still fetching in background, auto-fill once loaded

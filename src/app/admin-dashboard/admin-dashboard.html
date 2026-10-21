@@ -3962,13 +3962,13 @@
   </ng-template>
 </p-dialog>
 
-<!-- Floating Selected Text Khmer Dictionary Lookup Card -->
+<!-- Floating Selected Text Khmer Dictionary & Spell Lookup Card -->
 <div *ngIf="activeSelectionLookup() as sel"
      class="dict-lookup-popup fixed z-[9999] bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/90 p-4 transition-all duration-150 ease-out animate-in fade-in zoom-in-95 pointer-events-auto"
      [class.-translate-y-full]="sel.placeAbove"
      [style.left.px]="sel.x"
      [style.top.px]="sel.y"
-     style="width: 330px; max-width: calc(100vw - 32px);">
+     style="width: 350px; max-width: calc(100vw - 32px);">
   
   <!-- Pointer Arrow -->
   <div [class]="sel.placeAbove 
@@ -3983,8 +3983,16 @@
         📖
       </div>
       <div class="min-w-0">
-        <h4 class="font-black text-slate-900 text-base leading-tight truncate tracking-wide font-sans">{{ sel.word }}</h4>
-        <span class="text-[10px] text-slate-400 font-medium">វចនានុក្រមខ្មែរ (Chuon Nath / KhmerDict)</span>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <h4 class="font-black text-slate-900 text-base leading-tight truncate tracking-wide font-sans">{{ sel.word }}</h4>
+          <span *ngIf="sel.isValid" class="inline-flex items-center px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[9px] font-extrabold border border-emerald-200/80">
+            ✓ ត្រឹមត្រូវ
+          </span>
+          <span *ngIf="!sel.isValid" class="inline-flex items-center px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[9px] font-extrabold border border-rose-200/80">
+            ⚠️ មិនទាន់ស្គាល់
+          </span>
+        </div>
+        <span class="text-[10px] text-slate-400 font-medium">វចនានុក្រម និងអក្ខរាវិរុទ្ធ (KhmerDict & Spellcheck)</span>
       </div>
     </div>
     <button type="button" 
@@ -3995,12 +4003,55 @@
     </button>
   </div>
 
+  <!-- Compound Words Breakdown (if multi-word phrase) -->
+  <div *ngIf="sel.subWords && sel.subWords.length > 1" class="relative z-10 mb-2.5 p-2 bg-slate-50/90 rounded-xl border border-slate-200/60">
+    <div class="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+      <span>ពាក្យក្នុងឃ្លា (Words in Phrase):</span>
+    </div>
+    <div class="flex flex-wrap gap-1">
+      <button *ngFor="let sw of sel.subWords" 
+              type="button"
+              (click)="selectSubWordInLookup(sw, $event)"
+              class="px-2 py-0.5 rounded-lg text-xs font-bold transition shadow-xs flex items-center gap-1"
+              [ngClass]="sw === sel.word ? 'bg-blue-600 text-white shadow-xs' : 'bg-white hover:bg-blue-50 text-slate-700 border border-slate-200'">
+        <span>{{ sw }}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Spelling Suggestions (if any) -->
+  <div *ngIf="sel.suggestions && sel.suggestions.length > 0" class="relative z-10 mb-2.5 p-2.5 bg-rose-50/70 border border-rose-200/70 rounded-xl">
+    <div class="text-[10px] font-bold text-rose-700 mb-1.5 flex items-center gap-1">
+      <span>⚡ ពាក្យណែនាំសម្រាប់កែតម្រូវ (Suggestions):</span>
+    </div>
+    <div class="flex flex-wrap gap-1.5">
+      <button *ngFor="let sug of sel.suggestions"
+              type="button"
+              (click)="applySuggestionFromLookup(sug, $event)"
+              class="px-2.5 py-1 bg-white hover:bg-emerald-600 hover:text-white text-emerald-800 text-xs font-extrabold rounded-lg border border-emerald-200 transition flex items-center gap-1 shadow-xs group"
+              title="ចុចដើម្បីកែ ឬចម្លងពាក្យនេះ">
+        <span>{{ sug }}</span>
+        <span class="text-[9px] text-emerald-600 group-hover:text-white font-bold">✓ កែ</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Add to Dictionary Button (if invalid or unknown word) -->
+  <div *ngIf="!sel.isValid" class="relative z-10 mb-2.5">
+    <button type="button"
+            (click)="addWordToDictionaryFromLookup(sel.word, $event)"
+            class="w-full px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-extrabold rounded-xl border border-indigo-200 transition flex items-center justify-center gap-1.5 shadow-xs"
+            title="បន្ថែមពាក្យនេះទៅក្នុងវចនានុក្រមផ្ទាល់ខ្លួនដើម្បីកុំឱ្យប្រព័ន្ធសម្គាល់ថាខុស">
+      <span>➕ បន្ថែម «{{ sel.word }}» ទៅវចនានុក្រម</span>
+    </button>
+  </div>
+
   <!-- Definition Content -->
   <div class="relative z-10">
-    <div *ngIf="sel.definition" class="text-xs text-slate-700 leading-relaxed max-h-36 overflow-y-auto pr-1 select-text bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/60 mb-3 space-y-1 custom-scrollbar">
+    <div *ngIf="sel.definition" class="text-xs text-slate-700 leading-relaxed max-h-36 overflow-y-auto pr-1 select-text bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/60 mb-2.5 space-y-1 custom-scrollbar">
       <p class="whitespace-pre-line font-medium">{{ sel.definition }}</p>
     </div>
-    <div *ngIf="!sel.definition" class="text-xs text-amber-800 bg-amber-50/90 border border-amber-200/70 rounded-xl p-2.5 mb-3 flex items-start gap-2">
+    <div *ngIf="!sel.definition" class="text-xs text-amber-800 bg-amber-50/90 border border-amber-200/70 rounded-xl p-2.5 mb-2.5 flex items-start gap-2">
       <span class="shrink-0 mt-0.5">ℹ️</span>
       <span class="leading-relaxed">ពុំមាននិយមន័យសង្ខេបក្នុងប្រព័ន្ធ។ អ្នកអាចចុចខាងក្រោមដើម្បីបើកមើលក្នុង KhmerDict.com</span>
     </div>
