@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, effect, OnInit, HostListener, ElementRef, ViewChild } from '@angular/core';
+import { Component, inject, signal, computed, effect, OnInit, OnDestroy, HostListener, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators, FormArray, FormGroup } from '@angular/forms';
 import { SupabaseService } from '../services/supabase.service';
@@ -7,6 +7,7 @@ import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { NotificationService } from '../services/notification.service';
 import { KhmerSpellCheckService, SpellCheckToken, SpellCheckReport } from '../services/khmer-spellcheck.service';
 import { debounceTime } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
 
 import { AutoComplete } from 'primeng/autocomplete';
 
@@ -17,7 +18,7 @@ import { AutoComplete } from 'primeng/autocomplete';
   templateUrl: './question-form.html',
   styleUrl: './question-form.css'
 })
-export class QuestionFormComponent implements OnInit {
+export class QuestionFormComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private supabase = inject(SupabaseService);
   private importExport = inject(ImportExportService);
@@ -331,6 +332,10 @@ export class QuestionFormComponent implements OnInit {
   }
 
   ngOnInit() {
+    this.dictReplacementSub = this.spellCheckService.replacement$.subscribe(({ typo, replacement }) => {
+      this.applyReplacementFromDict(typo, replacement);
+    });
+
     // Instantly scroll window to top when opening the form page
     window.scrollTo({ top: 0 });
 
@@ -720,14 +725,100 @@ export class QuestionFormComponent implements OnInit {
     return this.spellCheckService.getDefinition(word);
   }
 
-  getKhmerDictUrl(word: string): string {
-    const qText = this.questionForm.get('question_text')?.value || '';
-    return this.spellCheckService.getDictionaryUrl(word, qText);
+  lastLookupTypo: string = '';
+  dictClipboardCandidate = signal<{ typo: string; replacement: string } | null>(null);
+  private dictReplacementSub?: Subscription;
+
+  ngOnDestroy() {
+    this.dictReplacementSub?.unsubscribe();
   }
 
-  openKhmerDict(wordOrUrl: string, event?: Event): void {
+  getKhmerDictUrl(word: string, typo?: string): string {
     const qText = this.questionForm.get('question_text')?.value || '';
-    this.spellCheckService.openDictionary(wordOrUrl, event, qText);
+    const activeTypo = typo || this.activeSuggestion()?.token?.text || this.lastLookupTypo || '';
+    return this.spellCheckService.getDictionaryUrl(word, qText, activeTypo);
+  }
+
+  openKhmerDict(wordOrUrl: string, event?: Event, typo?: string): void {
+    const qText = this.questionForm.get('question_text')?.value || '';
+    const activeTypo = typo || this.activeSuggestion()?.token?.text || '';
+    if (activeTypo) {
+      this.lastLookupTypo = activeTypo;
+    }
+    this.spellCheckService.openDictionary(wordOrUrl, event, qText, activeTypo);
+  }
+
+  applyReplacementFromDict(typo: string, replacement: string) {
+    if (!replacement) return;
+    const cleanTypo = typo?.trim() || '';
+    const cleanRepl = replacement.trim();
+
+    // 1. If active suggestion matches or is open
+    const active = this.activeSuggestion();
+    if (active && (!cleanTypo || active.token.text === cleanTypo)) {
+      this.applySuggestion(active.token, cleanRepl);
+      this.dictClipboardCandidate.set(null);
+      this.focusActiveTextarea();
+      return;
+    }
+
+    // 2. Question text control
+    const currentQ = this.questionForm.get('question_text')?.value || '';
+    if (cleanTypo && currentQ.includes(cleanTypo)) {
+      this.spellUndoHistory.push(currentQ);
+      const newText = currentQ.split(cleanTypo).join(cleanRepl);
+      this.questionForm.patchValue({ question_text: newText });
+      this.activeSuggestion.set(null);
+      this.runSpellCheck();
+      this.dictClipboardCandidate.set(null);
+      this.focusActiveTextarea();
+      return;
+    }
+
+    // 3. Choices / Answers FormArray
+    const answersArray = this.questionForm.get('answers') as FormArray;
+    if (answersArray && cleanTypo) {
+      for (let i = 0; i < answersArray.length; i++) {
+        const val = answersArray.at(i).get('answer_text')?.value || '';
+        if (val.includes(cleanTypo)) {
+          const updated = val.split(cleanTypo).join(cleanRepl);
+          answersArray.at(i).patchValue({ answer_text: updated });
+          this.activeSuggestion.set(null);
+          this.runSpellCheck();
+          this.dictClipboardCandidate.set(null);
+          this.focusActiveTextarea();
+          return;
+        }
+      }
+    }
+  }
+
+  private focusActiveTextarea() {
+    setTimeout(() => {
+      if (this.lastActiveTextarea) {
+        try {
+          this.lastActiveTextarea.focus();
+        } catch (e) {}
+      }
+    }, 60);
+  }
+
+  @HostListener('window:focus')
+  async onWindowFocusCheckClipboard() {
+    try {
+      if (!navigator.clipboard?.readText) return;
+      const text = await navigator.clipboard.readText();
+      const clean = text ? text.trim() : '';
+      if (clean && clean.length > 0 && clean.length < 50 && /[\u1780-\u17FF]/.test(clean)) {
+        const activeTypo = this.activeSuggestion()?.token?.text || this.lastLookupTypo;
+        if (activeTypo && activeTypo !== clean) {
+          const currentText = this.questionForm.get('question_text')?.value || '';
+          if (currentText.includes(activeTypo)) {
+            this.dictClipboardCandidate.set({ typo: activeTypo, replacement: clean });
+          }
+        }
+      }
+    } catch (e) {}
   }
 
   onEditorClick(event: MouseEvent) {

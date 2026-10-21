@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { Subject, Observable } from 'rxjs';
 
 export interface SpellCheckToken {
   text: string;
@@ -13,6 +14,14 @@ export interface SpellCheckToken {
 export interface SpellCheckReport {
   tokens: SpellCheckToken[];
   errorCount: number;
+}
+
+export interface MptcTerm {
+  no: number;
+  khmer: string;
+  khmerVariants: string[];
+  english: string;
+  definition: string;
 }
 
 const COMMON_2_CONSONANT_WORDS = new Set([
@@ -46,7 +55,9 @@ export class KhmerSpellCheckService {
   isLoading = signal(false);
 
   constructor() {
+    this.initDictionaryChannel();
     this.loadCustomDictionary();
+    this.loadMptcGlossary();
     this.loadDictionary().then(() => {
       // Load definitions in background once wordlist is active
       this.loadDefinitions();
@@ -230,20 +241,123 @@ export class KhmerSpellCheckService {
     return null;
   }
 
+  // Official MPTC Technical Glossary
+  private mptcTerms: MptcTerm[] = [];
+  private mptcIndex = new Map<string, MptcTerm>();
+  isMptcLoaded = signal(false);
+
+  async loadMptcGlossary(): Promise<void> {
+    if (this.isMptcLoaded()) return;
+    try {
+      let res: Response;
+      try {
+        res = await fetch('data/mptc-glossary.json');
+        if (!res.ok) res = await fetch('/data/mptc-glossary.json');
+      } catch {
+        res = await fetch('/data/mptc-glossary.json');
+      }
+      if (res.ok) {
+        const terms: MptcTerm[] = await res.json();
+        this.mptcTerms = terms;
+        for (const t of terms) {
+          if (t.khmer) this.mptcIndex.set(t.khmer.toLowerCase().trim(), t);
+          if (t.khmerVariants && Array.isArray(t.khmerVariants)) {
+            for (const v of t.khmerVariants) {
+              this.mptcIndex.set(v.toLowerCase().trim(), t);
+            }
+          }
+          if (t.english) {
+            this.mptcIndex.set(t.english.toLowerCase().trim(), t);
+          }
+        }
+        this.isMptcLoaded.set(true);
+      }
+    } catch (e) {
+      console.warn('Could not load MPTC glossary:', e);
+    }
+  }
+
+  findMptcTerm(word: string): MptcTerm | null {
+    if (!word) return null;
+    const clean = word.trim().toLowerCase();
+    if (this.mptcIndex.has(clean)) {
+      return this.mptcIndex.get(clean)!;
+    }
+    // Try without leading/trailing non-word chars
+    const stripped = clean.replace(/^[^\u1780-\u17FF\w]+|[^\u1780-\u17FF\w]+$/g, '');
+    return this.mptcIndex.get(stripped) || null;
+  }
+
+  getAllMptcTerms(): MptcTerm[] {
+    return this.mptcTerms;
+  }
+
+  searchMptcGlossary(query: string): MptcTerm[] {
+    if (!query || !query.trim()) return this.mptcTerms.slice(0, 30);
+    const q = query.trim().toLowerCase();
+    return this.mptcTerms.filter(t => 
+      t.khmer.toLowerCase().includes(q) ||
+      (t.english && t.english.toLowerCase().includes(q)) ||
+      (t.definition && t.definition.toLowerCase().includes(q)) ||
+      (t.khmerVariants && t.khmerVariants.some(v => v.toLowerCase().includes(q)))
+    ).slice(0, 30);
+  }
+
   private dictChannel: BroadcastChannel | null = null;
   private dictWindow: Window | null = null;
+  private replacementSubject = new Subject<{ typo: string; replacement: string }>();
+  public replacement$: Observable<{ typo: string; replacement: string }> = this.replacementSubject.asObservable();
 
-  getDictionaryUrl(word: string, questionContext?: string): string {
+  private initDictionaryChannel(): void {
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        if (!this.dictChannel) {
+          this.dictChannel = new BroadcastChannel('khmer_dict_sync');
+        }
+        this.dictChannel.onmessage = (event) => {
+          if (event?.data?.action === 'replace_typo' && event.data.replacement) {
+            this.replacementSubject.next({
+              typo: event.data.typo ? event.data.typo.trim() : '',
+              replacement: event.data.replacement.trim()
+            });
+          }
+        };
+      }
+    } catch (e) {}
+  }
+
+  getDictionaryUrl(word: string, questionContext?: string, typo?: string): string {
     const clean = this.cleanKhmer(word) || word.trim();
     let url = `/dictionary?word=${encodeURIComponent(clean)}`;
     if (questionContext && questionContext.trim()) {
       const cleanQ = questionContext.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
       url += `&q=${encodeURIComponent(cleanQ)}`;
     }
+    if (typo && typo.trim()) {
+      url += `&typo=${encodeURIComponent(typo.trim())}`;
+    }
     return url;
   }
 
-  openDictionary(wordOrUrl: string, event?: Event, questionContext?: string): void {
+  sendReplacement(typo: string, replacement: string): void {
+    const cleanTypo = typo?.trim() || '';
+    const cleanRepl = replacement?.trim() || '';
+    if (!cleanRepl) return;
+    try {
+      if (!this.dictChannel) {
+        this.initDictionaryChannel();
+      }
+      this.dictChannel?.postMessage({
+        action: 'replace_typo',
+        typo: cleanTypo,
+        replacement: cleanRepl
+      });
+      // Also emit locally in case sender and receiver share this service instance
+      this.replacementSubject.next({ typo: cleanTypo, replacement: cleanRepl });
+    } catch (e) {}
+  }
+
+  openDictionary(wordOrUrl: string, event?: Event, questionContext?: string, typo?: string): void {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -270,7 +384,7 @@ export class KhmerSpellCheckService {
       } catch (e) {}
     }
     const cleanWord = this.cleanKhmer(raw) || raw;
-    const targetUrl = this.getDictionaryUrl(cleanWord, questionContext);
+    const targetUrl = this.getDictionaryUrl(cleanWord, questionContext, typo);
 
     // 1. Send live update to existing window if already listening
     try {
@@ -279,7 +393,8 @@ export class KhmerSpellCheckService {
       }
       this.dictChannel.postMessage({
         word: cleanWord,
-        question: questionContext || ''
+        question: questionContext || '',
+        typo: typo || ''
       });
     } catch (e) {}
 

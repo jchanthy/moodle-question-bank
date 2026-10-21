@@ -2042,3 +2042,30 @@
     </div>
   </div>
 </div>
+
+<!-- Floating KhmerDict Clipboard Replacement Quick-Action -->
+<div *ngIf="dictClipboardCandidate()" 
+     class="fixed bottom-6 right-6 z-[9999] bg-slate-900/95 text-white p-3.5 rounded-2xl shadow-2xl border border-indigo-500/50 backdrop-blur-md flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-200 font-kantumruy">
+  <div class="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center text-lg shrink-0">
+    📋
+  </div>
+  <div class="text-xs">
+    <div class="font-bold text-slate-300">រកឃើញពាក្យចម្លងពីវចនានុក្រម:</div>
+    <div class="mt-0.5 flex items-center gap-1.5 flex-wrap">
+      <span>ជំនួស</span>
+      <span class="line-through text-rose-300 font-bold bg-white/10 px-1.5 py-0.5 rounded">{{ dictClipboardCandidate()!.typo }}</span>
+      <span>➔</span>
+      <span class="text-emerald-300 font-extrabold bg-white/10 px-1.5 py-0.5 rounded">{{ dictClipboardCandidate()!.replacement }}</span>
+    </div>
+  </div>
+  <button type="button" 
+          (click)="applyReplacementFromDict(dictClipboardCandidate()!.typo, dictClipboardCandidate()!.replacement); dictClipboardCandidate.set(null)"
+          class="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow cursor-pointer transition active:scale-95 shrink-0 flex items-center gap-1">
+    <span>✓ ជំនួសឥឡូវនេះ</span>
+  </button>
+  <button type="button" 
+          (click)="dictClipboardCandidate.set(null)" 
+          class="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition cursor-pointer">
+    ✕
+  </button>
+</div>

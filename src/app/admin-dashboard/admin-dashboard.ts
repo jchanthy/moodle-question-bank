@@ -1,11 +1,11 @@
-import { Component, inject, signal, computed, OnInit, effect, untracked, HostListener, ElementRef, ViewChild } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, OnDestroy, effect, untracked, HostListener, ElementRef, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule, NgIf, NgFor, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SupabaseService, DEFAULT_COMPENSATION_SETTINGS, CompensationSettings } from '../services/supabase.service';
 import { ImportExportService, ParsedQuestion, normalizeSpecialGlyphs } from '../services/import-export.service';
 import { Router, RouterModule } from '@angular/router';
-import { Subject, debounceTime, distinctUntilChanged, firstValueFrom } from 'rxjs';
+import { Subject, Subscription, debounceTime, distinctUntilChanged, firstValueFrom } from 'rxjs';
 import { NotificationService } from '../services/notification.service';
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { ToastModule } from 'primeng/toast';
@@ -99,7 +99,7 @@ interface Category {
   templateUrl: './admin-dashboard.html',
   styleUrl: './admin-dashboard.css'
 })
-export class AdminDashboardComponent implements OnInit {
+export class AdminDashboardComponent implements OnInit, OnDestroy {
   supabaseService = inject(SupabaseService);
   router = inject(Router);
   messageService = inject(MessageService);
@@ -1371,7 +1371,14 @@ export class AdminDashboardComponent implements OnInit {
   };
 
   async ngOnInit() {
+    this.dictReplacementSub = this.spellCheckService.replacement$.subscribe(({ typo, replacement }) => {
+      this.applyReplacementFromDict(typo, replacement);
+    });
     await this.supabaseService.getCompensationSettings();
+  }
+
+  ngOnDestroy() {
+    this.dictReplacementSub?.unsubscribe();
   }
 
   async openCostSettingsModal() {
@@ -3560,14 +3567,127 @@ export class AdminDashboardComponent implements OnInit {
     return this.spellCheckService.getDefinition(word);
   }
 
-  getKhmerDictUrl(word: string, q?: Question): string {
+  lastLookupTypo: string = '';
+  dictClipboardCandidate = signal<{ typo: string; replacement: string } | null>(null);
+  private dictReplacementSub?: Subscription;
+
+  getKhmerDictUrl(word: string, q?: Question, typo?: string): string {
     const qText = this.editingTextValue || q?.question_text || '';
-    return this.spellCheckService.getDictionaryUrl(word, qText);
+    const activeTypo = typo || this.activeSpellSuggestion()?.token?.text || this.lastLookupTypo || '';
+    return this.spellCheckService.getDictionaryUrl(word, qText, activeTypo);
   }
 
-  openKhmerDict(wordOrUrl: string, event?: Event, q?: Question): void {
+  openKhmerDict(wordOrUrl: string, event?: Event, q?: Question, typo?: string): void {
     const qText = this.editingTextValue || q?.question_text || '';
-    this.spellCheckService.openDictionary(wordOrUrl, event, qText);
+    const activeTypo = typo || this.activeSpellSuggestion()?.token?.text || '';
+    if (activeTypo) {
+      this.lastLookupTypo = activeTypo;
+    }
+    this.spellCheckService.openDictionary(wordOrUrl, event, qText, activeTypo);
+  }
+
+  async applyReplacementFromDict(typo: string, replacement: string) {
+    if (!replacement) return;
+    const cleanTypo = typo?.trim() || '';
+    const cleanRepl = replacement.trim();
+
+    // 1. If active spell suggestion matches or is open
+    const active = this.activeSpellSuggestion();
+    if (active && (!cleanTypo || active.token.text === cleanTypo)) {
+      if (active.isChoice) {
+        await this.applyChoiceSpellSuggestion(active.token, cleanRepl, null, undefined);
+      } else {
+        await this.applySpellSuggestion(active.token, cleanRepl, undefined, undefined);
+      }
+      this.dictClipboardCandidate.set(null);
+      this.focusActiveTextarea();
+      this.showToast(`✨ បានកែតម្រូវ «${active.token.text}» ➔ «${cleanRepl}» ដោយជោគជ័យ!`, 'success');
+      return;
+    }
+
+    // 2. If editing question text inline
+    if (this.editingTextQuestionId()) {
+      const current = this.editingTextValue || '';
+      if (cleanTypo && current.includes(cleanTypo)) {
+        this.spellUndoHistory.push(current);
+        this.editingTextValue = current.split(cleanTypo).join(cleanRepl);
+        this.activeSpellSuggestion.set(null);
+        this.invalidateQuestionSpellCache(this.editingTextQuestionId() || undefined);
+        this.runInlineSpellCheck();
+
+        const qId = this.editingTextQuestionId();
+        const targetQ = this.allQuestions().find(q => q.id === qId);
+        if (targetQ) {
+          await this.saveInlineText(targetQ);
+        }
+        this.dictClipboardCandidate.set(null);
+        this.focusActiveTextarea();
+        this.showToast(`✨ បានកែតម្រូវ «${cleanTypo}» ➔ «${cleanRepl}» ដោយជោគជ័យ!`, 'success');
+        return;
+      }
+    }
+
+    // 3. If editing choice text inline
+    if (this.editingChoiceId()) {
+      const current = this.editingChoiceText || '';
+      if (cleanTypo && current.includes(cleanTypo)) {
+        this.choiceSpellUndoHistory.push(current);
+        this.editingChoiceText = current.split(cleanTypo).join(cleanRepl);
+        this.activeSpellSuggestion.set(null);
+        this.runChoiceSpellCheck();
+
+        const choiceId = this.editingChoiceId();
+        let finalVal = normalizeSpecialGlyphs(this.editingChoiceText.trim());
+        await this.persistChoiceText({ id: choiceId }, finalVal);
+        this.dictClipboardCandidate.set(null);
+        this.focusActiveTextarea();
+        this.showToast(`✨ បានកែតម្រូវ «${cleanTypo}» ➔ «${cleanRepl}» ដោយជោគជ័យ!`, 'success');
+        return;
+      }
+    }
+
+    // 4. Check active editing question
+    const qId = this.editingTextQuestionId();
+    const targetQ = qId ? this.allQuestions().find(q => q.id === qId) : null;
+    if (targetQ && cleanTypo && (targetQ.question_text || '').includes(cleanTypo)) {
+      const orig = targetQ.question_text || '';
+      const updated = orig.split(cleanTypo).join(cleanRepl);
+      targetQ.question_text = updated;
+      await this.saveInlineText(targetQ);
+      this.dictClipboardCandidate.set(null);
+      this.showToast(`✨ បានកែតម្រូវ «${cleanTypo}» ➔ «${cleanRepl}» ដោយជោគជ័យ!`, 'success');
+      return;
+    }
+  }
+
+  private focusActiveTextarea() {
+    setTimeout(() => {
+      const textarea = (document.querySelector('.inline-edit-textarea') as HTMLTextAreaElement)
+        || (document.querySelector('.inline-edit-choice-textarea') as HTMLTextAreaElement);
+      if (textarea) {
+        try {
+          textarea.focus();
+        } catch (e) {}
+      }
+    }, 60);
+  }
+
+  @HostListener('window:focus')
+  async onWindowFocusCheckClipboard() {
+    try {
+      if (!navigator.clipboard?.readText) return;
+      const text = await navigator.clipboard.readText();
+      const clean = text ? text.trim() : '';
+      if (clean && clean.length > 0 && clean.length < 50 && /[\u1780-\u17FF]/.test(clean)) {
+        const activeTypo = this.activeSpellSuggestion()?.token?.text || this.lastLookupTypo;
+        if (activeTypo && activeTypo !== clean) {
+          const currentText = this.editingTextValue || this.editingChoiceText || '';
+          if (currentText.includes(activeTypo)) {
+            this.dictClipboardCandidate.set({ typo: activeTypo, replacement: clean });
+          }
+        }
+      }
+    } catch (e) {}
   }
 
 }
