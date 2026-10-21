@@ -230,15 +230,9 @@ export class KhmerSpellCheckService {
     return null;
   }
 
-  private dictChannel: BroadcastChannel | null = null;
-  private dictWindow: Window | null = null;
+    private dictWindow: Window | null = null;
 
   getDictionaryUrl(word: string): string {
-    const clean = this.cleanKhmer(word) || word.trim();
-    return `/dictionary?word=${encodeURIComponent(clean)}`;
-  }
-
-  getDirectKhmerDictUrl(word: string): string {
     const clean = this.cleanKhmer(word) || word.trim();
     return `https://khmerdict.com/${encodeURIComponent(clean)}`;
   }
@@ -249,55 +243,37 @@ export class KhmerSpellCheckService {
       event.stopPropagation();
     }
 
-    let word = wordOrUrl.trim();
-    if (word.startsWith('http')) {
+    let raw = wordOrUrl.trim();
+    if (raw.startsWith('http')) {
       try {
-        const u = new URL(word);
-        const param = u.searchParams.get('word');
-        if (param) {
-          word = param;
-        } else {
-          word = decodeURIComponent(u.pathname.replace(/^\//, '').replace(/^word\//, ''));
-        }
+        const u = new URL(raw);
+        raw = decodeURIComponent(u.pathname.replace(/^\//, '').replace(/^word\//, ''));
       } catch (e) {
-        word = word.replace(/^https?:\/\/[^\/]+\//, '');
+        raw = raw.replace(/^https?:\/\/[^\/]+\//, '');
       }
-    } else if (word.startsWith('/dictionary?word=')) {
-      try {
-        const parts = word.split('word=');
-        if (parts.length > 1) {
-          word = decodeURIComponent(parts[1].split('&')[0]);
-        }
-      } catch (e) {}
     }
+    const cleanWord = this.cleanKhmer(raw) || raw;
+    const directUrl = this.getDictionaryUrl(cleanWord);
 
-    const cleanWord = this.cleanKhmer(word) || word;
-
-    // Send broadcast to update open tab immediately if listening
-    try {
-      if (!this.dictChannel) {
-        this.dictChannel = new BroadcastChannel('khmer_dict_sync');
-      }
-      this.dictChannel.postMessage({ word: cleanWord });
-    } catch (e) {}
-
-    // Target the single reusable same-origin tab
-    const targetUrl = `/dictionary?word=${encodeURIComponent(cleanWord)}`;
+    // Reuse window if reference is still active and open
     try {
       if (this.dictWindow && !this.dictWindow.closed) {
-        this.dictWindow.location.href = targetUrl;
+        this.dictWindow.location.href = directUrl;
         this.dictWindow.focus();
         return;
       }
-    } catch (e) {}
+    } catch (e) {
+      // In case cross-origin security throws on .closed, proceed to window.open
+    }
 
+    // Open/Reuse window named 'khmerdict_tab' (WITHOUT noopener/noreferrer to allow tab reuse)
     try {
-      this.dictWindow = window.open(targetUrl, 'khmer_dictionary_tab');
+      this.dictWindow = window.open(directUrl, 'khmerdict_tab');
       if (this.dictWindow) {
         this.dictWindow.focus();
       }
     } catch (e) {
-      window.open(targetUrl, 'khmer_dictionary_tab');
+      window.open(directUrl, 'khmerdict_tab');
     }
   }
 
