@@ -1193,7 +1193,7 @@
                               <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
                               <a *ngIf="activeSpellSuggestion()?.token?.text"
                                  [href]="getKhmerDictUrl(activeSpellSuggestion()!.token.text)"
-                                 target="khmerdict_window"
+                                 target="khmerdict_tab"
                                  (click)="openKhmerDict(activeSpellSuggestion()!.token.text, $event)"
                                  class="text-[9px] text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-0.5"
                                  title="ស្វែងរកក្នុងវចនានុក្រម KhmerDict">
@@ -1224,7 +1224,7 @@
                             <div class="flex items-center justify-between gap-1.5">
                               <div class="flex items-center gap-1.5">
                                 <span class="text-sm font-extrabold text-slate-800 group-hover:text-emerald-700">{{ sug }}</span>
-                                <a [href]="getKhmerDictUrl(sug)" target="khmerdict_window"
+                                <a [href]="getKhmerDictUrl(sug)" target="khmerdict_tab"
                                    (click)="openKhmerDict(sug, $event)"
                                    class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-0.5 rounded text-[11px] transition"
                                    title="មើលក្នុងវចនានុក្រម KhmerDict">
@@ -1416,7 +1416,7 @@
                                     <span class="text-[8px] font-black uppercase tracking-wider text-slate-400 block leading-tight">ពាក្យខុស (Typo)</span>
                                     <a *ngIf="activeSpellSuggestion()?.token?.text"
                                        [href]="getKhmerDictUrl(activeSpellSuggestion()!.token.text)"
-                                       target="khmerdict_window"
+                                       target="khmerdict_tab"
                                        (click)="openKhmerDict(activeSpellSuggestion()!.token.text, $event)"
                                        class="text-[9px] text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-0.5"
                                        title="ស្វែងរកក្នុងវចនានុក្រម KhmerDict">
@@ -1447,7 +1447,7 @@
                                   <div class="flex items-center justify-between gap-1.5">
                                     <div class="flex items-center gap-1.5">
                                       <span class="text-sm font-extrabold text-slate-800 group-hover:text-emerald-700">{{ sug }}</span>
-                                      <a [href]="getKhmerDictUrl(sug)" target="khmerdict_window"
+                                      <a [href]="getKhmerDictUrl(sug)" target="khmerdict_tab"
                                          (click)="openKhmerDict(sug, $event)"
                                          class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-0.5 rounded text-[11px] transition"
                                          title="មើលក្នុងវចនានុក្រម KhmerDict">
@@ -2033,7 +2033,7 @@
 
       <!-- KhmerDict Action Link -->
       <a [href]="sel.url" 
-         target="khmerdict_window" 
+         target="khmerdict_tab" 
          (click)="openKhmerDict(sel.url, $event)"
          class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm hover:shadow active:scale-[0.98]">
         <span>📖 បើកមើលក្នុង KhmerDict.com</span>

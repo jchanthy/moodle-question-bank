@@ -95,7 +95,7 @@ export class DictionaryViewerComponent implements OnInit, OnDestroy {
   ngOnInit() {
     // Assign persistent window name so subsequent window.open calls target this same tab
     try {
-      window.name = 'khmerdict_window';
+      window.name = 'khmerdict_tab';
     } catch (e) {}
 
     // Read route query parameters (?word=...&q=...)
