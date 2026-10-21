@@ -113,6 +113,15 @@ export class AdminDashboardComponent implements OnInit {
   spellCheckReport = signal<SpellCheckReport | null>(null);
   choiceSpellReport = signal<SpellCheckReport | null>(null);
   activeSpellSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; isChoice?: boolean; side?: 'left' | 'right' } | null>(null);
+  spellCheckVersion = signal(0);
+  activeSelectionLookup = signal<{
+    word: string;
+    definition: string | null;
+    url: string;
+    x: number;
+    y: number;
+    placeAbove: boolean;
+  } | null>(null);
 
   // Draggable popup support
   isDraggingPopup = false;
@@ -169,6 +178,100 @@ export class AdminDashboardComponent implements OnInit {
       if (!target.closest('.spell-suggestion-popup') && !target.closest('.spell-trigger-chip') && !target.closest('.inline-edit-textarea') && !target.closest('.inline-edit-choice-textarea')) {
         this.activeSpellSuggestion.set(null);
       }
+    }
+    if (this.activeSelectionLookup()) {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.dict-lookup-popup')) {
+        this.activeSelectionLookup.set(null);
+      }
+    }
+  }
+
+  @HostListener('document:mouseup', ['$event'])
+  onDocumentMouseUp(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (target.closest('.dict-lookup-popup') || target.closest('.spell-suggestion-popup')) {
+      return;
+    }
+    setTimeout(() => {
+      this.handleTextSelection();
+    }, 30);
+  }
+
+  closeSelectionLookup(event?: MouseEvent) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    this.activeSelectionLookup.set(null);
+  }
+
+  handleTextSelection() {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+      return;
+    }
+
+    const raw = selection.toString().trim();
+    if (!raw || raw.length > 50) {
+      return;
+    }
+
+    // Must contain Khmer character or alphanumeric word
+    if (!/[\u1780-\u17FF\w]/.test(raw)) {
+      return;
+    }
+
+    // Strip wrapping punctuation/quotes/brackets
+    const cleanWord = raw
+      .replace(/^[^\u1780-\u17FF\w]+|[^\u1780-\u17FF\w]+$/g, '')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .trim();
+
+    if (!cleanWord || cleanWord.length === 0) {
+      return;
+    }
+
+    try {
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      if (!rect || (rect.width === 0 && rect.height === 0)) {
+        return;
+      }
+
+      const definition = this.spellCheckService.getDefinition(cleanWord);
+      const url = this.spellCheckService.getDictionaryUrl(cleanWord);
+
+      const popupWidth = 330;
+      let x = rect.left + (rect.width / 2) - (popupWidth / 2);
+      x = Math.max(16, Math.min(x, window.innerWidth - popupWidth - 16));
+
+      const placeAbove = rect.top > 210;
+      const y = placeAbove ? (rect.top - 8) : (rect.bottom + 8);
+
+      this.activeSelectionLookup.set({
+        word: cleanWord,
+        definition,
+        url,
+        x,
+        y,
+        placeAbove
+      });
+
+      // If definitions dictionary is still fetching in background, auto-fill once loaded
+      if (!this.spellCheckService.isDefinitionsLoaded()) {
+        this.spellCheckService.loadDefinitions().then(() => {
+          const active = this.activeSelectionLookup();
+          if (active && active.word === cleanWord && !active.definition) {
+            const def = this.spellCheckService.getDefinition(cleanWord);
+            if (def) {
+              this.activeSelectionLookup.set({ ...active, definition: def });
+            }
+          }
+        });
+      }
+    } catch {
+      // Ignore selection errors
     }
   }
 
@@ -972,6 +1075,7 @@ export class AdminDashboardComponent implements OnInit {
         return item;
       });
       this.allQuestions.set(updated);
+      this.invalidateQuestionSpellCache(q.id);
       this.showToast('Question text updated successfully', 'success');
       this.editingTextQuestionId.set(null);
     } catch (e: any) {
@@ -1051,6 +1155,7 @@ export class AdminDashboardComponent implements OnInit {
         return item;
       });
       this.allQuestions.set(updatedQuestions);
+      this.invalidateQuestionSpellCache(q.id);
       this.showToast('Choice text updated successfully', 'success');
       this.editingChoiceId.set(null);
     } catch (e: any) {
@@ -2782,10 +2887,12 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   getQuestionSpellErrors(q: Question): number {
+    this.spellCheckVersion(); // Reactive signal tracking
     if (!this.spellCheckActive() || !q.question_text || !this.spellCheckService.isLoaded()) {
       return 0;
     }
-    const cached = this.questionSpellCache.get(q.id);
+    const contentKey = `${q.id}__${q.question_text || ''}__${(q.answers || []).map((a: any) => a.answer_text).join('|')}`;
+    const cached = this.questionSpellCache.get(contentKey);
     if (cached) return cached.count;
 
     const stripHtml = (html: string) => (html || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').trim();
@@ -2802,16 +2909,21 @@ export class AdminDashboardComponent implements OnInit {
       }
     }
 
-    this.questionSpellCache.set(q.id, { count: totalErrors, report });
+    this.questionSpellCache.set(contentKey, { count: totalErrors, report });
     return totalErrors;
   }
 
   invalidateQuestionSpellCache(qId?: string) {
     if (qId) {
-      this.questionSpellCache.delete(qId);
+      for (const k of Array.from(this.questionSpellCache.keys())) {
+        if (k.startsWith(qId)) {
+          this.questionSpellCache.delete(k);
+        }
+      }
     } else {
       this.questionSpellCache.clear();
     }
+    this.spellCheckVersion.update(v => v + 1);
   }
 
   async fixAllSpellErrorsInQuestion(q: Question, event?: MouseEvent) {
@@ -2835,7 +2947,7 @@ export class AdminDashboardComponent implements OnInit {
           if (!token.isValid && token.isKhmer) {
             const primary = token.primarySuggestion || (this.spellCheckService.getSuggestions(token.text, 1)[0] || null);
             if (primary && primary !== token.text) {
-              updatedText = updatedText.replace(new RegExp(token.text, 'g'), primary);
+              updatedText = updatedText.split(token.text).join(primary);
               fixedAny = true;
             }
           }
@@ -2863,7 +2975,7 @@ export class AdminDashboardComponent implements OnInit {
               if (!token.isValid && token.isKhmer) {
                 const primary = token.primarySuggestion || (this.spellCheckService.getSuggestions(token.text, 1)[0] || null);
                 if (primary && primary !== token.text) {
-                  updatedAns = updatedAns.replace(new RegExp(token.text, 'g'), primary);
+                  updatedAns = updatedAns.split(token.text).join(primary);
                   ansChanged = true;
                   fixedAny = true;
                 }
@@ -2877,6 +2989,19 @@ export class AdminDashboardComponent implements OnInit {
           }
         }
       }
+
+      // Update in-memory reactive signals
+      const updated = this.allQuestions().map(item => {
+        if (item.id === q.id) {
+          return {
+            ...item,
+            question_text: q.question_text,
+            answers: q.answers ? [...q.answers] : []
+          };
+        }
+        return item;
+      });
+      this.allQuestions.set(updated);
 
       this.invalidateQuestionSpellCache(q.id);
       if (this.editingTextQuestionId() === q.id) {

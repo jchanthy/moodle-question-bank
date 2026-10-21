@@ -3961,3 +3961,58 @@
     </div>
   </ng-template>
 </p-dialog>
+
+<!-- Floating Selected Text Khmer Dictionary Lookup Card -->
+<div *ngIf="activeSelectionLookup() as sel"
+     class="dict-lookup-popup fixed z-[9999] bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/90 p-4 transition-all duration-150 ease-out animate-in fade-in zoom-in-95 pointer-events-auto"
+     [class.-translate-y-full]="sel.placeAbove"
+     [style.left.px]="sel.x"
+     [style.top.px]="sel.y"
+     style="width: 330px; max-width: calc(100vw - 32px);">
+  
+  <!-- Pointer Arrow -->
+  <div [class]="sel.placeAbove 
+         ? 'absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-white border-b border-r border-slate-200/90 rotate-45' 
+         : 'absolute -top-1.5 left-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-white border-t border-l border-slate-200/90 rotate-45'">
+  </div>
+
+  <!-- Header -->
+  <div class="relative z-10 flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5 mb-2.5">
+    <div class="flex items-center gap-2 min-w-0">
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-100 border border-blue-200/60 text-blue-700 flex items-center justify-center text-sm font-bold shadow-xs shrink-0">
+        📖
+      </div>
+      <div class="min-w-0">
+        <h4 class="font-black text-slate-900 text-base leading-tight truncate tracking-wide font-sans">{{ sel.word }}</h4>
+        <span class="text-[10px] text-slate-400 font-medium">វចនានុក្រមខ្មែរ (Chuon Nath / KhmerDict)</span>
+      </div>
+    </div>
+    <button type="button" 
+            (click)="closeSelectionLookup($event)" 
+            class="text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg p-1 text-xs transition shrink-0"
+            title="បិទ (Close)">
+      ✕
+    </button>
+  </div>
+
+  <!-- Definition Content -->
+  <div class="relative z-10">
+    <div *ngIf="sel.definition" class="text-xs text-slate-700 leading-relaxed max-h-36 overflow-y-auto pr-1 select-text bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/60 mb-3 space-y-1 custom-scrollbar">
+      <p class="whitespace-pre-line font-medium">{{ sel.definition }}</p>
+    </div>
+    <div *ngIf="!sel.definition" class="text-xs text-amber-800 bg-amber-50/90 border border-amber-200/70 rounded-xl p-2.5 mb-3 flex items-start gap-2">
+      <span class="shrink-0 mt-0.5">ℹ️</span>
+      <span class="leading-relaxed">ពុំមាននិយមន័យសង្ខេបក្នុងប្រព័ន្ធ។ អ្នកអាចចុចខាងក្រោមដើម្បីបើកមើលក្នុង KhmerDict.com</span>
+    </div>
+
+    <!-- KhmerDict Action Link -->
+    <a [href]="sel.url" 
+       target="_blank" 
+       rel="noopener noreferrer"
+       (click)="$event.stopPropagation()"
+       class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm hover:shadow active:scale-[0.98]">
+      <span>📖 បើកមើលក្នុង KhmerDict.com</span>
+      <span class="text-[11px] opacity-80">↗</span>
+    </a>
+  </div>
+</div>

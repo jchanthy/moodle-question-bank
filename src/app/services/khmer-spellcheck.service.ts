@@ -211,6 +211,17 @@ export class KhmerSpellCheckService {
       if (this.definitions.has(alt)) return this.definitions.get(alt)!;
     }
 
+    // Khmer prefix resolution (Nominalizers & qualifiers)
+    const prefixes = ['ការ', 'ភាព', 'អ្នក', 'មិន', 'ឥត', 'សេចក្តី', 'សេចក្ដី'];
+    for (const p of prefixes) {
+      if (clean.startsWith(p) && clean.length > p.length + 1) {
+        const root = clean.substring(p.length);
+        if (this.definitions.has(root)) {
+          return `[${p}+] ` + this.definitions.get(root)!;
+        }
+      }
+    }
+
     // Lazy load definitions if requested and not loaded yet
     if (!this.isDefinitionsLoaded() && !this.isDefinitionsLoading()) {
       this.loadDefinitions();

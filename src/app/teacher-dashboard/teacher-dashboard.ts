@@ -144,9 +144,16 @@ export class TeacherDashboardComponent implements OnInit {
     }
   }
 
-  @HostListener('document:mouseup')
-  stopDragPopup() {
+  @HostListener('document:mouseup', ['$event'])
+  onDocumentMouseUp(event?: MouseEvent) {
     this.isDraggingPopup = false;
+    const target = event?.target as HTMLElement;
+    if (target?.closest('.dict-lookup-popup') || target?.closest('.spell-suggestion-popup')) {
+      return;
+    }
+    setTimeout(() => {
+      this.handleTextSelection();
+    }, 30);
   }
 
   togglePopupSide(event?: MouseEvent) {
@@ -182,6 +189,92 @@ export class TeacherDashboardComponent implements OnInit {
   }
   spellCheckErrorsCount = computed(() => this.spellCheckReport()?.errorCount || 0);
   choiceSpellErrorsCount = computed(() => this.choiceSpellReport()?.errorCount || 0);
+  spellCheckVersion = signal(0);
+  activeSelectionLookup = signal<{
+    word: string;
+    definition: string | null;
+    url: string;
+    x: number;
+    y: number;
+    placeAbove: boolean;
+  } | null>(null);
+
+  closeSelectionLookup(event?: MouseEvent) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    this.activeSelectionLookup.set(null);
+  }
+
+  handleTextSelection() {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+      return;
+    }
+
+    const raw = selection.toString().trim();
+    if (!raw || raw.length > 50) {
+      return;
+    }
+
+    // Must contain Khmer character or alphanumeric word
+    if (!/[\u1780-\u17FF\w]/.test(raw)) {
+      return;
+    }
+
+    // Strip wrapping punctuation/quotes/brackets
+    const cleanWord = raw
+      .replace(/^[^\u1780-\u17FF\w]+|[^\u1780-\u17FF\w]+$/g, '')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .trim();
+
+    if (!cleanWord || cleanWord.length === 0) {
+      return;
+    }
+
+    try {
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      if (!rect || (rect.width === 0 && rect.height === 0)) {
+        return;
+      }
+
+      const definition = this.spellCheckService.getDefinition(cleanWord);
+      const url = this.spellCheckService.getDictionaryUrl(cleanWord);
+
+      const popupWidth = 330;
+      let x = rect.left + (rect.width / 2) - (popupWidth / 2);
+      x = Math.max(16, Math.min(x, window.innerWidth - popupWidth - 16));
+
+      const placeAbove = rect.top > 210;
+      const y = placeAbove ? (rect.top - 8) : (rect.bottom + 8);
+
+      this.activeSelectionLookup.set({
+        word: cleanWord,
+        definition,
+        url,
+        x,
+        y,
+        placeAbove
+      });
+
+      // If definitions dictionary is still fetching in background, auto-fill once loaded
+      if (!this.spellCheckService.isDefinitionsLoaded()) {
+        this.spellCheckService.loadDefinitions().then(() => {
+          const active = this.activeSelectionLookup();
+          if (active && active.word === cleanWord && !active.definition) {
+            const def = this.spellCheckService.getDefinition(cleanWord);
+            if (def) {
+              this.activeSelectionLookup.set({ ...active, definition: def });
+            }
+          }
+        });
+      }
+    } catch {
+      // Ignore selection errors
+    }
+  }
 
   getWordDefinition(word: string): string | null {
     return this.spellCheckService.getDefinition(word);
@@ -237,6 +330,12 @@ export class TeacherDashboardComponent implements OnInit {
       const target = event.target as HTMLElement;
       if (!target.closest('.spell-suggestion-popup') && !target.closest('.spell-trigger-chip') && !target.closest('.inline-edit-textarea') && !target.closest('.inline-edit-choice-textarea')) {
         this.activeSpellSuggestion.set(null);
+      }
+    }
+    if (this.activeSelectionLookup()) {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.dict-lookup-popup')) {
+        this.activeSelectionLookup.set(null);
       }
     }
   }
@@ -2624,14 +2723,20 @@ export class TeacherDashboardComponent implements OnInit {
           this.questionTextSpellCache.delete(k);
         }
       }
-      this.questionChoicesSpellCache.delete(qId);
+      for (const k of this.questionChoicesSpellCache.keys()) {
+        if (k.startsWith(qId)) {
+          this.questionChoicesSpellCache.delete(k);
+        }
+      }
     } else {
       this.questionTextSpellCache.clear();
       this.questionChoicesSpellCache.clear();
     }
+    this.spellCheckVersion.update(v => v + 1);
   }
 
   getQuestionTextSpellReport(q: Question): { errorCount: number; invalidTokens: SpellCheckToken[] } {
+    this.spellCheckVersion(); // reactive signal dependency
     if (!this.spellCheckActive() || !q.question_text || !this.spellCheckService.isLoaded()) {
       return { errorCount: 0, invalidTokens: [] };
     }
@@ -2745,6 +2850,7 @@ export class TeacherDashboardComponent implements OnInit {
   private questionChoicesSpellCache = new Map<string, number>();
 
   getQuestionChoicesErrorCount(q: Question): number {
+    this.spellCheckVersion(); // reactive signal dependency
     if (!this.spellCheckActive() || !q.answers || !this.spellCheckService.isLoaded()) return 0;
     
     // Only bypass cache for the single question that contains the actively edited choice
@@ -2767,7 +2873,7 @@ export class TeacherDashboardComponent implements OnInit {
       return total;
     }
 
-    const key = q.id;
+    const key = `${q.id}_${(q.answers || []).map((a: any) => a.answer_text).join('|')}`;
     const cached = this.questionChoicesSpellCache.get(key);
     if (cached !== undefined) return cached;
 
