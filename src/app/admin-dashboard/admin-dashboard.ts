@@ -315,8 +315,26 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   }
 
   handleTextSelection() {
+    // Never trigger selection lookup if the user is typing/editing or selecting inside a textarea or input!
+    if (this.editingTextQuestionId() || this.editingChoiceId()) {
+      return;
+    }
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT' || (activeEl as HTMLElement).isContentEditable)) {
+      return;
+    }
+
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+      return;
+    }
+
+    const anchor = selection.anchorNode;
+    const focus = selection.focusNode;
+    if (
+      anchor?.parentElement?.closest('.inline-edit-textarea, .inline-edit-choice-textarea, textarea, input') ||
+      focus?.parentElement?.closest('.inline-edit-textarea, .inline-edit-choice-textarea, textarea, input')
+    ) {
       return;
     }
 

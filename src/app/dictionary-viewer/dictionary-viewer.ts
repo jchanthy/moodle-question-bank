@@ -76,37 +76,12 @@ import { KhmerSpellCheckService, MptcTerm } from '../services/khmer-spellcheck.s
           </div>
           <span class="text-[10px] text-slate-400 font-mono">ល.រ {{ mptcTerm()!.no }}</span>
         </div>
-        <div class="flex items-center justify-between gap-3 mt-1 flex-wrap">
-          <div class="text-xs text-slate-100 flex-1 leading-relaxed select-text font-medium">
+        <div class="mt-1">
+          <div class="text-xs text-slate-100 leading-relaxed select-text font-medium">
             <span class="font-extrabold text-amber-200 text-sm mr-2">{{ mptcTerm()!.khmer }}</span>
             <span>{{ mptcTerm()!.definition }}</span>
           </div>
-          <button type="button" 
-                  (click)="applyReplacement(mptcTerm()!.khmerVariants[0] || mptcTerm()!.khmer)"
-                  class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition shrink-0 cursor-pointer shadow-xs active:scale-95 flex items-center gap-1">
-            <span>✓ យកពាក្យបច្ចេកទេសនេះ</span>
-          </button>
         </div>
-      </div>
-
-      <!-- Quick Typo Replacement Banner (Auto-replaces typo in question) -->
-      <div *ngIf="typoWord()" class="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-700 text-white px-4 py-2 flex items-center justify-between gap-3 shadow-inner shrink-0 flex-wrap">
-        <div class="flex items-center gap-2 min-w-0">
-          <span class="text-sm">⚡</span>
-          <div class="flex items-center gap-1.5 text-xs">
-            <span class="opacity-80">ពាក្យខុសក្នុងសំណួរ៖</span>
-            <span class="font-bold text-rose-200 line-through bg-black/20 px-1.5 py-0.5 rounded">{{ typoWord() }}</span>
-            <span>➔</span>
-            <span class="opacity-80">ជំនួសដោយ៖</span>
-            <span class="font-extrabold text-amber-300 bg-black/20 px-1.5 py-0.5 rounded">{{ currentWord() }}</span>
-          </div>
-        </div>
-
-        <button type="button" 
-                (click)="applyReplacement(currentWord())"
-                class="px-3.5 py-1.5 bg-yellow-400 hover:bg-yellow-300 text-slate-900 font-extrabold text-xs rounded-xl shadow transition flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0">
-          <span>{{ lastReplaced() === currentWord() ? '✓ បានជំនួសរួច' : '✅ ជំនួសពាក្យនេះចូលសំណួរ (Replace)' }}</span>
-        </button>
       </div>
 
       <!-- Embedded Full KhmerDict Frame -->
@@ -141,7 +116,6 @@ export class DictionaryViewerComponent implements OnInit, OnDestroy {
   questionText = signal<string>('');
   rawUrl = signal<string>('');
   safeUrl = signal<SafeResourceUrl | null>(null);
-  lastReplaced = signal<string | null>(null);
   mptcTerm = signal<MptcTerm | null>(null);
 
   ngOnInit() {
@@ -217,18 +191,6 @@ export class DictionaryViewerComponent implements OnInit, OnDestroy {
     this.safeUrl.set(this.sanitizer.bypassSecurityTrustResourceUrl(directUrl));
     try {
       document.title = `📖 ${finalWord} - វចនានុក្រមខ្មែរ`;
-    } catch (e) {}
-  }
-
-  applyReplacement(replacement: string) {
-    if (!replacement) return;
-    const typo = this.typoWord() || this.currentWord();
-    this.spellCheckService.sendReplacement(typo, replacement);
-    this.lastReplaced.set(replacement);
-    try {
-      if (window.opener && !window.opener.closed) {
-        window.opener.focus();
-      }
     } catch (e) {}
   }
 
