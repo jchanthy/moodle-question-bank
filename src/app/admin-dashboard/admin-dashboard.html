@@ -695,7 +695,7 @@
                                 [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
                           {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
                         </button>
-                        <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="closeSpellSuggestion($event)" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
                       </div>
                     </div>
 
@@ -855,7 +855,7 @@
                                       [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
                                 {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
                               </button>
-                              <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                              <button type="button" (mousedown)="$event.preventDefault()" (click)="closeSpellSuggestion($event)" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
                             </div>
                           </div>
 
@@ -1306,7 +1306,7 @@
                                 [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
                           {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
                         </button>
-                        <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="closeSpellSuggestion($event)" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
                       </div>
                     </div>
 
@@ -1466,7 +1466,7 @@
                                       [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
                                 {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
                               </button>
-                              <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                              <button type="button" (mousedown)="$event.preventDefault()" (click)="closeSpellSuggestion($event)" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
                             </div>
                           </div>
 
@@ -1771,7 +1771,7 @@
                                 [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
                           {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
                         </button>
-                        <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="closeSpellSuggestion($event)" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
                       </div>
                     </div>
 
@@ -1931,7 +1931,7 @@
                                       [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
                                 {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
                               </button>
-                              <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                              <button type="button" (mousedown)="$event.preventDefault()" (click)="closeSpellSuggestion($event)" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
                             </div>
                           </div>
 
@@ -2225,7 +2225,7 @@
                                 [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
                           {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
                         </button>
-                        <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="closeSpellSuggestion($event)" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
                       </div>
                     </div>
 
@@ -2385,7 +2385,7 @@
                                       [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
                                 {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
                               </button>
-                              <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                              <button type="button" (mousedown)="$event.preventDefault()" (click)="closeSpellSuggestion($event)" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
                             </div>
                           </div>
 
@@ -2693,7 +2693,7 @@
                                   [title]="activeSpellSuggestion()?.side === 'left' ? 'ផ្លាស់ប្តូរទៅខាងស្តាំ' : 'ផ្លាស់ប្តូរទៅខាងឆ្វេង'">
                             {{ activeSpellSuggestion()?.side === 'left' ? '⇄ ទៅស្ដាំ' : '⇄ ទៅឆ្វេង' }}
                           </button>
-                          <button type="button" (click)="closeSpellSuggestion()" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
+                          <button type="button" (mousedown)="$event.preventDefault()" (click)="closeSpellSuggestion($event)" class="text-slate-400 hover:text-slate-700 text-xs font-bold p-0.5 cursor-pointer" title="បិទ">✕</button>
                         </div>
                       </div>
 

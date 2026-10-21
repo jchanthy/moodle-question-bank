@@ -112,7 +112,8 @@ export class AdminDashboardComponent implements OnInit {
   spellCheckActive = signal(true);
   spellCheckReport = signal<SpellCheckReport | null>(null);
   choiceSpellReport = signal<SpellCheckReport | null>(null);
-  activeSpellSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; isChoice?: boolean; side?: 'left' | 'right' } | null>(null);
+  activeSpellSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; isChoice?: boolean; side?: 'left' | 'right'; cursorPos?: number } | null>(null);
+  private lastActiveTextarea: HTMLTextAreaElement | null = null;
   spellCheckVersion = signal(0);
   activeSelectionLookup = signal<{
     word: string;
@@ -3251,8 +3252,26 @@ export class AdminDashboardComponent implements OnInit {
     this.showToast(`បានរំលងពាក្យ «${token.text}» (Ignored)`, 'info');
   }
 
-  closeSpellSuggestion() {
+    closeSpellSuggestion(event?: Event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const active = this.activeSpellSuggestion();
     this.activeSpellSuggestion.set(null);
+
+    const textarea = this.lastActiveTextarea;
+    if (textarea && active?.token) {
+      setTimeout(() => {
+        try {
+          textarea.focus();
+          const pos = (active.cursorPos !== undefined && active.cursorPos >= active.token.startIndex && active.cursorPos <= active.token.endIndex)
+            ? active.cursorPos
+            : active.token.endIndex;
+          textarea.setSelectionRange(pos, pos);
+        } catch (e) {}
+      }, 0);
+    }
   }
 
   onEditingTextChange(val: string) {
@@ -3283,6 +3302,7 @@ export class AdminDashboardComponent implements OnInit {
     onEditorClick(event: MouseEvent) {
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;
+    this.lastActiveTextarea = textarea;
     setTimeout(() => {
       const pos = textarea.selectionStart;
       const token = this.spellCheckReport()?.tokens.find(
@@ -3318,7 +3338,8 @@ export class AdminDashboardComponent implements OnInit {
           side,
           x,
           y,
-          suggestions
+          suggestions,
+          cursorPos: pos
         });
       } else {
         if (this.activeSpellSuggestion()) {
@@ -3331,6 +3352,7 @@ export class AdminDashboardComponent implements OnInit {
   onEditorContextMenu(event: MouseEvent) {
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;
+    this.lastActiveTextarea = textarea;
     const pos = textarea.selectionStart;
     
     const token = this.spellCheckReport()?.tokens.find(
@@ -3378,6 +3400,7 @@ export class AdminDashboardComponent implements OnInit {
     onChoiceEditorClick(event: MouseEvent) {
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;
+    this.lastActiveTextarea = textarea;
     setTimeout(() => {
       const pos = textarea.selectionStart;
       const token = this.choiceSpellReport()?.tokens.find(
@@ -3413,7 +3436,8 @@ export class AdminDashboardComponent implements OnInit {
           side,
           x,
           y,
-          suggestions
+          suggestions,
+          cursorPos: pos
         });
       } else {
         if (this.activeSpellSuggestion()) {
@@ -3426,6 +3450,7 @@ export class AdminDashboardComponent implements OnInit {
   onChoiceEditorContextMenu(event: MouseEvent) {
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;
+    this.lastActiveTextarea = textarea;
     const pos = textarea.selectionStart;
 
     const token = this.choiceSpellReport()?.tokens.find(

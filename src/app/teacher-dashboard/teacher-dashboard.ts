@@ -107,7 +107,8 @@ export class TeacherDashboardComponent implements OnInit {
   spellCheckActive = signal(true);
   spellCheckReport = signal<SpellCheckReport | null>(null);
   choiceSpellReport = signal<SpellCheckReport | null>(null);
-  activeSpellSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; isChoice?: boolean; side?: 'left' | 'right' } | null>(null);
+  activeSpellSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; isChoice?: boolean; side?: 'left' | 'right'; cursorPos?: number } | null>(null);
+  private lastActiveTextarea: HTMLTextAreaElement | null = null;
 
   // Draggable popup support
   isDraggingPopup = false;
@@ -2415,6 +2416,7 @@ export class TeacherDashboardComponent implements OnInit {
     onEditorClick(event: MouseEvent) {
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;
+    this.lastActiveTextarea = textarea;
     setTimeout(() => {
       const pos = textarea.selectionStart;
       const token = this.spellCheckReport()?.tokens.find(
@@ -2450,7 +2452,8 @@ export class TeacherDashboardComponent implements OnInit {
           side,
           x,
           y,
-          suggestions
+          suggestions,
+          cursorPos: pos
         });
       } else {
         if (this.activeSpellSuggestion()) {
@@ -2463,6 +2466,7 @@ export class TeacherDashboardComponent implements OnInit {
   onEditorContextMenu(event: MouseEvent) {
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;
+    this.lastActiveTextarea = textarea;
     const pos = textarea.selectionStart;
     
     const token = this.spellCheckReport()?.tokens.find(
@@ -2546,8 +2550,26 @@ export class TeacherDashboardComponent implements OnInit {
     await this.applySpellSuggestion(token, suggestion, q);
   }
 
-  closeSpellSuggestion() {
+    closeSpellSuggestion(event?: Event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const active = this.activeSpellSuggestion();
     this.activeSpellSuggestion.set(null);
+
+    const textarea = this.lastActiveTextarea;
+    if (textarea && active?.token) {
+      setTimeout(() => {
+        try {
+          textarea.focus();
+          const pos = (active.cursorPos !== undefined && active.cursorPos >= active.token.startIndex && active.cursorPos <= active.token.endIndex)
+            ? active.cursorPos
+            : active.token.endIndex;
+          textarea.setSelectionRange(pos, pos);
+        } catch (e) {}
+      }, 0);
+    }
   }
 
   getTextareaRows(text: string, defaultRows: number = 4): number {
@@ -2725,6 +2747,7 @@ export class TeacherDashboardComponent implements OnInit {
     onChoiceEditorClick(event: MouseEvent) {
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;
+    this.lastActiveTextarea = textarea;
     setTimeout(() => {
       const pos = textarea.selectionStart;
       const token = this.choiceSpellReport()?.tokens.find(
@@ -2760,7 +2783,8 @@ export class TeacherDashboardComponent implements OnInit {
           side,
           x,
           y,
-          suggestions
+          suggestions,
+          cursorPos: pos
         });
       } else {
         if (this.activeSpellSuggestion()) {
@@ -2773,6 +2797,7 @@ export class TeacherDashboardComponent implements OnInit {
   onChoiceEditorContextMenu(event: MouseEvent) {
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;
+    this.lastActiveTextarea = textarea;
     const pos = textarea.selectionStart;
 
     const token = this.choiceSpellReport()?.tokens.find(

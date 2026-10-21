@@ -685,7 +685,7 @@
                     <span>📖 វចនានុក្រម ↗</span>
                   </a>
                 </div>
-                <button type="button" (click)="closeSuggestionMenu()" class="text-gray-400 hover:text-gray-600 text-xs font-bold">✕</button>
+                <button type="button" (mousedown)="$event.preventDefault()" (click)="closeSuggestionMenu($event)" class="text-gray-400 hover:text-gray-600 text-xs font-bold">✕</button>
               </div>
 
               <!-- Suggestions List with Meaning -->

@@ -126,7 +126,8 @@ export class QuestionFormComponent implements OnInit {
   spellCheckActive = signal(true);
   spellCheckReport = signal<SpellCheckReport | null>(null);
   answerSpellReports = signal<(SpellCheckReport | null)[]>([]);
-  activeSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; answerIndex?: number; answerField?: string } | null>(null);
+  activeSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; answerIndex?: number; answerField?: string; cursorPos?: number } | null>(null);
+  private lastActiveTextarea: HTMLTextAreaElement | null = null;
   questionSpellErrorsCount = computed(() => this.spellCheckReport()?.errorCount || 0);
   answersSpellErrorsCount = computed(() => this.answerSpellReports().reduce((acc, r) => acc + (r?.errorCount || 0), 0));
   spellCheckErrorsCount = computed(() => this.questionSpellErrorsCount() + this.answersSpellErrorsCount());
@@ -503,11 +504,11 @@ export class QuestionFormComponent implements OnInit {
     const y = rect.bottom + window.scrollY + 6;
 
     this.activeSuggestion.set({
-      token,
-      x,
-      y,
-      suggestions
-    });
+        token,
+        x,
+        y,
+        suggestions
+      });
   }
 
   onAnswerWordAction(answerIndex: number, token: SpellCheckToken, event: MouseEvent, field: string = 'answer_text') {
@@ -694,8 +695,25 @@ export class QuestionFormComponent implements OnInit {
     this.runSpellCheck();
   }
 
-  closeSuggestionMenu() {
+  closeSuggestionMenu(event?: Event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const active = this.activeSuggestion();
     this.activeSuggestion.set(null);
+    const textarea = this.lastActiveTextarea;
+    if (textarea && active?.token) {
+      setTimeout(() => {
+        try {
+          textarea.focus();
+          const pos = (active.cursorPos !== undefined && active.cursorPos >= active.token.startIndex && active.cursorPos <= active.token.endIndex)
+            ? active.cursorPos
+            : active.token.endIndex;
+          textarea.setSelectionRange(pos, pos);
+        } catch (e) {}
+      }, 0);
+    }
   }
 
   getWordDefinition(word: string): string | null {
@@ -713,6 +731,7 @@ export class QuestionFormComponent implements OnInit {
   onEditorClick(event: MouseEvent) {
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;
+    this.lastActiveTextarea = textarea;
     const pos = textarea.selectionStart;
 
     const token = this.spellCheckReport()?.tokens.find(
@@ -742,7 +761,8 @@ export class QuestionFormComponent implements OnInit {
         token,
         x,
         y,
-        suggestions
+        suggestions,
+        cursorPos: pos
       });
     } else {
       this.activeSuggestion.set(null);

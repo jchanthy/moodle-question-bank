@@ -1,5 +1,4 @@
-import { Injectable, signal, inject } from '@angular/core';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { Injectable, signal } from '@angular/core';
 
 export interface SpellCheckToken {
   text: string;
@@ -14,17 +13,6 @@ export interface SpellCheckToken {
 export interface SpellCheckReport {
   tokens: SpellCheckToken[];
   errorCount: number;
-}
-
-export interface DictionaryDrawerState {
-  word: string;
-  definition: string | null;
-  isValid: boolean;
-  suggestions: string[];
-  subWords?: { word: string; definition: string | null; isValid: boolean }[];
-  iframeUrl?: SafeResourceUrl | null;
-  rawUrl: string;
-  activeTab: 'definition' | 'web';
 }
 
 const COMMON_2_CONSONANT_WORDS = new Set([
@@ -242,79 +230,22 @@ export class KhmerSpellCheckService {
     return null;
   }
 
-  private sanitizer = inject(DomSanitizer);
-  private dictWindow: Window | null = null;
-  activeDictDrawer = signal<DictionaryDrawerState | null>(null);
-
   getDictionaryUrl(word: string): string {
     const clean = this.cleanKhmer(word) || word.trim();
     return `https://khmerdict.com/${encodeURIComponent(clean)}`;
   }
 
-  openDictionaryModal(wordOrUrl: string, event?: Event): void {
+  openDictionary(wordOrUrl: string, event?: Event): void {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
     }
 
-    let raw = wordOrUrl.trim();
-    if (raw.startsWith('http')) {
-      try {
-        const u = new URL(raw);
-        raw = decodeURIComponent(u.pathname.replace(/^\//, '').replace(/^word\//, ''));
-      } catch (e) {
-        raw = raw.replace(/^https?:\/\/[^\/]+\//, '');
-      }
-    }
-    const cleanWord = this.cleanKhmer(raw) || raw;
-    const definition = this.getDefinition(cleanWord);
-    const isValid = this.isWordValid(cleanWord, true);
-    const suggestions = !isValid ? this.getSuggestions(cleanWord, 4) : [];
-    const rawUrl = this.getDictionaryUrl(cleanWord);
-    const iframeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(rawUrl);
+    const url = wordOrUrl.startsWith('http')
+      ? wordOrUrl
+      : this.getDictionaryUrl(wordOrUrl);
 
-    let subWords: { word: string; definition: string | null; isValid: boolean }[] = [];
-    if (cleanWord.length > 4) {
-      const segReport = this.checkText(cleanWord);
-      const tokens = segReport.tokens.filter(t => t.isKhmer && t.text.length > 1);
-      if (tokens.length > 1) {
-        subWords = tokens.map(t => ({
-          word: t.text,
-          definition: this.getDefinition(t.text),
-          isValid: this.isWordValid(t.text, true)
-        }));
-      }
-    }
-
-    const prevTab = this.activeDictDrawer()?.activeTab;
-    const activeTab = prevTab || (definition ? 'definition' : 'web');
-
-    this.activeDictDrawer.set({
-      word: cleanWord,
-      definition,
-      isValid,
-      suggestions,
-      subWords,
-      iframeUrl,
-      rawUrl,
-      activeTab
-    });
-  }
-
-  closeDictionaryModal(): void {
-    this.activeDictDrawer.set(null);
-  }
-
-  setDictionaryModalTab(tab: 'definition' | 'web'): void {
-    const curr = this.activeDictDrawer();
-    if (curr) {
-      this.activeDictDrawer.set({ ...curr, activeTab: tab });
-    }
-  }
-
-  openDictionary(wordOrUrl: string, event?: Event): void {
-    // Open in-app Dictionary Drawer (zero duplicate browser tabs, seamless in-page experience)
-    this.openDictionaryModal(wordOrUrl, event);
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 
   addToCustomDictionary(word: string) {
