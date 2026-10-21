@@ -404,12 +404,14 @@ export class TeacherDashboardComponent implements OnInit {
     return this.spellCheckService.getDefinition(word);
   }
 
-  getKhmerDictUrl(word: string): string {
-    return this.spellCheckService.getDictionaryUrl(word);
+  getKhmerDictUrl(word: string, question?: Question): string {
+    const qText = this.editingTextValue || question?.question_text || '';
+    return this.spellCheckService.getDictionaryUrl(word, qText);
   }
 
-  openKhmerDict(wordOrUrl: string, event?: Event): void {
-    this.spellCheckService.openDictionary(wordOrUrl, event);
+  openKhmerDict(wordOrUrl: string, event?: Event, question?: Question): void {
+    const qText = this.editingTextValue || question?.question_text || '';
+    this.spellCheckService.openDictionary(wordOrUrl, event, qText);
   }
 
   myQuestions = signal<Question[]>([]);

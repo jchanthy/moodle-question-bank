@@ -721,11 +721,13 @@ export class QuestionFormComponent implements OnInit {
   }
 
   getKhmerDictUrl(word: string): string {
-    return this.spellCheckService.getDictionaryUrl(word);
+    const qText = this.questionForm.get('question_text')?.value || '';
+    return this.spellCheckService.getDictionaryUrl(word, qText);
   }
 
   openKhmerDict(wordOrUrl: string, event?: Event): void {
-    this.spellCheckService.openDictionary(wordOrUrl, event);
+    const qText = this.questionForm.get('question_text')?.value || '';
+    this.spellCheckService.openDictionary(wordOrUrl, event, qText);
   }
 
   onEditorClick(event: MouseEvent) {

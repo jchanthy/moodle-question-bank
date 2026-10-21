@@ -3560,12 +3560,14 @@ export class AdminDashboardComponent implements OnInit {
     return this.spellCheckService.getDefinition(word);
   }
 
-  getKhmerDictUrl(word: string): string {
-    return this.spellCheckService.getDictionaryUrl(word);
+  getKhmerDictUrl(word: string, q?: Question): string {
+    const qText = this.editingTextValue || q?.question_text || '';
+    return this.spellCheckService.getDictionaryUrl(word, qText);
   }
 
-  openKhmerDict(wordOrUrl: string, event?: Event): void {
-    this.spellCheckService.openDictionary(wordOrUrl, event);
+  openKhmerDict(wordOrUrl: string, event?: Event, q?: Question): void {
+    const qText = this.editingTextValue || q?.question_text || '';
+    this.spellCheckService.openDictionary(wordOrUrl, event, qText);
   }
 
 }

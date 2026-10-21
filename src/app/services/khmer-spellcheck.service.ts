@@ -230,14 +230,20 @@ export class KhmerSpellCheckService {
     return null;
   }
 
-    private dictWindow: Window | null = null;
+  private dictChannel: BroadcastChannel | null = null;
+  private dictWindow: Window | null = null;
 
-  getDictionaryUrl(word: string): string {
+  getDictionaryUrl(word: string, questionContext?: string): string {
     const clean = this.cleanKhmer(word) || word.trim();
-    return `https://khmerdict.com/${encodeURIComponent(clean)}`;
+    let url = `/dictionary?word=${encodeURIComponent(clean)}`;
+    if (questionContext && questionContext.trim()) {
+      const cleanQ = questionContext.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
+      url += `&q=${encodeURIComponent(cleanQ)}`;
+    }
+    return url;
   }
 
-  openDictionary(wordOrUrl: string, event?: Event): void {
+  openDictionary(wordOrUrl: string, event?: Event, questionContext?: string): void {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -247,18 +253,40 @@ export class KhmerSpellCheckService {
     if (raw.startsWith('http')) {
       try {
         const u = new URL(raw);
-        raw = decodeURIComponent(u.pathname.replace(/^\//, '').replace(/^word\//, ''));
+        const param = u.searchParams.get('word');
+        if (param) {
+          raw = param;
+        } else {
+          raw = decodeURIComponent(u.pathname.replace(/^\//, '').replace(/^word\//, ''));
+        }
       } catch (e) {
         raw = raw.replace(/^https?:\/\/[^\/]+\//, '');
       }
+    } else if (raw.startsWith('/dictionary?')) {
+      try {
+        const u = new URL(raw, 'http://localhost');
+        const param = u.searchParams.get('word');
+        if (param) raw = param;
+      } catch (e) {}
     }
     const cleanWord = this.cleanKhmer(raw) || raw;
-    const directUrl = this.getDictionaryUrl(cleanWord);
+    const targetUrl = this.getDictionaryUrl(cleanWord, questionContext);
 
-    // Reuse window if reference is still active and open
+    // 1. Send live update to existing tab if already listening
+    try {
+      if (!this.dictChannel) {
+        this.dictChannel = new BroadcastChannel('khmer_dict_sync');
+      }
+      this.dictChannel.postMessage({
+        word: cleanWord,
+        question: questionContext || ''
+      });
+    } catch (e) {}
+
+    // 2. Reuse window if reference is still active and open
     try {
       if (this.dictWindow && !this.dictWindow.closed) {
-        this.dictWindow.location.href = directUrl;
+        this.dictWindow.location.href = targetUrl;
         this.dictWindow.focus();
         return;
       }
@@ -266,14 +294,14 @@ export class KhmerSpellCheckService {
       // In case cross-origin security throws on .closed, proceed to window.open
     }
 
-    // Open/Reuse window named 'khmerdict_tab' (WITHOUT noopener/noreferrer to allow tab reuse)
+    // 3. Open or target the same-origin window named 'khmerdict_tab' (reusable across clicks)
     try {
-      this.dictWindow = window.open(directUrl, 'khmerdict_tab');
+      this.dictWindow = window.open(targetUrl, 'khmerdict_tab');
       if (this.dictWindow) {
         this.dictWindow.focus();
       }
     } catch (e) {
-      window.open(directUrl, 'khmerdict_tab');
+      window.open(targetUrl, 'khmerdict_tab');
     }
   }
 
