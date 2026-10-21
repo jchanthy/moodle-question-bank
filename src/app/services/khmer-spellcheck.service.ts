@@ -232,7 +232,7 @@ export class KhmerSpellCheckService {
 
   getDictionaryUrl(word: string): string {
     const clean = this.cleanKhmer(word) || word.trim();
-    return `https://khmerdict.com/word/${encodeURIComponent(clean)}`;
+    return `https://khmerdict.com/${encodeURIComponent(clean)}`;
   }
 
   addToCustomDictionary(word: string) {
