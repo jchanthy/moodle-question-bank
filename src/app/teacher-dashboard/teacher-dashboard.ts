@@ -406,6 +406,10 @@ export class TeacherDashboardComponent implements OnInit {
     return this.spellCheckService.getDictionaryUrl(word);
   }
 
+  openKhmerDict(wordOrUrl: string, event?: Event): void {
+    this.spellCheckService.openDictionary(wordOrUrl, event);
+  }
+
   myQuestions = signal<Question[]>([]);
   assignedQuestions = signal<Question[]>([]);
   assistantSubmissions = signal<Question[]>([]);

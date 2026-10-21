@@ -706,6 +706,10 @@ export class QuestionFormComponent implements OnInit {
     return this.spellCheckService.getDictionaryUrl(word);
   }
 
+  openKhmerDict(wordOrUrl: string, event?: Event): void {
+    this.spellCheckService.openDictionary(wordOrUrl, event);
+  }
+
   onEditorClick(event: MouseEvent) {
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;

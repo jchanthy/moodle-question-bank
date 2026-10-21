@@ -230,9 +230,41 @@ export class KhmerSpellCheckService {
     return null;
   }
 
+  private dictWindow: Window | null = null;
+
   getDictionaryUrl(word: string): string {
     const clean = this.cleanKhmer(word) || word.trim();
     return `https://khmerdict.com/${encodeURIComponent(clean)}`;
+  }
+
+  openDictionary(wordOrUrl: string, event?: Event): void {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    const url = wordOrUrl.startsWith('http')
+      ? wordOrUrl
+      : this.getDictionaryUrl(wordOrUrl);
+
+    try {
+      if (this.dictWindow && !this.dictWindow.closed) {
+        this.dictWindow.location.href = url;
+        this.dictWindow.focus();
+        return;
+      }
+    } catch (e) {
+      // Fallback if cross-origin policy prevents checking .closed or setting .location.href
+    }
+
+    try {
+      this.dictWindow = window.open(url, 'khmerdict_tab');
+      if (this.dictWindow) {
+        this.dictWindow.focus();
+      }
+    } catch (e) {
+      window.open(url, 'khmerdict_tab');
+    }
   }
 
   addToCustomDictionary(word: string) {

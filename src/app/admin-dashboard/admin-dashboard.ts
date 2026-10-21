@@ -3425,4 +3425,8 @@ export class AdminDashboardComponent implements OnInit {
     return this.spellCheckService.getDictionaryUrl(word);
   }
 
+  openKhmerDict(wordOrUrl: string, event?: Event): void {
+    this.spellCheckService.openDictionary(wordOrUrl, event);
+  }
+
 }
