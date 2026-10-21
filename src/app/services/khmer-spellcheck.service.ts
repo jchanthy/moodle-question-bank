@@ -230,7 +230,15 @@ export class KhmerSpellCheckService {
     return null;
   }
 
+  private dictChannel: BroadcastChannel | null = null;
+  private dictWindow: Window | null = null;
+
   getDictionaryUrl(word: string): string {
+    const clean = this.cleanKhmer(word) || word.trim();
+    return `/dictionary?word=${encodeURIComponent(clean)}`;
+  }
+
+  getDirectKhmerDictUrl(word: string): string {
     const clean = this.cleanKhmer(word) || word.trim();
     return `https://khmerdict.com/${encodeURIComponent(clean)}`;
   }
@@ -241,11 +249,56 @@ export class KhmerSpellCheckService {
       event.stopPropagation();
     }
 
-    const url = wordOrUrl.startsWith('http')
-      ? wordOrUrl
-      : this.getDictionaryUrl(wordOrUrl);
+    let word = wordOrUrl.trim();
+    if (word.startsWith('http')) {
+      try {
+        const u = new URL(word);
+        const param = u.searchParams.get('word');
+        if (param) {
+          word = param;
+        } else {
+          word = decodeURIComponent(u.pathname.replace(/^\//, '').replace(/^word\//, ''));
+        }
+      } catch (e) {
+        word = word.replace(/^https?:\/\/[^\/]+\//, '');
+      }
+    } else if (word.startsWith('/dictionary?word=')) {
+      try {
+        const parts = word.split('word=');
+        if (parts.length > 1) {
+          word = decodeURIComponent(parts[1].split('&')[0]);
+        }
+      } catch (e) {}
+    }
 
-    window.open(url, '_blank', 'noopener,noreferrer');
+    const cleanWord = this.cleanKhmer(word) || word;
+
+    // Send broadcast to update open tab immediately if listening
+    try {
+      if (!this.dictChannel) {
+        this.dictChannel = new BroadcastChannel('khmer_dict_sync');
+      }
+      this.dictChannel.postMessage({ word: cleanWord });
+    } catch (e) {}
+
+    // Target the single reusable same-origin tab
+    const targetUrl = `/dictionary?word=${encodeURIComponent(cleanWord)}`;
+    try {
+      if (this.dictWindow && !this.dictWindow.closed) {
+        this.dictWindow.location.href = targetUrl;
+        this.dictWindow.focus();
+        return;
+      }
+    } catch (e) {}
+
+    try {
+      this.dictWindow = window.open(targetUrl, 'khmer_dictionary_tab');
+      if (this.dictWindow) {
+        this.dictWindow.focus();
+      }
+    } catch (e) {
+      window.open(targetUrl, 'khmer_dictionary_tab');
+    }
   }
 
   addToCustomDictionary(word: string) {
