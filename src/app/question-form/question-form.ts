@@ -129,9 +129,326 @@ export class QuestionFormComponent implements OnInit, OnDestroy {
   answerSpellReports = signal<(SpellCheckReport | null)[]>([]);
   activeSuggestion = signal<{ token: SpellCheckToken; x: number; y: number; suggestions: string[]; answerIndex?: number; answerField?: string; cursorPos?: number } | null>(null);
   private lastActiveTextarea: HTMLTextAreaElement | null = null;
+  private lastTextareaCaretPos: number | null = null;
+  activeSelectionLookup = signal<{
+    word: string;
+    isValid: boolean;
+    suggestions: string[];
+    subWords: string[];
+    definition: string | null;
+    url: string;
+    x: number;
+    y: number;
+    placeAbove: boolean;
+    activeTab: 'all' | 'spelling' | 'meaning';
+  } | null>(null);
   questionSpellErrorsCount = computed(() => this.spellCheckReport()?.errorCount || 0);
   answersSpellErrorsCount = computed(() => this.answerSpellReports().reduce((acc, r) => acc + (r?.errorCount || 0), 0));
   spellCheckErrorsCount = computed(() => this.questionSpellErrorsCount() + this.answersSpellErrorsCount());
+
+  @HostListener('document:mousedown', ['$event'])
+  onDocumentMouseDown(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') && event.detail === 1) {
+      const el = target as HTMLTextAreaElement | HTMLInputElement;
+      setTimeout(() => {
+        this.lastTextareaCaretPos = el.selectionStart ?? null;
+      }, 0);
+    }
+  }
+
+  @HostListener('document:mouseup', ['$event'])
+  onDocumentMouseUp(event?: MouseEvent) {
+    const target = event?.target as HTMLElement;
+    if (target?.closest('.dict-lookup-popup') || target?.closest('.spell-suggestion-popup')) {
+      return;
+    }
+    if (target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') && event?.detail === 1) {
+      const el = target as HTMLTextAreaElement | HTMLInputElement;
+      if (el.selectionStart === el.selectionEnd) {
+        this.lastTextareaCaretPos = el.selectionStart ?? null;
+      }
+    }
+    setTimeout(() => {
+      this.handleTextSelection(event, false);
+    }, 30);
+  }
+
+  @HostListener('document:dblclick', ['$event'])
+  onDocumentDoubleClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (target?.closest('.dict-lookup-popup') || target?.closest('.spell-suggestion-popup')) {
+      return;
+    }
+    setTimeout(() => {
+      this.handleTextSelection(event, true);
+    }, 20);
+  }
+
+  closeSelectionLookup(event?: MouseEvent) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    this.activeSelectionLookup.set(null);
+  }
+
+  selectSubWordInLookup(subWord: string, event?: MouseEvent) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const curr = this.activeSelectionLookup();
+    if (!curr) return;
+    const cleanWord = this.spellCheckService.cleanKhmer(subWord) || subWord.trim();
+    const isValid = this.spellCheckService.isWordValid(cleanWord, true);
+    const suggestions = !isValid ? this.spellCheckService.getSuggestions(cleanWord, 4) : [];
+    const definition = this.spellCheckService.getDefinition(cleanWord);
+    const url = this.spellCheckService.getDictionaryUrl(cleanWord);
+
+    this.activeSelectionLookup.set({
+      ...curr,
+      word: cleanWord,
+      isValid,
+      suggestions,
+      definition,
+      url
+    });
+  }
+
+  addWordToDictionaryFromLookup(word: string, event?: MouseEvent) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    this.spellCheckService.addToCustomDictionary(word);
+    this.runSpellCheck();
+    const curr = this.activeSelectionLookup();
+    if (curr) {
+      this.activeSelectionLookup.set({
+        ...curr,
+        isValid: true,
+        suggestions: []
+      });
+    }
+    this.showToast(`បានបញ្ចូលពាក្យ «${word}» ទៅក្នុងវចនានុក្រមដោយជោគជ័យ`, 'success');
+  }
+
+  copyWordText(text: string, event?: MouseEvent) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      this.showToast(`បានចម្លង «${text}»`, 'info');
+    }).catch(() => {});
+  }
+
+  applySuggestionFromLookup(sug: string, event?: MouseEvent) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const curr = this.activeSelectionLookup();
+    if (!curr) return;
+    const word = curr.word;
+
+    const currentQ = this.questionForm.get('question_text')?.value || '';
+    if (currentQ.includes(word)) {
+      this.spellUndoHistory.push(currentQ);
+      this.questionForm.patchValue({ question_text: currentQ.split(word).join(sug) });
+      this.runSpellCheck();
+      this.showToast(`បានកែ «${word}» ➔ «${sug}»`, 'success');
+      this.activeSelectionLookup.set(null);
+      return;
+    }
+
+    const answersArray = this.questionForm.get('answers') as FormArray;
+    if (answersArray) {
+      for (let i = 0; i < answersArray.length; i++) {
+        const val = answersArray.at(i).get('answer_text')?.value || '';
+        if (val.includes(word)) {
+          answersArray.at(i).patchValue({ answer_text: val.split(word).join(sug) });
+          this.runSpellCheck();
+          this.showToast(`បានកែ «${word}» ➔ «${sug}»`, 'success');
+          this.activeSelectionLookup.set(null);
+          return;
+        }
+      }
+    }
+
+    this.copyWordText(sug);
+  }
+
+  private openDictionaryLookupPopup(cleanWord: string, rect: { left: number; top: number; bottom: number; width: number; height: number }) {
+    if (!cleanWord || cleanWord.length === 0) return;
+
+    const isValid = this.spellCheckService.isWordValid(cleanWord, true);
+    const suggestions = !isValid ? this.spellCheckService.getSuggestions(cleanWord, 4) : [];
+    const definition = this.spellCheckService.getDefinition(cleanWord);
+    const url = this.spellCheckService.getDictionaryUrl(cleanWord);
+
+    let subWords: string[] = [];
+    if (cleanWord.length > 4) {
+      const segReport = this.spellCheckService.checkText(cleanWord);
+      const tokens = segReport.tokens.filter(t => t.isKhmer && t.text.length > 1);
+      if (tokens.length > 1) {
+        subWords = tokens.map(t => t.text);
+      }
+    }
+
+    const popupWidth = 350;
+    let x = rect.left + (rect.width / 2) - (popupWidth / 2);
+    x = Math.max(16, Math.min(x, window.innerWidth - popupWidth - 16));
+
+    const placeAbove = rect.top > 250;
+    const y = placeAbove ? (rect.top - 8) : (rect.bottom + 8);
+
+    this.activeSelectionLookup.set({
+      word: cleanWord,
+      isValid,
+      suggestions,
+      subWords,
+      definition,
+      url,
+      x,
+      y,
+      placeAbove,
+      activeTab: 'all'
+    });
+
+    if (!this.spellCheckService.isDefinitionsLoaded()) {
+      this.spellCheckService.loadDefinitions().then(() => {
+        const active = this.activeSelectionLookup();
+        if (active && active.word === cleanWord && !active.definition) {
+          const def = this.spellCheckService.getDefinition(cleanWord);
+          if (def) {
+            this.activeSelectionLookup.set({ ...active, definition: def });
+          }
+        }
+      });
+    }
+  }
+
+  handleTextSelection(event?: MouseEvent, isDoubleClick = false) {
+    const activeEl = document.activeElement as HTMLElement | null;
+    const targetEl = (event?.target as HTMLElement | null) || activeEl;
+    const isTextareaOrInput = !!(
+      (targetEl && (targetEl.tagName === 'TEXTAREA' || targetEl.tagName === 'INPUT')) ||
+      (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT'))
+    );
+
+    if (isTextareaOrInput) {
+      if (!isDoubleClick) return;
+      const inputEl = ((targetEl && (targetEl.tagName === 'TEXTAREA' || targetEl.tagName === 'INPUT'))
+        ? targetEl
+        : activeEl) as HTMLTextAreaElement | HTMLInputElement;
+      if (!inputEl) return;
+
+      const fullText = inputEl.value || '';
+      const selStart = inputEl.selectionStart ?? 0;
+      const selEnd = inputEl.selectionEnd ?? 0;
+      const caretPos = (this.lastTextareaCaretPos !== null && this.lastTextareaCaretPos >= selStart && this.lastTextareaCaretPos <= selEnd)
+        ? this.lastTextareaCaretPos
+        : selStart;
+
+      let chosenWord = fullText.substring(selStart, selEnd).trim();
+
+      if (fullText && (/[\u1780-\u17FF]/.test(chosenWord) || !chosenWord || chosenWord.length > 25)) {
+        const report = this.spellCheckService.checkText(fullText);
+        const token = report.tokens.find(
+          t => caretPos >= t.startIndex && caretPos < t.endIndex && /[\u1780-\u17FF\w]/.test(t.text)
+        ) || report.tokens.find(
+          t => caretPos >= t.startIndex && caretPos <= t.endIndex && /[\u1780-\u17FF\w]/.test(t.text)
+        );
+        if (token) {
+          chosenWord = token.text.trim();
+          try {
+            inputEl.setSelectionRange(token.startIndex, token.endIndex);
+          } catch {}
+        }
+      }
+
+      if (!chosenWord || chosenWord.length > 50 || !/[\u1780-\u17FF\w]/.test(chosenWord)) {
+        return;
+      }
+
+      const cleanWord = chosenWord
+        .replace(/^[^\u1780-\u17FF\w]+|[^\u1780-\u17FF\w]+$/g, '')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .trim();
+      if (!cleanWord) return;
+
+      this.activeSuggestion.set(null);
+      const clientX = event?.clientX ?? (inputEl.getBoundingClientRect().left + 100);
+      const clientY = event?.clientY ?? (inputEl.getBoundingClientRect().top + 24);
+      this.openDictionaryLookupPopup(cleanWord, {
+        left: clientX - 20,
+        top: clientY - 12,
+        bottom: clientY + 12,
+        width: 40,
+        height: 24
+      });
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+      return;
+    }
+
+    let raw = selection.toString().trim();
+
+    if (isDoubleClick && event && (/[\u1780-\u17FF]/.test(raw) && raw.length > 10)) {
+      try {
+        const caretRange: Range | null = (document as any).caretRangeFromPoint
+          ? (document as any).caretRangeFromPoint(event.clientX, event.clientY)
+          : null;
+        if (caretRange && caretRange.startContainer && caretRange.startContainer.nodeType === Node.TEXT_NODE) {
+          const textNode = caretRange.startContainer as Text;
+          const nodeText = textNode.textContent || '';
+          const offset = caretRange.startOffset;
+          if (nodeText && /[\u1780-\u17FF]/.test(nodeText)) {
+            const report = this.spellCheckService.checkText(nodeText);
+            const token = report.tokens.find(
+              t => offset >= t.startIndex && offset <= t.endIndex && /[\u1780-\u17FF\w]/.test(t.text)
+            );
+            if (token && token.text.trim()) {
+              raw = token.text.trim();
+              const wordRange = document.createRange();
+              wordRange.setStart(textNode, token.startIndex);
+              wordRange.setEnd(textNode, token.endIndex);
+              selection.removeAllRanges();
+              selection.addRange(wordRange);
+            }
+          }
+        }
+      } catch {}
+    }
+
+    if (!raw || raw.length > 50 || !/[\u1780-\u17FF\w]/.test(raw)) {
+      return;
+    }
+
+    const cleanWord = raw
+      .replace(/^[^\u1780-\u17FF\w]+|[^\u1780-\u17FF\w]+$/g, '')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .trim();
+
+    if (!cleanWord || cleanWord.length === 0) {
+      return;
+    }
+
+    try {
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      if (!rect || (rect.width === 0 && rect.height === 0)) {
+        return;
+      }
+
+      this.openDictionaryLookupPopup(cleanWord, rect);
+    } catch {}
+  }
 
   questionTypes = [
     { value: 'multichoice', label: 'Multiple Choice', icon: 'pi pi-list', info: 'Best for standard MCQ. Support single or multiple correct answers.' },
@@ -542,9 +859,11 @@ export class QuestionFormComponent implements OnInit, OnDestroy {
   }
 
   onAnswerEditorClick(event: MouseEvent, answerIndex: number, field: string = 'answer_text') {
+    if (event.detail >= 2) return;
     if (!this.spellCheckActive()) return;
     const input = event.target as HTMLInputElement;
     const pos = input.selectionStart || 0;
+    this.lastTextareaCaretPos = input.selectionStart ?? null;
 
     const report = this.getAnswerSpellReport(answerIndex);
     const token = report?.tokens.find(
@@ -803,7 +1122,9 @@ export class QuestionFormComponent implements OnInit, OnDestroy {
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;
     this.lastActiveTextarea = textarea;
+    if (event.detail >= 2) return;
     const pos = textarea.selectionStart;
+    this.lastTextareaCaretPos = pos ?? null;
 
     const token = this.spellCheckReport()?.tokens.find(
       t => !t.isValid && t.isKhmer && (
@@ -919,12 +1240,16 @@ export class QuestionFormComponent implements OnInit, OnDestroy {
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
     if (this.activeSuggestion()) {
-      const target = event.target as HTMLElement;
-      if (target.closest('.spell-suggestion-popup') || target.closest('textarea') || target.closest('.misspelled-word')) {
-        return;
+      if (!target.closest('.spell-suggestion-popup') && !target.closest('textarea') && !target.closest('.misspelled-word')) {
+        this.closeSuggestionMenu();
       }
-      this.closeSuggestionMenu();
+    }
+    if (this.activeSelectionLookup()) {
+      if (!target.closest('.dict-lookup-popup')) {
+        this.activeSelectionLookup.set(null);
+      }
     }
   }
 

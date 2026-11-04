@@ -1734,6 +1734,7 @@
         </p>
       </div>
     </div>
+  </div>
 
 <!-- Slide-over Comments Modal -->
 <p-drawer [visible]="showComments()" (visibleChange)="showComments.set($event)" position="right" [showCloseIcon]="false" styleClass="w-full md:w-[28rem]">
@@ -2014,10 +2015,11 @@
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Floating Selected Text Khmer Dictionary & Spell Lookup Card -->
-  <div *ngIf="activeSelectionLookup() as sel"
-       class="dict-lookup-popup fixed z-[9999] bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/90 p-4 transition-all duration-150 ease-out animate-in fade-in zoom-in-95 pointer-events-auto"
+<!-- Floating Selected Text Khmer Dictionary & Spell Lookup Card -->
+<div *ngIf="activeSelectionLookup() as sel"
+     class="dict-lookup-popup fixed z-[9999] bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/90 p-4 transition-all duration-150 ease-out animate-in fade-in zoom-in-95 pointer-events-auto"
        [class.-translate-y-full]="sel.placeAbove"
        [style.left.px]="sel.x"
        [style.top.px]="sel.y"
@@ -2119,4 +2121,3 @@
       </a>
     </div>
   </div>
-</div>

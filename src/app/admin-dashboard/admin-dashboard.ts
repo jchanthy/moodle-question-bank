@@ -194,7 +194,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   }
 
   private clickEditTimer: any = null;
-  private lastTextareaCaretPos = 0;
+  private lastTextareaCaretPos: number | null = null;
 
   @HostListener('document:mousedown', ['$event'])
   onDocumentMouseDown(event: MouseEvent) {
@@ -202,7 +202,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     if (target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') && event.detail === 1) {
       const el = target as HTMLTextAreaElement | HTMLInputElement;
       setTimeout(() => {
-        this.lastTextareaCaretPos = el.selectionStart || 0;
+        this.lastTextareaCaretPos = el.selectionStart ?? null;
       }, 0);
     }
   }
@@ -212,6 +212,12 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     const target = event.target as HTMLElement;
     if (target?.closest('.dict-lookup-popup') || target?.closest('.spell-suggestion-popup')) {
       return;
+    }
+    if (target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') && event?.detail === 1) {
+      const el = target as HTMLTextAreaElement | HTMLInputElement;
+      if (el.selectionStart === el.selectionEnd) {
+        this.lastTextareaCaretPos = el.selectionStart ?? null;
+      }
     }
     setTimeout(() => {
       this.handleTextSelection(event, false);
@@ -458,13 +464,17 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       const fullText = inputEl.value || '';
       const selStart = inputEl.selectionStart ?? 0;
       const selEnd = inputEl.selectionEnd ?? 0;
-      const caretPos = this.lastTextareaCaretPos || selStart;
+      const caretPos = (this.lastTextareaCaretPos !== null && this.lastTextareaCaretPos >= selStart && this.lastTextareaCaretPos <= selEnd)
+        ? this.lastTextareaCaretPos
+        : selStart;
 
       let chosenWord = fullText.substring(selStart, selEnd).trim();
 
       if (fullText && (/[\u1780-\u17FF]/.test(chosenWord) || !chosenWord || chosenWord.length > 25)) {
         const report = this.spellCheckService.checkText(fullText);
         const token = report.tokens.find(
+          t => caretPos >= t.startIndex && caretPos < t.endIndex && /[\u1780-\u17FF\w]/.test(t.text)
+        ) || report.tokens.find(
           t => caretPos >= t.startIndex && caretPos <= t.endIndex && /[\u1780-\u17FF\w]/.test(t.text)
         );
         if (token) {
@@ -485,6 +495,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
         .trim();
       if (!cleanWord) return;
 
+      this.activeSpellSuggestion.set(null);
       const clientX = event?.clientX ?? (inputEl.getBoundingClientRect().left + 100);
       const clientY = event?.clientY ?? (inputEl.getBoundingClientRect().top + 24);
       this.openDictionaryLookupPopup(cleanWord, {
@@ -3533,11 +3544,13 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   }
 
     onEditorClick(event: MouseEvent) {
+    if (event.detail >= 2) return;
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;
     this.lastActiveTextarea = textarea;
     setTimeout(() => {
       const pos = textarea.selectionStart;
+      this.lastTextareaCaretPos = pos ?? null;
       const token = this.spellCheckReport()?.tokens.find(
         t => !t.isValid && t.isKhmer && (
           (pos >= t.startIndex && pos <= t.endIndex) ||
@@ -3640,11 +3653,13 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   }
 
     onChoiceEditorClick(event: MouseEvent) {
+    if (event.detail >= 2) return;
     if (!this.spellCheckActive()) return;
     const textarea = event.target as HTMLTextAreaElement;
     this.lastActiveTextarea = textarea;
     setTimeout(() => {
       const pos = textarea.selectionStart;
+      this.lastTextareaCaretPos = pos ?? null;
       const token = this.choiceSpellReport()?.tokens.find(
         t => !t.isValid && t.isKhmer && (
           (pos >= t.startIndex && pos <= t.endIndex) ||
