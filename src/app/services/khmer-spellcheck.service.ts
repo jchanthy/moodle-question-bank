@@ -714,6 +714,11 @@ export class KhmerSpellCheckService {
       const swapped = sub.replace(/([\u17B6-\u17C5])((?:\u17D2[\u1780-\u17A2])+)/g, (m, v, coeng) => coeng + v);
       if (this.isWordValid(swapped, false)) return true;
     }
+    // Rule K: Missing 'រ' in ដំណើរ (e.g. ដំណើ -> ដំណើរ, ដំណើការ -> ដំណើរការ)
+    if (sub.includes('ដំណើ')) {
+      const withRo = sub.replace(/ដំណើ/g, 'ដំណើរ');
+      if (this.isWordValid(withRo, false)) return true;
+    }
     return false;
   }
 
@@ -977,6 +982,14 @@ export class KhmerSpellCheckService {
       const swapped = cleanTarget.replace(/([\u17B6-\u17C5])((?:\u17D2[\u1780-\u17A2])+)/g, (m, v, coeng) => coeng + v);
       if (this.isWordValid(swapped, true) && !suggestions.includes(swapped)) {
         suggestions.unshift(swapped);
+      }
+    }
+
+    // Rule: Missing 'រ' in ដំណើរ (e.g. ដំណើការ -> ដំណើរការ, ដំណើ -> ដំណើរ)
+    if (cleanTarget.includes('ដំណើ')) {
+      const withRo = cleanTarget.replace(/ដំណើ/g, 'ដំណើរ');
+      if (this.isWordValid(withRo, true) && !suggestions.includes(withRo)) {
+        suggestions.unshift(withRo);
       }
     }
 
