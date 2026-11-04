@@ -719,6 +719,10 @@ export class KhmerSpellCheckService {
       const withRo = sub.replace(/ដំណើ/g, 'ដំណើរ');
       if (this.isWordValid(withRo, false)) return true;
     }
+    // Rule L: Windows OS loanword typos (e.g. វិនដូ, វិនដូរ, វីនដូរ -> វីនដូ)
+    if (sub === 'វិនដូ' || sub === 'វិនដូរ' || sub === 'វីនដូរ') {
+      return true;
+    }
     return false;
   }
 
@@ -990,6 +994,13 @@ export class KhmerSpellCheckService {
       const withRo = cleanTarget.replace(/ដំណើ/g, 'ដំណើរ');
       if (this.isWordValid(withRo, true) && !suggestions.includes(withRo)) {
         suggestions.unshift(withRo);
+      }
+    }
+
+    // Rule: Windows OS loanword typos (e.g. វិនដូ, វិនដូរ, វីនដូរ -> វីនដូ)
+    if (cleanTarget === 'វិនដូ' || cleanTarget === 'វិនដូរ' || cleanTarget === 'វីនដូរ') {
+      if (!suggestions.includes('វីនដូ')) {
+        suggestions.unshift('វីនដូ');
       }
     }
 
