@@ -21,6 +21,7 @@ export interface MptcTerm {
   khmer: string;
   khmerVariants: string[];
   english: string;
+  french?: string;
   definition: string;
 }
 
@@ -261,14 +262,23 @@ export class KhmerSpellCheckService {
         const terms: MptcTerm[] = await res.json();
         this.mptcTerms = terms;
         for (const t of terms) {
-          if (t.khmer) this.mptcIndex.set(t.khmer.toLowerCase().trim(), t);
+          if (t.khmer) this.mptcIndex.set(this.cleanKhmer(t.khmer).toLowerCase(), t);
           if (t.khmerVariants && Array.isArray(t.khmerVariants)) {
             for (const v of t.khmerVariants) {
-              this.mptcIndex.set(v.toLowerCase().trim(), t);
+              const cv = this.cleanKhmer(v).toLowerCase();
+              this.mptcIndex.set(cv, t);
+              // Also index homoglyph variants (្ដ <-> ្ត and អ៊ី <-> អ៉ី)
+              if (cv.includes('\u17D2\u178A')) this.mptcIndex.set(cv.replace(/\u17D2\u178A/g, '\u17D2\u178F'), t);
+              if (cv.includes('\u17D2\u178F')) this.mptcIndex.set(cv.replace(/\u17D2\u178F/g, '\u17D2\u178A'), t);
+              if (cv.includes('\u17A2\u17CA\u17B8')) this.mptcIndex.set(cv.replace(/\u17A2\u17CA\u17B8/g, '\u17A2\u17C9\u17B8'), t);
+              if (cv.includes('\u17A2\u17C9\u17B8')) this.mptcIndex.set(cv.replace(/\u17A2\u17C9\u17B8/g, '\u17A2\u17CA\u17B8'), t);
             }
           }
           if (t.english) {
             this.mptcIndex.set(t.english.toLowerCase().trim(), t);
+          }
+          if (t.french) {
+            this.mptcIndex.set(t.french.toLowerCase().trim(), t);
           }
         }
         this.isMptcLoaded.set(true);
@@ -280,7 +290,7 @@ export class KhmerSpellCheckService {
 
   findMptcTerm(word: string): MptcTerm | null {
     if (!word) return null;
-    const clean = word.trim().toLowerCase();
+    const clean = this.cleanKhmer(word).toLowerCase();
     if (this.mptcIndex.has(clean)) {
       return this.mptcIndex.get(clean)!;
     }
@@ -295,10 +305,11 @@ export class KhmerSpellCheckService {
 
   searchMptcGlossary(query: string): MptcTerm[] {
     if (!query || !query.trim()) return this.mptcTerms.slice(0, 30);
-    const q = query.trim().toLowerCase();
+    const q = this.cleanKhmer(query).toLowerCase();
     return this.mptcTerms.filter(t => 
       t.khmer.toLowerCase().includes(q) ||
       (t.english && t.english.toLowerCase().includes(q)) ||
+      (t.french && t.french.toLowerCase().includes(q)) ||
       (t.definition && t.definition.toLowerCase().includes(q)) ||
       (t.khmerVariants && t.khmerVariants.some(v => v.toLowerCase().includes(q)))
     ).slice(0, 30);

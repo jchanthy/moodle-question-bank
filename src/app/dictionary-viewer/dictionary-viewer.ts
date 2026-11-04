@@ -65,13 +65,17 @@ import { KhmerSpellCheckService, MptcTerm } from '../services/khmer-spellcheck.s
       <!-- Official MPTC Technical Glossary Card -->
       <div *ngIf="mptcTerm()" class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white px-4 py-2 border-b border-indigo-500/40 shrink-0 shadow-sm animate-in fade-in duration-150">
         <div class="flex items-center justify-between gap-2 mb-1 flex-wrap">
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
             <span class="text-[11px] bg-blue-500/30 text-blue-200 border border-blue-400/40 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-              <span>🇰🇭</span> បច្ចេកសព្ទ ប.គ.ព. MPTC
+              <span>🇰🇭</span> សទ្ទានុក្រម Go Digital / MPTC
             </span>
             <span class="text-xs text-amber-300 font-extrabold flex items-center gap-1">
-              <span>🇬🇧 English:</span>
+              <span>🇬🇧 EN:</span>
               <span class="underline decoration-amber-400/50">{{ mptcTerm()!.english }}</span>
+            </span>
+            <span *ngIf="mptcTerm()!.french" class="text-xs text-sky-300 font-extrabold flex items-center gap-1">
+              <span>🇫🇷 FR:</span>
+              <span class="underline decoration-sky-400/50">{{ mptcTerm()!.french }}</span>
             </span>
           </div>
           <span class="text-[10px] text-slate-400 font-mono">ល.រ {{ mptcTerm()!.no }}</span>
