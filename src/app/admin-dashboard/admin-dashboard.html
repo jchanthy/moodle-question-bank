@@ -298,8 +298,8 @@
       </div>
 
 
-      <!-- Filter Bar -->
-      <div class="mb-6 bg-white rounded-none border border-gray-100 shadow-sm p-4">
+      <!-- Filter Bar (Hidden in Pre-Testing Pool as requested) -->
+      <div *ngIf="activeTab() !== 'testing'" class="mb-6 bg-white rounded-none border border-gray-100 shadow-sm p-4">
         <!-- Filters Header with Recalculate Metrics Action -->
         <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
           <!-- Khmer Spell Check Toggle -->
