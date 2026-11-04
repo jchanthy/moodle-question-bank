@@ -715,12 +715,16 @@ export class KhmerSpellCheckService {
       if (this.isWordValid(swapped, false)) return true;
     }
     // Rule K: Missing 'រ' in ដំណើរ (e.g. ដំណើ -> ដំណើរ, ដំណើការ -> ដំណើរការ)
-    if (sub.includes('ដំណើ')) {
-      const withRo = sub.replace(/ដំណើ/g, 'ដំណើរ');
+    if (sub.startsWith('ដំណើ')) {
+      const withRo = sub.replace(/^ដំណើ/, 'ដំណើរ');
       if (this.isWordValid(withRo, false)) return true;
     }
     // Rule L: Windows OS loanword typos (e.g. វិនដូ, វិនដូរ, វីនដូរ -> វីនដូ)
     if (sub === 'វិនដូ' || sub === 'វិនដូរ' || sub === 'វីនដូរ') {
+      return true;
+    }
+    // Rule M: Internet typo variations (e.g. អ៊ីនធើណិត, អ៉ីនធើណិត, អ៊ីនធឺណែត, អ៊ីនធើណែត -> អ៊ីនធឺណិត)
+    if (/^(\u17A2[\u17CA\u17C9\u17BB\u17B7\u17B8\u17D2]*ន)?ធ[ើឺ]ណ[ិតែេ]ត?$/.test(sub) || sub === 'ធើណិត' || sub === 'ធើណែត' || sub === 'ធឺណែត') {
       return true;
     }
     return false;
@@ -837,7 +841,7 @@ export class KhmerSpellCheckService {
                 parent[j] = c;
               }
             } else if (this.isFastTypoCandidate(sub)) {
-              const cost = 2.0;
+              const cost = 2.0 / (j - c);
               if (dp[c] + cost < dp[j]) {
                 dp[j] = dp[c] + cost;
                 parent[j] = c;
@@ -1001,6 +1005,19 @@ export class KhmerSpellCheckService {
     if (cleanTarget === 'វិនដូ' || cleanTarget === 'វិនដូរ' || cleanTarget === 'វីនដូរ') {
       if (!suggestions.includes('វីនដូ')) {
         suggestions.unshift('វីនដូ');
+      }
+    }
+
+    // Rule: Internet typos (e.g. អ៊ីនធើណិត, អ៉ីនធើណិត, អ៊ីនធឺណែត, អ៊ីនធើណែត -> អ៊ីនធឺណិត)
+    if (/^(\u17A2[\u17CA\u17C9\u17BB\u17B7\u17B8\u17D2]*ន)?ធ[ើឺ]ណ[ិតែេ]ត?$/.test(cleanTarget) || cleanTarget === 'ធើណិត' || cleanTarget === 'ធើណែត' || cleanTarget === 'ធឺណែត') {
+      const isOyin = cleanTarget.includes('\u17A2\u17C9');
+      const correctWord = isOyin ? 'អ៉ីនធឺណិត' : 'អ៊ីនធឺណិត';
+      if (!suggestions.includes(correctWord)) {
+        suggestions.unshift(correctWord);
+      }
+      const altWord = isOyin ? 'អ៊ីនធឺណិត' : 'អ៉ីនធឺណិត';
+      if (!suggestions.includes(altWord)) {
+        suggestions.push(altWord);
       }
     }
 
