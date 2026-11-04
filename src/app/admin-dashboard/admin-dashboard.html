@@ -2543,6 +2543,13 @@
           </div>
 
           <div class="flex flex-col sm:flex-row items-center gap-3 shrink-0 w-full md:w-auto">
+            <button (click)="openCreateRoomModal()"
+              class="w-full sm:w-auto px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs uppercase tracking-widest rounded-none shadow transition flex items-center justify-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Create Test Room &amp; Link</span>
+            </button>
             <a routerLink="/test" target="_blank"
               class="w-full sm:w-auto px-6 py-3.5 bg-white text-indigo-900 font-black text-xs uppercase tracking-widest rounded-none shadow hover:bg-indigo-50 transition flex items-center justify-center gap-2">
               <span>Candidate Portal</span>
@@ -2557,6 +2564,124 @@
               </svg>
               <span>Refresh Metrics</span>
             </button>
+          </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- ACTIVE TEST ROOMS LIST SECTION -->
+        <!-- ============================================================= -->
+        <div class="mb-8 bg-white border border-gray-100 shadow-sm p-6 space-y-4">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-base font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
+                  <span>🔗 Active Pre-Test Rooms &amp; Links</span>
+                </h3>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-700">
+                  {{ testRooms().length }}
+                </span>
+              </div>
+              <p class="text-xs text-gray-500 mt-0.5">
+                Share room URLs or 6-character room codes with students or peer teachers to collect test responses with or without passcodes.
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button (click)="loadTestRooms()" [disabled]="loadingRooms()"
+                class="px-3 py-1.5 border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-bold transition flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" [class.animate-spin]="loadingRooms()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>Refresh</span>
+              </button>
+              <button (click)="openCreateRoomModal()"
+                class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                <span>+ New Room</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Empty Rooms State -->
+          <div *ngIf="testRooms().length === 0 && !loadingRooms()" class="py-8 text-center space-y-2">
+            <p class="text-sm font-semibold text-gray-500">No test rooms created yet.</p>
+            <p class="text-xs text-gray-400 max-w-md mx-auto">
+              Click <strong>"+ New Room"</strong> to generate a shareable test URL and room code for a subject in your testing pool.
+            </p>
+          </div>
+
+          <!-- Rooms Table / Cards -->
+          <div *ngIf="testRooms().length > 0" class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead>
+                <tr class="border-b border-gray-100 text-[10px] font-black uppercase tracking-wider text-gray-400 bg-gray-50/50">
+                  <th class="py-3 px-3">Room Code</th>
+                  <th class="py-3 px-3">Title &amp; Subject</th>
+                  <th class="py-3 px-3">Audience</th>
+                  <th class="py-3 px-3">Security</th>
+                  <th class="py-3 px-3">Limits</th>
+                  <th class="py-3 px-3 text-center">Attempts</th>
+                  <th class="py-3 px-3 text-center">Status</th>
+                  <th class="py-3 px-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                <tr *ngFor="let room of testRooms()" class="hover:bg-slate-50/50 transition">
+                  <td class="py-3 px-3 font-mono font-black text-indigo-700 text-sm whitespace-nowrap">
+                    {{ room.room_code }}
+                  </td>
+                  <td class="py-3 px-3">
+                    <div class="font-bold text-gray-900">{{ room.title }}</div>
+                    <div class="text-[11px] text-gray-400">{{ room.subject_name }}</div>
+                  </td>
+                  <td class="py-3 px-3">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"
+                      [ngClass]="room.audience === 'student' ? 'bg-blue-50 text-blue-700 border border-blue-100' :
+                                 room.audience === 'teacher' ? 'bg-purple-50 text-purple-700 border border-purple-100' :
+                                 'bg-gray-100 text-gray-700'">
+                      {{ room.audience }}
+                    </span>
+                  </td>
+                  <td class="py-3 px-3 whitespace-nowrap">
+                    <span *ngIf="room.has_passcode" class="text-amber-700 font-bold flex items-center gap-1">
+                      <span>🔒 Passcode</span>
+                    </span>
+                    <span *ngIf="!room.has_passcode" class="text-gray-400 font-medium">
+                      🔓 Public
+                    </span>
+                  </td>
+                  <td class="py-3 px-3 text-gray-600 whitespace-nowrap">
+                    <div>{{ room.question_limit ? room.question_limit + ' questions' : 'All in pool' }}</div>
+                    <div class="text-[10px] text-gray-400">{{ room.time_limit_minutes ? room.time_limit_minutes + ' min timer' : 'No timer' }}</div>
+                  </td>
+                  <td class="py-3 px-3 text-center whitespace-nowrap">
+                    <span class="font-bold text-gray-900">{{ room.attempts }}</span>
+                    <span *ngIf="room.avg_percentage !== null" class="text-[10px] text-gray-400 block">
+                      avg {{ room.avg_percentage }}%
+                    </span>
+                  </td>
+                  <td class="py-3 px-3 text-center whitespace-nowrap">
+                    <button (click)="toggleRoomActive(room)"
+                      class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider transition"
+                      [ngClass]="room.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'">
+                      {{ room.is_active ? '● Open' : 'Closed' }}
+                    </button>
+                  </td>
+                  <td class="py-3 px-3 text-right whitespace-nowrap space-x-1.5">
+                    <button (click)="openShareRoomModal(room)" title="Share Link & QR"
+                      class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded font-bold text-[11px] transition">
+                      🔗 Share
+                    </button>
+                    <button (click)="openRoomResultsModal(room)" title="View Results"
+                      class="px-2.5 py-1 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded font-bold text-[11px] transition">
+                      📊 Results
+                    </button>
+                    <button (click)="handleDeleteRoom(room)" title="Delete Room"
+                      class="px-2 py-1 text-red-500 hover:bg-red-50 rounded text-[11px] transition">
+                      🗑️
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -4093,3 +4218,239 @@
     </a>
   </div>
 </div>
+
+<!-- ============================================================= -->
+<!-- MODAL 1: CREATE PRE-TEST ROOM -->
+<!-- ============================================================= -->
+<p-dialog [(visible)]="showCreateRoomModal" [modal]="true" [style]="{ width: '92vw', maxWidth: '580px' }"
+  header="Create Pre-Test Room & Link" [closable]="true" (onHide)="closeCreateRoomModal()">
+  <div class="space-y-4 pt-2">
+    <div>
+      <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1">
+        Room Title <span class="text-rose-500">*</span>
+      </label>
+      <input type="text" [ngModel]="newRoomTitle()" (ngModelChange)="newRoomTitle.set($event)"
+        placeholder="e.g. Midterm Calibration Test - Cohort A"
+        class="w-full px-3.5 py-2.5 border border-gray-200 rounded-none text-sm text-gray-900 font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+    </div>
+
+    <div>
+      <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1">
+        Subject (Category) <span class="text-rose-500">*</span>
+      </label>
+      <select [ngModel]="newRoomSubjectId()" (ngModelChange)="newRoomSubjectId.set($event)"
+        class="w-full px-3.5 py-2.5 border border-gray-200 rounded-none text-sm text-gray-900 font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-white">
+        <option *ngFor="let cat of categories()" [value]="cat.id">
+          {{ cat.name }}
+        </option>
+      </select>
+      <p class="text-[11px] text-gray-400 mt-1">Questions marked as 'Testing' in this subject will be served.</p>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1">
+          Passcode (Optional)
+        </label>
+        <input type="text" [ngModel]="newRoomPasscode()" (ngModelChange)="newRoomPasscode.set($event)"
+          placeholder="e.g. 1234 (min 4 chars)"
+          class="w-full px-3.5 py-2.5 border border-gray-200 rounded-none text-sm font-mono focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+        <p class="text-[10px] text-gray-400 mt-0.5">Leave blank for no passcode.</p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1">
+          Target Audience
+        </label>
+        <select [ngModel]="newRoomAudience()" (ngModelChange)="newRoomAudience.set($event)"
+          class="w-full px-3.5 py-2.5 border border-gray-200 rounded-none text-sm font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-white">
+          <option value="any">Any (Student or Teacher)</option>
+          <option value="student">Students Only</option>
+          <option value="teacher">Teachers / Peer Reviewers</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div>
+        <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1">
+          Question Limit
+        </label>
+        <input type="number" [ngModel]="newRoomQuestionLimit()" (ngModelChange)="newRoomQuestionLimit.set($event)"
+          placeholder="All in pool" min="1" max="200"
+          class="w-full px-3.5 py-2.5 border border-gray-200 rounded-none text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+      </div>
+
+      <div>
+        <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1">
+          Timer (Minutes)
+        </label>
+        <input type="number" [ngModel]="newRoomTimeLimitMinutes()" (ngModelChange)="newRoomTimeLimitMinutes.set($event)"
+          placeholder="No limit" min="1" max="180"
+          class="w-full px-3.5 py-2.5 border border-gray-200 rounded-none text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+      </div>
+
+      <div>
+        <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1">
+          Expires In
+        </label>
+        <select [ngModel]="newRoomExpiresInDays()" (ngModelChange)="newRoomExpiresInDays.set($event)"
+          class="w-full px-3.5 py-2.5 border border-gray-200 rounded-none text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-white">
+          <option [ngValue]="1">1 Day</option>
+          <option [ngValue]="3">3 Days</option>
+          <option [ngValue]="7">7 Days</option>
+          <option [ngValue]="14">14 Days</option>
+          <option [ngValue]="30">30 Days</option>
+          <option [ngValue]="null">Never</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
+      <button type="button" (click)="closeCreateRoomModal()"
+        class="px-4 py-2 border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition">
+        Cancel
+      </button>
+      <button type="button" (click)="handleCreateRoom()" [disabled]="creatingRoom()"
+        class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center gap-2 shadow-sm disabled:opacity-50">
+        <span *ngIf="creatingRoom()" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+        <span>Generate Room &amp; Link</span>
+      </button>
+    </div>
+  </div>
+</p-dialog>
+
+<!-- ============================================================= -->
+<!-- MODAL 2: SHARE TEST ROOM & URL -->
+<!-- ============================================================= -->
+<p-dialog [(visible)]="showRoomShareModal" [modal]="true" [style]="{ width: '90vw', maxWidth: '520px' }"
+  header="Share Pre-Test Room" [closable]="true" (onHide)="closeShareRoomModal()">
+  <div *ngIf="activeShareRoom() as room" class="space-y-5 pt-2">
+    <div class="p-4 bg-indigo-50/70 border border-indigo-100 space-y-1">
+      <div class="text-[10px] font-black uppercase tracking-widest text-indigo-500">Test Room</div>
+      <h4 class="text-base font-black text-gray-900">{{ room.title }}</h4>
+      <p class="text-xs text-indigo-700 font-semibold">{{ room.subject_name }}</p>
+    </div>
+
+    <!-- Room Code Big Display -->
+    <div class="text-center p-6 bg-slate-900 text-white rounded-none space-y-1">
+      <span class="text-[10px] font-black uppercase tracking-widest text-indigo-300">Room Code</span>
+      <div class="text-4xl font-mono font-black tracking-widest text-white">{{ room.room_code }}</div>
+      <p class="text-xs text-slate-400">Students can enter this code at <code>/test</code> without login</p>
+    </div>
+
+    <!-- Shareable URL Box -->
+    <div>
+      <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1">
+        Direct Shareable URL
+      </label>
+      <div class="flex gap-1.5">
+        <input type="text" readonly [value]="getRoomUrl(room.room_code)"
+          class="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 text-xs font-mono text-gray-800 select-all outline-none">
+        <button type="button" (click)="copyRoomUrl(room.room_code)"
+          class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition whitespace-nowrap shadow-sm">
+          📋 Copy
+        </button>
+      </div>
+      <p class="text-[11px] text-gray-400 mt-1">Anyone with this link can take the practice test immediately.</p>
+    </div>
+
+    <!-- Security Info -->
+    <div class="p-3 bg-gray-50 border border-gray-200 text-xs space-y-1 text-gray-600">
+      <div class="flex items-center justify-between">
+        <span class="font-bold">Passcode Protection:</span>
+        <span class="font-bold" [ngClass]="room.has_passcode ? 'text-amber-700' : 'text-gray-500'">
+          {{ room.has_passcode ? 'Required (Share it separately)' : 'None (Open access)' }}
+        </span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="font-bold">Target Audience:</span>
+        <span class="capitalize font-semibold text-gray-800">{{ room.audience }}</span>
+      </div>
+      <div *ngIf="room.expires_at" class="flex items-center justify-between">
+        <span class="font-bold">Expires:</span>
+        <span class="font-mono text-gray-800">{{ room.expires_at | date:'medium' }}</span>
+      </div>
+    </div>
+
+    <div class="flex justify-end pt-2">
+      <button type="button" (click)="closeShareRoomModal()"
+        class="px-5 py-2 bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold transition">
+        Done
+      </button>
+    </div>
+  </div>
+</p-dialog>
+
+<!-- ============================================================= -->
+<!-- MODAL 3: ROOM PARTICIPANT RESULTS -->
+<!-- ============================================================= -->
+<p-dialog [(visible)]="showRoomResultsModal" [modal]="true" [style]="{ width: '94vw', maxWidth: '780px' }"
+  header="Room Participant Results" [closable]="true" (onHide)="closeRoomResultsModal()">
+  <div *ngIf="activeResultsRoom() as room" class="space-y-4 pt-2">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-gray-50 border border-gray-200">
+      <div>
+        <h4 class="text-sm font-black text-gray-900">{{ room.title }} (<code>{{ room.room_code }}</code>)</h4>
+        <p class="text-xs text-gray-500">{{ room.subject_name }} &bull; Total Submissions: <strong>{{ roomParticipantsResults().length }}</strong></p>
+      </div>
+      <button type="button" (click)="openRoomResultsModal(room)"
+        class="px-3 py-1.5 bg-white border border-gray-200 hover:bg-gray-100 text-xs font-bold transition">
+        🔄 Refresh
+      </button>
+    </div>
+
+    <div *ngIf="loadingRoomResults()" class="py-12 text-center text-gray-400 text-xs font-bold uppercase tracking-wider">
+      Loading participant results...
+    </div>
+
+    <div *ngIf="!loadingRoomResults() && roomParticipantsResults().length === 0" class="py-12 text-center text-gray-400 text-sm">
+      No participants have submitted tests in this room yet.
+    </div>
+
+    <div *ngIf="!loadingRoomResults() && roomParticipantsResults().length > 0" class="overflow-x-auto max-h-96">
+      <table class="w-full text-left text-xs">
+        <thead class="sticky top-0 bg-white border-b border-gray-200">
+          <tr class="text-[10px] font-black uppercase tracking-wider text-gray-400">
+            <th class="py-2.5 px-3">Participant Name</th>
+            <th class="py-2.5 px-3">Role</th>
+            <th class="py-2.5 px-3 text-center">Score</th>
+            <th class="py-2.5 px-3 text-center">Percentage</th>
+            <th class="py-2.5 px-3 text-right">Submitted At</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <tr *ngFor="let p of roomParticipantsResults()" class="hover:bg-slate-50 transition">
+            <td class="py-2.5 px-3 font-bold text-gray-900">
+              {{ p.participant_name }}
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"
+                [ngClass]="p.participant_role === 'student' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'">
+                {{ p.participant_role }}
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-center font-bold">
+              {{ p.score }} / {{ p.total_questions }}
+            </td>
+            <td class="py-2.5 px-3 text-center">
+              <span class="px-2 py-0.5 rounded font-bold font-mono text-[11px]"
+                [ngClass]="p.percentage >= 70 ? 'bg-emerald-50 text-emerald-700' : p.percentage >= 50 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'">
+                {{ p.percentage }}%
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-gray-400 text-[11px]">
+              {{ p.submitted_at | date:'short' }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="flex justify-end pt-2">
+      <button type="button" (click)="closeRoomResultsModal()"
+        class="px-4 py-2 bg-gray-800 text-white text-xs font-bold">
+        Close
+      </button>
+    </div>
+  </div>
+</p-dialog>

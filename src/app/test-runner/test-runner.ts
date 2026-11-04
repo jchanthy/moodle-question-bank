@@ -1,8 +1,14 @@
 import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
-import { PreTestService, TestingSubject, CandidateQuestion, TestSubmitResponse } from '../services/pre-test.service';
+import { RouterModule, ActivatedRoute, Router } from '@angular/router';
+import {
+  PreTestService,
+  TestingSubject,
+  CandidateQuestion,
+  TestSubmitResponse,
+  TestRoomPublicInfo
+} from '../services/pre-test.service';
 
 @Component({
   selector: 'app-test-runner',
@@ -13,13 +19,26 @@ import { PreTestService, TestingSubject, CandidateQuestion, TestSubmitResponse }
 })
 export class TestRunnerComponent implements OnInit, OnDestroy {
   preTestService = inject(PreTestService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+
+  // Mode: free practice OR room code/URL test
+  mode = signal<'practice' | 'room'>('practice');
+
+  // Room State
+  roomCodeInput = signal<string>('');
+  roomInfo = signal<TestRoomPublicInfo | null>(null);
+  roomPasscode = signal<string>('');
+  participantName = signal<string>('');
+  participantRole = signal<'student' | 'teacher'>('student');
+  verifyingRoom = signal(false);
 
   // States
   stage = signal<'select_subject' | 'taking_test' | 'submitted'>('select_subject');
   loading = signal(false);
   errorMessage = signal<string | null>(null);
 
-  // Subject Selection State
+  // Subject Selection State (Practice Mode)
   activeSubjects = signal<TestingSubject[]>([]);
   selectedSubjectId = signal<string>('');
 
@@ -29,8 +48,9 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
   currentIndex = signal<number>(0);
   selectedAnswers = signal<Record<string, string | null>>({});
   flaggedQuestionIds = signal<Set<string>>(new Set());
-  
+
   // Timer State
+  timeLimitMinutes = signal<number | null>(null);
   elapsedSeconds = signal<number>(0);
   private timerInterval: any = null;
 
@@ -61,10 +81,24 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
   });
 
   formattedTime = computed(() => {
+    const limit = this.timeLimitMinutes();
+    if (limit && limit > 0) {
+      const remaining = Math.max(0, limit * 60 - this.elapsedSeconds());
+      const mins = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
     const totalSecs = this.elapsedSeconds();
     const mins = Math.floor(totalSecs / 60);
     const secs = totalSecs % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  });
+
+  isTimeUrgent = computed(() => {
+    const limit = this.timeLimitMinutes();
+    if (!limit || limit <= 0) return false;
+    const remaining = limit * 60 - this.elapsedSeconds();
+    return remaining <= 120; // 2 minutes or less
   });
 
   selectedSubject = computed(() => {
@@ -73,11 +107,125 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
   });
 
   async ngOnInit() {
-    await this.loadSubjects();
+    // Check if URL has ?room=...
+    const urlRoom = this.route.snapshot.queryParamMap.get('room');
+    if (urlRoom && urlRoom.trim()) {
+      this.mode.set('room');
+      this.roomCodeInput.set(urlRoom.trim().toUpperCase());
+      await this.lookupRoom(urlRoom.trim().toUpperCase());
+    } else {
+      await this.loadSubjects();
+    }
   }
 
   ngOnDestroy() {
     this.stopTimer();
+  }
+
+  switchToPractice() {
+    this.mode.set('practice');
+    this.errorMessage.set(null);
+    this.roomInfo.set(null);
+    this.router.navigate([], { queryParams: { room: null }, queryParamsHandling: 'merge' });
+    if (this.activeSubjects().length === 0) {
+      this.loadSubjects();
+    }
+  }
+
+  switchToRoom() {
+    this.mode.set('room');
+    this.errorMessage.set(null);
+  }
+
+  async lookupRoom(code?: string) {
+    const targetCode = (code || this.roomCodeInput()).trim().toUpperCase();
+    if (!targetCode) {
+      this.errorMessage.set('Please enter a room code.');
+      return;
+    }
+
+    this.verifyingRoom.set(true);
+    this.errorMessage.set(null);
+
+    try {
+      const info = await this.preTestService.getRoomPublicInfo(targetCode);
+      if (!info) {
+        this.roomInfo.set(null);
+        this.errorMessage.set(`Room "${targetCode}" was not found. Please check the code and try again.`);
+      } else {
+        this.roomInfo.set(info);
+        this.roomCodeInput.set(info.room_code);
+        if (info.audience !== 'any') {
+          this.participantRole.set(info.audience);
+        }
+      }
+    } catch (err: any) {
+      this.errorMessage.set(err.message || 'Failed to verify room code.');
+    } finally {
+      this.verifyingRoom.set(false);
+    }
+  }
+
+  async startRoomExam() {
+    const info = this.roomInfo();
+    if (!info) {
+      this.errorMessage.set('Please look up a valid room first.');
+      return;
+    }
+
+    if (info.status !== 'open') {
+      this.errorMessage.set(`This test room is currently ${info.status}.`);
+      return;
+    }
+
+    const name = this.participantName().trim();
+    if (!name || name.length < 2) {
+      this.errorMessage.set('Please enter your full name (at least 2 characters).');
+      return;
+    }
+
+    if (info.requires_passcode && !this.roomPasscode().trim()) {
+      this.errorMessage.set('This room requires a passcode. Please enter it.');
+      return;
+    }
+
+    this.loading.set(true);
+    this.errorMessage.set(null);
+
+    try {
+      const res = await this.preTestService.startRoomTest(
+        info.room_code,
+        info.requires_passcode ? this.roomPasscode() : null,
+        name,
+        this.participantRole()
+      );
+
+      if (!res.ok || !res.session) {
+        this.errorMessage.set(res.error || 'Failed to enter test room.');
+        return;
+      }
+
+      const session = res.session;
+      this.sessionId.set(session.session_id);
+      this.questions.set(session.questions);
+      this.timeLimitMinutes.set(session.time_limit_minutes || null);
+      this.currentIndex.set(0);
+
+      const initialAnswers: Record<string, string | null> = {};
+      session.questions.forEach(q => {
+        initialAnswers[q.id] = null;
+      });
+      this.selectedAnswers.set(initialAnswers);
+      this.flaggedQuestionIds.set(new Set());
+
+      this.elapsedSeconds.set(0);
+      this.startTimer();
+      this.stage.set('taking_test');
+    } catch (err: any) {
+      this.errorMessage.set(err.message || 'Unable to join test room.');
+    } finally {
+      this.loading.set(false);
+    }
   }
 
   async loadSubjects() {
@@ -114,9 +262,9 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
 
       this.sessionId.set(res.session_id);
       this.questions.set(res.questions);
+      this.timeLimitMinutes.set(null);
       this.currentIndex.set(0);
-      
-      // Initialize answer map
+
       const initialAnswers: Record<string, string | null> = {};
       res.questions.forEach(q => {
         initialAnswers[q.id] = null;
@@ -124,7 +272,6 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
       this.selectedAnswers.set(initialAnswers);
       this.flaggedQuestionIds.set(new Set());
 
-      // Start elapsed timer
       this.elapsedSeconds.set(0);
       this.startTimer();
 
@@ -138,7 +285,6 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
 
   selectOption(questionId: string, optionId: string) {
     const current = { ...this.selectedAnswers() };
-    // Toggle or select
     current[questionId] = optionId;
     this.selectedAnswers.set(current);
   }
@@ -209,7 +355,7 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
       this.stage.set('submitted');
     } catch (err: any) {
       this.errorMessage.set(err.message || 'Failed to submit test');
-      this.startTimer(); // Resume timer if failed
+      this.startTimer();
     } finally {
       this.loading.set(false);
     }
@@ -217,7 +363,11 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
 
   retakeCurrentExam() {
     this.submitResult.set(null);
-    this.startExam();
+    if (this.mode() === 'room' && this.roomInfo()) {
+      this.startRoomExam();
+    } else {
+      this.startExam();
+    }
   }
 
   chooseAnotherSubject() {
@@ -226,13 +376,20 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
     this.sessionId.set(null);
     this.questions.set([]);
     this.stage.set('select_subject');
-    this.loadSubjects();
+    if (this.mode() === 'practice') {
+      this.loadSubjects();
+    }
   }
 
   private startTimer() {
     this.stopTimer();
     this.timerInterval = setInterval(() => {
       this.elapsedSeconds.update(s => s + 1);
+      const limit = this.timeLimitMinutes();
+      if (limit && limit > 0 && this.elapsedSeconds() >= limit * 60) {
+        // Auto-submit when time expires
+        this.confirmSubmit();
+      }
     }, 1000);
   }
 
@@ -250,8 +407,8 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
   }
 
   getOptionText(question: CandidateQuestion, optionId: string | null): string {
-    if (!optionId) return '(Skipped / No Answer)';
+    if (!optionId) return '<span class="italic text-slate-400">No answer selected</span>';
     const opt = question.options.find(o => o.id === optionId);
-    return opt ? opt.answer_text : '(Unknown option)';
+    return opt ? opt.answer_text : '<span class="italic text-slate-400">Option not found</span>';
   }
 }

@@ -18,7 +18,7 @@ import { MatButton } from '@angular/material/button';
 import { MatTooltip } from '@angular/material/tooltip';
 import { createClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
-import { PreTestService } from '../services/pre-test.service';
+import { PreTestService, TestRoomAdminItem, RoomParticipantResult } from '../services/pre-test.service';
 import { KhmerSpellCheckService, SpellCheckToken, SpellCheckReport } from '../services/khmer-spellcheck.service';
 
 interface Question {
@@ -828,6 +828,27 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   filterSearch = signal(sessionStorage.getItem('admin_filter_search') || '');
   filterMisspelledOnly = signal(sessionStorage.getItem('admin_filter_misspelled') === 'true');
 
+  // Pre-Test Rooms State
+  testRooms = signal<TestRoomAdminItem[]>([]);
+  loadingRooms = signal(false);
+  showCreateRoomModal = signal(false);
+  showRoomShareModal = signal(false);
+  activeShareRoom = signal<TestRoomAdminItem | null>(null);
+  showRoomResultsModal = signal(false);
+  activeResultsRoom = signal<TestRoomAdminItem | null>(null);
+  roomParticipantsResults = signal<RoomParticipantResult[]>([]);
+  loadingRoomResults = signal(false);
+
+  // Create Room Form
+  newRoomTitle = signal('');
+  newRoomSubjectId = signal('');
+  newRoomPasscode = signal('');
+  newRoomAudience = signal<'any' | 'student' | 'teacher'>('any');
+  newRoomQuestionLimit = signal<number | null>(null);
+  newRoomTimeLimitMinutes = signal<number | null>(null);
+  newRoomExpiresInDays = signal<number | null>(7);
+  creatingRoom = signal(false);
+
   // Debounced filter states to prevent 503 errors
   debouncedSearch = signal(sessionStorage.getItem('admin_filter_search') || '');
   private searchSubject = new Subject<string>();
@@ -1250,6 +1271,9 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       untracked(() => {
         if (view === 'questions') {
           this.loadQuestionsForActiveTab();
+          if (this.activeTab() === 'testing') {
+            this.loadTestRooms();
+          }
         } else if (view === 'tags') {
           this.loadTagsData();
         }
@@ -2329,6 +2353,213 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pre-Test Room Management Methods
+  // ---------------------------------------------------------------------------
+
+  async loadTestRooms() {
+    this.loadingRooms.set(true);
+    try {
+      const rooms = await this.preTestService.listRooms();
+      this.testRooms.set(rooms);
+    } catch (err: any) {
+      console.warn('Failed to load test rooms:', err);
+    } finally {
+      this.loadingRooms.set(false);
+    }
+  }
+
+  openCreateRoomModal(subjectId?: string) {
+    this.newRoomTitle.set('');
+    this.newRoomPasscode.set('');
+    this.newRoomAudience.set('any');
+    this.newRoomQuestionLimit.set(null);
+    this.newRoomTimeLimitMinutes.set(null);
+    this.newRoomExpiresInDays.set(7);
+
+    if (subjectId) {
+      this.newRoomSubjectId.set(subjectId);
+    } else if (this.categories().length > 0) {
+      this.newRoomSubjectId.set(this.categories()[0].id);
+    }
+
+    this.showCreateRoomModal.set(true);
+  }
+
+  closeCreateRoomModal() {
+    this.showCreateRoomModal.set(false);
+  }
+
+  async handleCreateRoom() {
+    const title = this.newRoomTitle().trim();
+    const subjectId = this.newRoomSubjectId();
+
+    if (!title) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Validation Error',
+        detail: 'Please enter a title for the test room.'
+      });
+      return;
+    }
+
+    if (!subjectId) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Validation Error',
+        detail: 'Please select a subject.'
+      });
+      return;
+    }
+
+    const passcode = this.newRoomPasscode().trim();
+    if (passcode && passcode.length < 4) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Validation Error',
+        detail: 'Passcode must be at least 4 characters long.'
+      });
+      return;
+    }
+
+    this.creatingRoom.set(true);
+    try {
+      let expiresAt: string | null = null;
+      const days = this.newRoomExpiresInDays();
+      if (days && days > 0) {
+        const d = new Date();
+        d.setDate(d.getDate() + days);
+        expiresAt = d.toISOString();
+      }
+
+      const res = await this.preTestService.createRoom({
+        title,
+        subject_id: subjectId,
+        passcode: passcode || undefined,
+        audience: this.newRoomAudience(),
+        question_limit: this.newRoomQuestionLimit() || null,
+        time_limit_minutes: this.newRoomTimeLimitMinutes() || null,
+        expires_at: expiresAt
+      });
+
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Room Created!',
+        detail: `Room Code: ${res.room_code}`
+      });
+
+      this.showCreateRoomModal.set(false);
+      await this.loadTestRooms();
+
+      // Open share modal immediately
+      const created = this.testRooms().find(r => r.room_code === res.room_code);
+      if (created) {
+        this.openShareRoomModal(created);
+      }
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Creation Failed',
+        detail: err.message || 'Could not create test room'
+      });
+    } finally {
+      this.creatingRoom.set(false);
+    }
+  }
+
+  openShareRoomModal(room: TestRoomAdminItem) {
+    this.activeShareRoom.set(room);
+    this.showRoomShareModal.set(true);
+  }
+
+  closeShareRoomModal() {
+    this.showRoomShareModal.set(false);
+    this.activeShareRoom.set(null);
+  }
+
+  getRoomUrl(roomCode: string): string {
+    const origin = window.location.origin;
+    return `${origin}/test?room=${roomCode}`;
+  }
+
+  async copyRoomUrl(roomCode: string) {
+    const url = this.getRoomUrl(roomCode);
+    try {
+      await navigator.clipboard.writeText(url);
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Copied!',
+        detail: 'Test link copied to clipboard.'
+      });
+    } catch {
+      this.messageService.add({
+        severity: 'info',
+        summary: 'Share Link',
+        detail: url
+      });
+    }
+  }
+
+  async toggleRoomActive(room: TestRoomAdminItem) {
+    const next = !room.is_active;
+    try {
+      await this.preTestService.setRoomActive(room.id, next);
+      room.is_active = next;
+      this.messageService.add({
+        severity: 'success',
+        summary: next ? 'Room Opened' : 'Room Closed',
+        detail: `Room ${room.room_code} is now ${next ? 'open' : 'closed'}.`
+      });
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Action Failed',
+        detail: err.message || 'Could not update room status'
+      });
+    }
+  }
+
+  async handleDeleteRoom(room: TestRoomAdminItem) {
+    if (!confirm(`Are you sure you want to delete test room "${room.title}" (${room.room_code})?`)) {
+      return;
+    }
+    try {
+      await this.preTestService.deleteRoom(room.id);
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Deleted',
+        detail: `Room ${room.room_code} has been removed.`
+      });
+      await this.loadTestRooms();
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Delete Failed',
+        detail: err.message || 'Could not delete room'
+      });
+    }
+  }
+
+  async openRoomResultsModal(room: TestRoomAdminItem) {
+    this.activeResultsRoom.set(room);
+    this.showRoomResultsModal.set(true);
+    this.loadingRoomResults.set(true);
+    try {
+      const results = await this.preTestService.getRoomResults(room.id);
+      this.roomParticipantsResults.set(results);
+    } catch (err: any) {
+      console.warn('Failed to load room results:', err);
+    } finally {
+      this.loadingRoomResults.set(false);
+    }
+  }
+
+  closeRoomResultsModal() {
+    this.showRoomResultsModal.set(false);
+    this.activeResultsRoom.set(null);
+    this.roomParticipantsResults.set([]);
   }
 
   getAttemptsBadge(q: Question): { label: string; subLabel: string; badgeClass: string } {

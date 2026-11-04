@@ -12,18 +12,20 @@
           </h1>
           <p class="text-xs font-semibold text-blue-600 flex items-center gap-1">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            Practice & Pre-Testing Portal
+            Practice &amp; Pre-Testing Portal
           </p>
         </div>
       </div>
 
       <div class="flex items-center gap-3">
         <!-- Live Timer (visible during active exam) -->
-        <div *ngIf="stage() === 'taking_test'" class="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-xl border border-slate-200 text-xs font-bold text-slate-700">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div *ngIf="stage() === 'taking_test'" class="flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold"
+          [ngClass]="isTimeUrgent() ? 'bg-rose-50 border-rose-300 text-rose-700 animate-pulse' : 'bg-slate-100 border-slate-200 text-slate-700'">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" [ngClass]="isTimeUrgent() ? 'text-rose-600' : 'text-blue-600'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span class="font-mono text-sm font-black">{{ formattedTime() }}</span>
+          <span *ngIf="timeLimitMinutes()" class="text-[10px] text-slate-400">left</span>
         </div>
 
         <a routerLink="/auth" class="text-xs font-bold text-slate-500 hover:text-slate-800 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition">
@@ -48,22 +50,164 @@
     </div>
 
     <!-- ========================================================================= -->
-    <!-- STAGE 1: SUBJECT SELECTION -->
+    <!-- STAGE 1: ENTRY & SELECTION (ROOM CODE OR PRACTICE) -->
     <!-- ========================================================================= -->
     <div *ngIf="stage() === 'select_subject'" class="max-w-3xl mx-auto space-y-8 animate-fade-in">
+      
+      <!-- Mode Toggle Header -->
       <div class="text-center space-y-3">
-        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-widest">
-          Candidate Practice Portal
-        </span>
+        <div class="inline-flex items-center p-1 bg-slate-200/80 rounded-2xl shadow-inner gap-1">
+          <button type="button" (click)="switchToRoom()"
+            class="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2"
+            [ngClass]="mode() === 'room' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+            <span>Enter Room Code / URL</span>
+          </button>
+          <button type="button" (click)="switchToPractice()"
+            class="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2"
+            [ngClass]="mode() === 'practice' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+            <span>Free Practice Mode</span>
+          </button>
+        </div>
+
         <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-          Select Subject to Begin Pre-Test
+          {{ mode() === 'room' ? 'Join Test Room with Code' : 'Select Subject to Begin Pre-Test' }}
         </h2>
-        <p class="text-base text-slate-600 max-w-xl mx-auto">
-          Participate in anonymous practice sessions to help evaluate and calibrate high-quality questions for future university exams.
+        <p class="text-sm sm:text-base text-slate-600 max-w-xl mx-auto">
+          {{ mode() === 'room' 
+              ? 'Enter the 6-character room code or passcode provided by your administrator or teacher. No login required!'
+              : 'Participate in anonymous practice sessions to help evaluate and calibrate questions for future exams.' }}
         </p>
       </div>
 
-      <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-6">
+      <!-- MODE A: ROOM CODE & PASSCODE ENTRY -->
+      <div *ngIf="mode() === 'room'" class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-6">
+        
+        <!-- Step 1: Code lookup input -->
+        <div>
+          <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">
+            Test Room Code
+          </label>
+          <div class="flex gap-2">
+            <input type="text" [ngModel]="roomCodeInput()" (ngModelChange)="roomCodeInput.set($event)"
+              (keydown.enter)="lookupRoom()"
+              placeholder="e.g. 7K9M4X"
+              maxlength="10"
+              class="flex-1 px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-900 font-mono font-black text-xl tracking-widest uppercase focus:bg-white focus:border-indigo-500 focus:outline-none transition shadow-inner">
+            <button type="button" (click)="lookupRoom()" [disabled]="verifyingRoom() || !roomCodeInput().trim()"
+              class="px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow transition disabled:opacity-50 flex items-center gap-2">
+              <span *ngIf="verifyingRoom()" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              <span>Find Room</span>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1.5">
+            Tip: You can also open the direct link shared by your instructor (e.g. <code>/test?room=CODE</code>).
+          </p>
+        </div>
+
+        <!-- Room Information Card (when found) -->
+        <div *ngIf="roomInfo() as info" class="space-y-6 border-t border-slate-100 pt-6 animate-fade-in">
+          <div class="p-5 rounded-2xl bg-gradient-to-r from-indigo-50/70 via-blue-50/50 to-purple-50/70 border border-indigo-100 space-y-3">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <span class="px-2.5 py-1 rounded bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest font-mono">
+                ROOM: {{ info.room_code }}
+              </span>
+              <span *ngIf="info.status === 'open'" class="px-2.5 py-1 rounded bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Room Open
+              </span>
+              <span *ngIf="info.status !== 'open'" class="px-2.5 py-1 rounded bg-rose-100 text-rose-800 text-[10px] font-black uppercase tracking-wider">
+                {{ info.status | uppercase }}
+              </span>
+            </div>
+
+            <div>
+              <h4 class="text-xl font-black text-slate-900">{{ info.title }}</h4>
+              <p class="text-xs font-bold text-indigo-700 mt-0.5">Subject: {{ info.subject_name }}</p>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 text-xs">
+              <div class="p-2.5 rounded-xl bg-white/80 border border-indigo-100">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Questions</span>
+                <span class="font-black text-slate-800 text-base">{{ info.question_count }}</span>
+              </div>
+              <div class="p-2.5 rounded-xl bg-white/80 border border-indigo-100">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Time Limit</span>
+                <span class="font-black text-slate-800 text-base">
+                  {{ info.time_limit_minutes ? info.time_limit_minutes + ' min' : 'No limit' }}
+                </span>
+              </div>
+              <div class="p-2.5 rounded-xl bg-white/80 border border-indigo-100 col-span-2 sm:col-span-1">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Passcode</span>
+                <span class="font-black text-base" [ngClass]="info.requires_passcode ? 'text-amber-700' : 'text-emerald-700'">
+                  {{ info.requires_passcode ? 'Required 🔒' : 'None 🔓' }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Participant Info Form -->
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1.5">
+                Your Full Name <span class="text-rose-500">*</span>
+              </label>
+              <input type="text" [ngModel]="participantName()" (ngModelChange)="participantName.set($event)"
+                placeholder="e.g. Sok Chantha"
+                maxlength="80"
+                class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 font-bold text-sm focus:bg-white focus:border-indigo-500 focus:outline-none transition">
+            </div>
+
+            <!-- Role picker if audience = any -->
+            <div *ngIf="info.audience === 'any'">
+              <label class="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1.5">
+                I am participating as:
+              </label>
+              <div class="grid grid-cols-2 gap-3">
+                <button type="button" (click)="participantRole.set('student')"
+                  class="p-3 rounded-xl border-2 text-xs font-black uppercase tracking-wider transition flex items-center justify-center gap-2"
+                  [ngClass]="participantRole() === 'student' ? 'border-indigo-600 bg-indigo-50 text-indigo-900 shadow-sm' : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'">
+                  <span>🎓 Student</span>
+                </button>
+                <button type="button" (click)="participantRole.set('teacher')"
+                  class="p-3 rounded-xl border-2 text-xs font-black uppercase tracking-wider transition flex items-center justify-center gap-2"
+                  [ngClass]="participantRole() === 'teacher' ? 'border-indigo-600 bg-indigo-50 text-indigo-900 shadow-sm' : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'">
+                  <span>👨‍🏫 Teacher / Peer Reviewer</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Passcode Input (only if required) -->
+            <div *ngIf="info.requires_passcode">
+              <label class="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1.5">
+                Room Passcode <span class="text-rose-500">*</span>
+              </label>
+              <input type="password" [ngModel]="roomPasscode()" (ngModelChange)="roomPasscode.set($event)"
+                (keydown.enter)="startRoomExam()"
+                placeholder="Enter passcode given by instructor"
+                class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 font-mono font-bold text-base tracking-widest focus:bg-white focus:border-indigo-500 focus:outline-none transition">
+            </div>
+
+            <button type="button" (click)="startRoomExam()"
+              [disabled]="loading() || info.status !== 'open' || !participantName().trim() || (info.requires_passcode && !roomPasscode().trim())"
+              class="w-full py-4 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black text-base rounded-2xl shadow-lg shadow-indigo-500/25 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+              <span *ngIf="loading()" class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              <span>Join Room &amp; Start Test</span>
+              <svg *ngIf="!loading()" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODE B: FREE PRACTICE SUBJECT SELECTOR -->
+      <div *ngIf="mode() === 'practice'" class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-6">
         <div>
           <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">
             Available Testing Subjects
@@ -140,164 +284,170 @@
     <!-- ========================================================================= -->
     <div *ngIf="stage() === 'taking_test' && currentQuestion()" class="grid grid-cols-1 lg:grid-cols-4 gap-8 animate-fade-in">
       
-      <!-- Left Column: Main Question View (3 cols) -->
+      <!-- Left Column: Question Content & Choices (3 cols) -->
       <div class="lg:col-span-3 space-y-6">
-        
-        <!-- Progress Header Card -->
-        <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
-          <div class="flex items-center justify-between flex-wrap gap-2">
+        <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+          
+          <!-- Question Header Row -->
+          <div class="flex items-center justify-between border-b border-slate-100 pb-4">
             <div class="flex items-center gap-3">
-              <span class="px-3 py-1 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-wider shadow-sm">
+              <span class="px-3 py-1 rounded-xl bg-blue-100 text-blue-800 font-mono font-black text-xs">
                 Question {{ currentIndex() + 1 }} of {{ questions().length }}
               </span>
               <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Type: {{ currentQuestion()!.qtype }}
+                Type: {{ currentQuestion()?.qtype }}
               </span>
             </div>
 
             <!-- Flag Button -->
             <button (click)="toggleFlag(currentQuestion()!.id)"
-              [class.bg-amber-100]="isFlagged(currentQuestion()!.id)"
-              [class.text-amber-700]="isFlagged(currentQuestion()!.id)"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border"
+              [class.bg-amber-50]="isFlagged(currentQuestion()!.id)"
               [class.border-amber-300]="isFlagged(currentQuestion()!.id)"
-              class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 transition flex items-center gap-1.5">
+              [class.text-amber-700]="isFlagged(currentQuestion()!.id)"
+              [class.bg-slate-50]="!isFlagged(currentQuestion()!.id)"
+              [class.border-slate-200]="!isFlagged(currentQuestion()!.id)"
+              [class.text-slate-500]="!isFlagged(currentQuestion()!.id)">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" [class.fill-amber-500]="isFlagged(currentQuestion()!.id)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
               </svg>
-              <span>{{ isFlagged(currentQuestion()!.id) ? 'Flagged for Review' : 'Flag Question' }}</span>
+              <span>{{ isFlagged(currentQuestion()!.id) ? 'Flagged' : 'Flag' }}</span>
             </button>
           </div>
 
-          <!-- Progress Bar -->
-          <div class="space-y-1.5">
-            <div class="flex justify-between text-xs font-bold text-slate-500">
-              <span>Progress: {{ answeredCount() }} answered</span>
-              <span>{{ progressPercentage() }}%</span>
-            </div>
-            <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-              <div class="h-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full transition-all duration-300"
-                [style.width.%]="progressPercentage()"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Question & Options Card -->
-        <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-8">
-          <!-- Question Title & Text -->
-          <div class="space-y-3">
-            <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">{{ currentQuestion()!.name }}</span>
-            <div class="text-xl sm:text-2xl font-bold text-slate-900 leading-relaxed question-content"
-              [innerHTML]="currentQuestion()!.question_text">
-            </div>
+          <!-- Question Prompt / Text -->
+          <div class="prose max-w-none text-slate-900 font-medium text-base sm:text-lg leading-relaxed"
+            [innerHTML]="currentQuestion()?.question_text">
           </div>
 
-          <!-- Multiple Choice Options -->
-          <div class="space-y-3">
-            <h4 class="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">Choose the correct answer:</h4>
-            
-            <div *ngFor="let opt of currentQuestion()!.options; let optIdx = index"
+          <!-- Answer Options List -->
+          <div class="space-y-3 pt-2">
+            <div *ngFor="let opt of currentQuestion()?.options; let optIdx = index"
               (click)="selectOption(currentQuestion()!.id, opt.id)"
-              [class.border-blue-600]="selectedAnswers()[currentQuestion()!.id] === opt.id"
+              class="flex items-start gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer group"
+              [class.border-blue-500]="selectedAnswers()[currentQuestion()!.id] === opt.id"
               [class.bg-blue-50]="selectedAnswers()[currentQuestion()!.id] === opt.id"
-              [class.ring-2]="selectedAnswers()[currentQuestion()!.id] === opt.id"
-              [class.ring-blue-500]="selectedAnswers()[currentQuestion()!.id] === opt.id"
-              class="p-4 rounded-2xl border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50/60 cursor-pointer transition-all flex items-start gap-4 group">
+              [class.border-slate-200]="selectedAnswers()[currentQuestion()!.id] !== opt.id"
+              [class.bg-white]="selectedAnswers()[currentQuestion()!.id] !== opt.id"
+              [class.hover:border-slate-300]="selectedAnswers()[currentQuestion()!.id] !== opt.id"
+              [class.hover:bg-slate-50]="selectedAnswers()[currentQuestion()!.id] !== opt.id">
               
-              <!-- Custom Radio Button Indicator -->
-              <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors"
+              <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition"
                 [class.border-blue-600]="selectedAnswers()[currentQuestion()!.id] === opt.id"
                 [class.bg-blue-600]="selectedAnswers()[currentQuestion()!.id] === opt.id"
                 [class.border-slate-300]="selectedAnswers()[currentQuestion()!.id] !== opt.id">
                 <div *ngIf="selectedAnswers()[currentQuestion()!.id] === opt.id" class="w-2 h-2 rounded-full bg-white"></div>
               </div>
 
-              <!-- Option Label & Text -->
-              <div class="flex-1">
-                <span class="inline-block text-xs font-black text-slate-400 group-hover:text-slate-600 mr-2 uppercase">
-                  Option {{ optIdx + 1 }}:
-                </span>
-                <span class="text-base font-semibold text-slate-800 leading-normal" [innerHTML]="opt.answer_text"></span>
+              <div class="flex-1 text-sm sm:text-base font-medium text-slate-800 leading-snug"
+                [innerHTML]="opt.answer_text">
               </div>
+            </div>
+
+            <div *ngIf="!currentQuestion()?.options || currentQuestion()?.options?.length === 0" class="p-6 text-center text-slate-400 text-sm">
+              No multiple choice options configured for this question.
             </div>
           </div>
 
+          <!-- Clear Choice Button -->
+          <div *ngIf="selectedAnswers()[currentQuestion()!.id]" class="pt-2">
+            <button (click)="clearSelection(currentQuestion()!.id)" class="text-xs text-slate-400 hover:text-slate-600 underline font-semibold">
+              Clear my choice
+            </button>
+          </div>
+
           <!-- Bottom Navigation Controls -->
-          <div class="flex items-center justify-between pt-6 border-t border-slate-100 flex-wrap gap-3">
-            <div class="flex items-center gap-2">
-              <button (click)="prevQuestion()" [disabled]="currentIndex() === 0"
-                class="px-5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5">
-                &larr; Previous
-              </button>
-              
-              <button *ngIf="selectedAnswers()[currentQuestion()!.id]" (click)="clearSelection(currentQuestion()!.id)"
-                class="px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-rose-600 transition">
-                Clear Choice
-              </button>
-            </div>
+          <div class="flex items-center justify-between pt-6 border-t border-slate-100">
+            <button (click)="prevQuestion()" [disabled]="currentIndex() === 0"
+              class="px-5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span>Previous</span>
+            </button>
 
             <div class="flex items-center gap-3">
               <button *ngIf="currentIndex() < questions().length - 1" (click)="nextQuestion()"
-                class="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black transition flex items-center gap-1.5 shadow-sm">
-                Next Question &rarr;
+                class="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition shadow-md flex items-center gap-2">
+                <span>Next</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
               </button>
 
-              <button (click)="promptSubmit()"
-                class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black transition shadow-lg shadow-emerald-600/20 flex items-center gap-1.5">
-                Submit Exam
+              <button *ngIf="currentIndex() === questions().length - 1" (click)="promptSubmit()"
+                class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition shadow-md flex items-center gap-2">
+                <span>Finish &amp; Submit</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Right Column: Navigation Palette (1 col) -->
-      <div class="lg:col-span-1 space-y-6">
-        <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6 sticky top-24">
-          <div class="flex items-center justify-between">
-            <h4 class="text-xs font-black uppercase tracking-wider text-slate-900">Question Palette</h4>
-            <span class="text-xs font-bold text-slate-400">{{ answeredCount() }}/{{ questions().length }} done</span>
+      <!-- Right Column: Question Navigator Palette (1 col) -->
+      <div class="space-y-6">
+        <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-5">
+          <div class="space-y-1">
+            <h3 class="text-sm font-black uppercase tracking-wider text-slate-800">
+              Exam Navigator
+            </h3>
+            <p class="text-xs text-slate-400">
+              {{ answeredCount() }} of {{ questions().length }} answered ({{ progressPercentage() }}%)
+            </p>
           </div>
 
-          <!-- Grid of Question Numbers -->
-          <div class="grid grid-cols-5 gap-2">
-            <button *ngFor="let q of questions(); let qIndex = index"
-              (click)="goToQuestion(qIndex)"
-              [class.ring-2]="currentIndex() === qIndex"
-              [class.ring-blue-600]="currentIndex() === qIndex"
-              [class.bg-blue-600]="selectedAnswers()[q.id] && currentIndex() === qIndex"
-              [class.text-white]="selectedAnswers()[q.id] && currentIndex() === qIndex"
-              [class.bg-emerald-500]="selectedAnswers()[q.id] && currentIndex() !== qIndex"
-              [class.text-white]="selectedAnswers()[q.id] && currentIndex() !== qIndex"
-              [class.bg-slate-100]="!selectedAnswers()[q.id] && currentIndex() !== qIndex"
-              [class.text-slate-700]="!selectedAnswers()[q.id] && currentIndex() !== qIndex"
-              class="relative h-10 rounded-xl font-black text-xs transition-all flex items-center justify-center hover:scale-105">
-              <span>{{ qIndex + 1 }}</span>
-              <!-- Flag Marker -->
-              <span *ngIf="isFlagged(q.id)" class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-white"></span>
+          <!-- Progress Bar -->
+          <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+            <div class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              [style.width.%]="progressPercentage()"></div>
+          </div>
+
+          <!-- Questions Grid -->
+          <div class="grid grid-cols-5 gap-2 pt-2">
+            <button *ngFor="let q of questions(); let i = index"
+              (click)="goToQuestion(i)"
+              class="w-full aspect-square rounded-xl text-xs font-mono font-bold transition flex items-center justify-center relative border"
+              [class.ring-2]="currentIndex() === i"
+              [class.ring-blue-500]="currentIndex() === i"
+              [class.ring-offset-2]="currentIndex() === i"
+              [class.bg-blue-600]="selectedAnswers()[q.id]"
+              [class.text-white]="selectedAnswers()[q.id]"
+              [class.border-blue-600]="selectedAnswers()[q.id]"
+              [class.bg-slate-50]="!selectedAnswers()[q.id]"
+              [class.text-slate-700]="!selectedAnswers()[q.id]"
+              [class.border-slate-200]="!selectedAnswers()[q.id]">
+              <span>{{ i + 1 }}</span>
+              <span *ngIf="isFlagged(q.id)" class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full ring-2 ring-white"></span>
             </button>
           </div>
 
           <!-- Legend -->
-          <div class="space-y-2 pt-4 border-t border-slate-100 text-[11px] text-slate-500">
+          <div class="border-t border-slate-100 pt-4 space-y-2 text-[11px] font-semibold text-slate-500">
             <div class="flex items-center gap-2">
-              <span class="w-3 h-3 rounded-md bg-emerald-500 shrink-0"></span>
+              <span class="w-3 h-3 rounded bg-blue-600"></span>
               <span>Answered</span>
             </div>
             <div class="flex items-center gap-2">
-              <span class="w-3 h-3 rounded-md bg-slate-100 border border-slate-200 shrink-0"></span>
-              <span>Not Answered</span>
+              <span class="w-3 h-3 rounded bg-slate-100 border border-slate-300"></span>
+              <span>Unanswered</span>
             </div>
             <div class="flex items-center gap-2">
-              <span class="w-3 h-3 rounded-full bg-amber-500 shrink-0"></span>
+              <span class="w-2.5 h-2.5 bg-amber-500 rounded-full"></span>
               <span>Flagged for Review</span>
             </div>
           </div>
 
-          <!-- Submit Action in Palette -->
+          <!-- Big Submit Test Button -->
           <div class="pt-2">
             <button (click)="promptSubmit()"
-              class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition">
-              Finish & Submit Test
+              class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow flex items-center justify-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Submit Exam</span>
             </button>
           </div>
         </div>
@@ -305,42 +455,42 @@
     </div>
 
     <!-- ========================================================================= -->
-    <!-- STAGE 3: TEST RESULTS & PSYCHOMETRIC BREAKDOWN -->
+    <!-- STAGE 3: RESULT & SCORE BREAKDOWN -->
     <!-- ========================================================================= -->
     <div *ngIf="stage() === 'submitted' && submitResult()" class="max-w-4xl mx-auto space-y-8 animate-fade-in">
       
       <!-- Big Score Banner -->
-      <div class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-3xl p-8 sm:p-10 shadow-xl relative overflow-hidden">
-        <div class="absolute right-0 top-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-900 text-white p-8 sm:p-12 shadow-2xl relative overflow-hidden">
+        <div class="absolute -right-12 -bottom-12 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-        <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-          <div class="space-y-3 text-center md:text-left">
-            <span class="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-widest">
-              Practice Exam Completed
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-8 relative z-10">
+          <div class="space-y-3 text-center sm:text-left">
+            <span class="px-3 py-1 rounded-full text-xs font-black tracking-widest uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              Exam Completed
             </span>
-            <h2 class="text-3xl sm:text-4xl font-black tracking-tight">Your Performance Summary</h2>
-            <p class="text-sm text-slate-300 max-w-md">
-              Thank you for testing these questions. Your responses have been recorded and incorporated into the item analysis metrics.
+            <h2 class="text-3xl sm:text-4xl font-black tracking-tight">
+              {{ submitResult()!.percentage >= 80 ? 'Outstanding Performance! 🎉' :
+                 submitResult()!.percentage >= 50 ? 'Practice Complete! 👍' :
+                 'Keep Practicing! 💪' }}
+            </h2>
+            <p class="text-slate-300 text-sm max-w-md">
+              Thank you for contributing to our question bank calibration. Your responses help teachers identify valid questions and improve distractor quality.
             </p>
           </div>
 
-          <!-- Score Dial / Pill -->
-          <div class="flex flex-col items-center justify-center p-6 rounded-3xl bg-white/10 backdrop-blur border border-white/20 text-center shrink-0 w-48">
-            <span class="text-4xl sm:text-5xl font-black text-white leading-none">
+          <!-- Radial / Number Score Box -->
+          <div class="p-6 rounded-3xl bg-white/10 backdrop-blur-md border border-white/20 text-center shrink-0 min-w-[180px]">
+            <span class="text-xs uppercase font-black tracking-widest text-indigo-200 block mb-1">Total Score</span>
+            <div class="text-5xl font-black text-white font-mono tracking-tight">
               {{ submitResult()?.percentage }}%
-            </span>
-            <span class="text-xs font-bold text-slate-300 uppercase tracking-wider mt-2">
+            </div>
+            <div class="text-xs font-bold text-slate-300 mt-2">
               {{ submitResult()?.score }} / {{ submitResult()?.total_questions }} Correct
-            </span>
-            <span class="mt-2 text-[10px] font-black px-2.5 py-0.5 rounded-full"
-              [class.bg-emerald-500]="(submitResult()?.percentage || 0) >= 70"
-              [class.bg-amber-500]="(submitResult()?.percentage || 0) >= 50 && (submitResult()?.percentage || 0) < 70"
-              [class.bg-rose-500]="(submitResult()?.percentage || 0) < 50">
-              {{ (submitResult()?.percentage || 0) >= 70 ? 'Passed' : 'Needs Practice' }}
-            </span>
+            </div>
           </div>
         </div>
 
+        <!-- Session Meta Footer -->
         <div class="mt-8 pt-6 border-t border-white/10 flex flex-wrap items-center justify-between gap-4 text-xs font-semibold text-slate-300">
           <div class="flex items-center gap-2">
             <span>Session ID:</span>
@@ -351,7 +501,7 @@
               Retake Same Test
             </button>
             <button (click)="chooseAnotherSubject()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition shadow">
-              Select Another Subject
+              Select Another Subject / Room
             </button>
           </div>
         </div>
@@ -360,43 +510,33 @@
       <!-- Question-by-Question Breakdown -->
       <div class="space-y-4">
         <h3 class="text-xl font-black text-slate-900 tracking-tight flex items-center justify-between">
-          <span>Question Review & Feedback</span>
-          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">{{ questions().length }} Questions</span>
+          <span>Item-by-Item Review</span>
+          <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            Detailed Answers
+          </span>
         </h3>
 
-        <div *ngFor="let q of questions(); let qIdx = index"
-          class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4">
+        <div *ngFor="let q of questions(); let idx = index"
+          class="bg-white rounded-2xl p-6 border transition space-y-4"
+          [class.border-emerald-200]="getResultItem(q.id)?.is_correct"
+          [class.border-rose-200]="getResultItem(q.id) && !getResultItem(q.id)?.is_correct">
           
-          <div class="flex items-start justify-between gap-3">
-            <div class="flex items-center gap-2.5">
-              <span class="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center text-xs font-black shrink-0">
-                #{{ qIdx + 1 }}
-              </span>
-              <span class="text-xs font-bold text-slate-400">{{ q.name }}</span>
-            </div>
-
-            <!-- Correctness Badge -->
-            <div *ngIf="getResultItem(q.id) as item">
-              <span *ngIf="item.is_correct" class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                </svg>
-                Correct
-              </span>
-              <span *ngIf="!item.is_correct && item.selected_option_id" class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 1.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                </svg>
-                Incorrect
-              </span>
-              <span *ngIf="!item.is_correct && !item.selected_option_id" class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-700 border border-amber-200">
-                Skipped
-              </span>
-            </div>
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <span class="text-xs font-black font-mono text-slate-500">
+              #{{ idx + 1 }}
+            </span>
+            <span *ngIf="getResultItem(q.id) as item"
+              class="px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1"
+              [class.bg-emerald-100]="item.is_correct"
+              [class.text-emerald-800]="item.is_correct"
+              [class.bg-rose-100]="!item.is_correct"
+              [class.text-rose-800]="!item.is_correct">
+              <span>{{ item.is_correct ? 'Correct ✔' : 'Incorrect ✖' }}</span>
+            </span>
           </div>
 
           <!-- Question Text -->
-          <div class="text-base sm:text-lg font-bold text-slate-900 leading-relaxed"
+          <div class="text-sm font-semibold text-slate-900 leading-relaxed"
             [innerHTML]="q.question_text">
           </div>
 

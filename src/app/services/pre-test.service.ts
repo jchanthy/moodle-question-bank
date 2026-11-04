@@ -26,6 +26,7 @@ export interface TestStartResponse {
   session_id: string;
   subject_id: string;
   total_questions: number;
+  time_limit_minutes?: number | null;
   questions: CandidateQuestion[];
 }
 
@@ -61,6 +62,55 @@ export interface ReadinessEvaluation {
   summary: string;
 }
 
+export interface TestRoomPublicInfo {
+  room_code: string;
+  title: string;
+  subject_name: string;
+  requires_passcode: boolean;
+  audience: 'student' | 'teacher' | 'any';
+  question_count: number;
+  time_limit_minutes: number | null;
+  status: 'open' | 'closed' | 'expired';
+}
+
+export interface TestRoomAdminItem {
+  id: string;
+  room_code: string;
+  title: string;
+  subject_id: string;
+  subject_name: string;
+  has_passcode: boolean;
+  audience: 'student' | 'teacher' | 'any';
+  question_limit: number | null;
+  time_limit_minutes: number | null;
+  is_active: boolean;
+  expires_at: string | null;
+  created_at: string;
+  attempts: number;
+  avg_percentage: number | null;
+}
+
+export interface CreateTestRoomDto {
+  title: string;
+  subject_id: string;
+  passcode?: string;
+  audience?: 'student' | 'teacher' | 'any';
+  question_limit?: number | null;
+  time_limit_minutes?: number | null;
+  expires_at?: string | null;
+}
+
+export interface RoomParticipantResult {
+  session_id: string;
+  participant_name: string;
+  participant_role: string;
+  score: number;
+  total_questions: number;
+  percentage: number;
+  started_at: string;
+  submitted_at: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -77,7 +127,6 @@ export class PreTestService {
       return (data as TestingSubject[]) || [];
     } catch (err) {
       console.warn('RPC get_active_testing_subjects fallback to direct query:', err);
-      // Fallback query if RPC isn't available
       const { data: questions, error: qErr } = await this.supabaseService.db
         .from('questions')
         .select('category_id, question_categories(id, name, description)')
@@ -107,7 +156,7 @@ export class PreTestService {
   }
 
   /**
-   * Starts an anonymous exam session for a given subject
+   * Starts an anonymous exam session for a given subject (direct practice)
    */
   async startExam(subjectId: string, ipAddress = 'anonymous-web'): Promise<TestStartResponse> {
     const { data, error } = await this.supabaseService.db.rpc('start_candidate_test', {
@@ -140,6 +189,133 @@ export class PreTestService {
       p_question_id: questionId || null
     });
     if (error) throw error;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Room / Passcode / Shareable URL Methods
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Public: fetch public info about a room by its code (no login required)
+   */
+  async getRoomPublicInfo(roomCode: string): Promise<TestRoomPublicInfo | null> {
+    const code = roomCode.trim().toUpperCase();
+    try {
+      const { data, error } = await this.supabaseService.db.rpc('get_test_room_public', {
+        p_room_code: code
+      });
+      if (error) throw error;
+      return (data as TestRoomPublicInfo) || null;
+    } catch (err) {
+      console.warn('RPC get_test_room_public error:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Public: start a test inside a room with optional passcode, participant name and role
+   */
+  async startRoomTest(
+    roomCode: string,
+    passcode: string | null,
+    participantName: string,
+    participantRole: 'student' | 'teacher'
+  ): Promise<{ ok: boolean; error?: string; session?: TestStartResponse }> {
+    const { data, error } = await this.supabaseService.db.rpc('start_room_test', {
+      p_room_code: roomCode.trim().toUpperCase(),
+      p_passcode: passcode && passcode.trim() ? passcode.trim() : null,
+      p_participant_name: participantName.trim(),
+      p_participant_role: participantRole
+    });
+
+    if (error) {
+      return { ok: false, error: error.message || 'Failed to start exam.' };
+    }
+
+    if (!data || !data.ok) {
+      return { ok: false, error: data?.error || 'Invalid room code or passcode.' };
+    }
+
+    return {
+      ok: true,
+      session: {
+        session_id: data.session_id,
+        subject_id: data.subject_id,
+        total_questions: data.total_questions,
+        time_limit_minutes: data.time_limit_minutes,
+        questions: data.questions
+      }
+    };
+  }
+
+  /**
+   * Admin: List all created test rooms
+   */
+  async listRooms(): Promise<TestRoomAdminItem[]> {
+    const { data, error } = await this.supabaseService.db.rpc('list_test_rooms');
+    if (error) throw error;
+    return (data as TestRoomAdminItem[]) || [];
+  }
+
+  /**
+   * Admin: Create a new room
+   */
+  async createRoom(dto: CreateTestRoomDto): Promise<{ id: string; room_code: string }> {
+    const { data, error } = await this.supabaseService.db.rpc('create_test_room', {
+      p_title: dto.title.trim(),
+      p_subject_id: dto.subject_id,
+      p_passcode: dto.passcode && dto.passcode.trim() ? dto.passcode.trim() : null,
+      p_audience: dto.audience || 'any',
+      p_question_limit: dto.question_limit || null,
+      p_time_limit_minutes: dto.time_limit_minutes || null,
+      p_expires_at: dto.expires_at || null
+    });
+
+    if (error) throw error;
+    return data as { id: string; room_code: string };
+  }
+
+  /**
+   * Admin: Toggle room active state
+   */
+  async setRoomActive(roomId: string, active: boolean): Promise<void> {
+    const { error } = await this.supabaseService.db.rpc('set_test_room_active', {
+      p_room_id: roomId,
+      p_active: active
+    });
+    if (error) throw error;
+  }
+
+  /**
+   * Admin: Delete room
+   */
+  async deleteRoom(roomId: string): Promise<void> {
+    const { error } = await this.supabaseService.db.rpc('delete_test_room', {
+      p_room_id: roomId
+    });
+    if (error) throw error;
+  }
+
+  /**
+   * Admin: Update passcode
+   */
+  async setRoomPasscode(roomId: string, passcode: string | null): Promise<void> {
+    const { error } = await this.supabaseService.db.rpc('set_test_room_passcode', {
+      p_room_id: roomId,
+      p_passcode: passcode && passcode.trim() ? passcode.trim() : null
+    });
+    if (error) throw error;
+  }
+
+  /**
+   * Admin: Get participant results for a specific room
+   */
+  async getRoomResults(roomId: string): Promise<RoomParticipantResult[]> {
+    const { data, error } = await this.supabaseService.db.rpc('get_test_room_results', {
+      p_room_id: roomId
+    });
+    if (error) throw error;
+    return (data as RoomParticipantResult[]) || [];
   }
 
   /**
@@ -204,7 +380,7 @@ export class PreTestService {
     if (p === null) return 'text-slate-400 bg-slate-50 border-slate-200';
     if (p >= 0.30 && p <= 0.85) return 'text-emerald-700 bg-emerald-50 border-emerald-200 font-bold';
     if ((p >= 0.25 && p < 0.30) || (p > 0.85 && p <= 0.90)) return 'text-amber-700 bg-amber-50 border-amber-200 font-bold';
-    return 'text-rose-700 bg-rose-50 border-rose-200 font-bold'; // Too hard (<0.25) or too easy (>0.90)
+    return 'text-rose-700 bg-rose-50 border-rose-200 font-bold';
   }
 
   /**
@@ -212,7 +388,7 @@ export class PreTestService {
    */
   getDiscriminationClass(d: number | null): string {
     if (d === null) return 'text-slate-400 bg-slate-50 border-slate-200';
-    if (d < 0) return 'text-rose-700 bg-rose-100 border-rose-300 font-black animate-pulse'; // Warning: miskeyed!
+    if (d < 0) return 'text-rose-700 bg-rose-100 border-rose-300 font-black animate-pulse';
     if (d <= 0.05) return 'text-rose-700 bg-rose-50 border-rose-200 font-bold';
     if (d >= 0.25) return 'text-emerald-700 bg-emerald-50 border-emerald-200 font-bold';
     return 'text-amber-700 bg-amber-50 border-amber-200 font-bold';
