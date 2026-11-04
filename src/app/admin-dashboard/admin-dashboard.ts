@@ -826,6 +826,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   filterQtype = signal(sessionStorage.getItem('admin_filter_qtype') || '');
   filterCategory = signal(sessionStorage.getItem('admin_filter_category') || '');
   filterSearch = signal(sessionStorage.getItem('admin_filter_search') || '');
+  filterMisspelledOnly = signal(sessionStorage.getItem('admin_filter_misspelled') === 'true');
 
   // Debounced filter states to prevent 503 errors
   debouncedSearch = signal(sessionStorage.getItem('admin_filter_search') || '');
@@ -1299,6 +1300,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       sessionStorage.setItem('admin_filter_qtype', this.filterQtype());
       sessionStorage.setItem('admin_filter_category', this.filterCategory());
       sessionStorage.setItem('admin_filter_search', this.filterSearch());
+      sessionStorage.setItem('admin_filter_misspelled', String(this.filterMisspelledOnly()));
       sessionStorage.setItem('admin_filter_selected_tags', JSON.stringify(this.filterSelectedTags()));
       sessionStorage.setItem('admin_active_tab', this.activeTab());
       sessionStorage.setItem('admin_current_view', this.currentView());
@@ -1654,7 +1656,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   }
 
   // Computed signals for the active list based on allQuestions and activeTab
-  filteredQuestions = computed(() => {
+  baseFilteredQuestions = computed(() => {
     const allQs = this.allQuestions();
     const status = this.activeTab() === 'pending' ? 'pending_review' : 
                    this.activeTab() === 'approved' ? 'approved' :
@@ -1716,6 +1718,26 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     }
 
     return result;
+  });
+
+  misspelledQuestionsCount = computed(() => {
+    const base = this.baseFilteredQuestions();
+    if (!this.spellCheckService.isLoaded()) return 0;
+    return base.filter(q => this.getQuestionSpellErrors(q) > 0).length;
+  });
+
+  filteredQuestions = computed(() => {
+    const base = this.baseFilteredQuestions();
+    if (!this.filterMisspelledOnly()) {
+      return base;
+    }
+    const editingQId = this.editingTextQuestionId();
+    const editingChoiceId = this.editingChoiceId();
+    return base.filter(q => {
+      if (q.id === editingQId) return true;
+      if (editingChoiceId && q.answers?.some((a: any) => a.id === editingChoiceId)) return true;
+      return this.getQuestionSpellErrors(q) > 0;
+    });
   });
 
   paginatedQuestions = computed(() => {
@@ -1786,8 +1808,18 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     this.filterQtype.set('');
     this.filterCategory.set('');
     this.filterSearch.set('');
+    this.filterMisspelledOnly.set(false);
     this.filterSelectedTags.set([]);
     this.searchSubject.next('');
+    this.currentPage.set(1);
+  }
+
+  toggleMisspelledFilter() {
+    const next = !this.filterMisspelledOnly();
+    this.filterMisspelledOnly.set(next);
+    if (next && !this.spellCheckActive()) {
+      this.spellCheckActive.set(true);
+    }
     this.currentPage.set(1);
   }
 
@@ -1797,6 +1829,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       this.filterQtype() || 
       this.filterCategory() || 
       this.filterSearch() || 
+      this.filterMisspelledOnly() ||
       this.filterSelectedTags().length > 0
     );
   });

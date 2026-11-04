@@ -812,6 +812,7 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
   
   // Filters
   filterHidden = signal(false);
+  filterMisspelledOnly = signal(false);
   filterType = signal<string>('');
   filterDateFrom = signal<string>('');
   filterDateTo = signal<string>('');
@@ -835,6 +836,7 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
       this.filterDateFrom() ||
       this.filterDateTo() ||
       this.filterHidden() ||
+      this.filterMisspelledOnly() ||
       this.selectedCategoryId()
     );
   });
@@ -982,7 +984,7 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
   importFileBuffer: ArrayBuffer | null = null;
 
   // Computed properties for template
-  filteredQuestions = computed(() => {
+  baseFilteredQuestions = computed(() => {
     const authored = this.allQuestions();
     const assigned = this.assignedQuestions();
     const assistant = this.assistantSubmissions();
@@ -1100,6 +1102,36 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
       }
 
       return true;
+    });
+  });
+
+  misspelledQuestionsCount = computed(() => {
+    this.spellCheckVersion();
+    if (!this.spellCheckService.isLoaded()) return 0;
+    const base = this.baseFilteredQuestions();
+    let count = 0;
+    for (const q of base) {
+      if (this.getQuestionTotalSpellErrorCount(q) > 0) {
+        count++;
+      }
+    }
+    return count;
+  });
+
+  filteredQuestions = computed(() => {
+    const base = this.baseFilteredQuestions();
+    if (!this.filterMisspelledOnly()) {
+      return base;
+    }
+    if (!this.spellCheckService.isLoaded()) {
+      return base;
+    }
+    const editingQId = this.editingTextQuestionId();
+    const editingCId = this.editingChoiceId();
+    return base.filter(q => {
+      if (editingQId === q.id) return true;
+      if (editingCId && q.answers?.some((a: any) => a.id === editingCId)) return true;
+      return this.getQuestionTotalSpellErrorCount(q) > 0;
     });
   });
 
@@ -1259,6 +1291,7 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
         currentPage: this.currentPage(),
         pageSize: this.pageSize(),
         filterHidden: this.filterHidden(),
+        filterMisspelledOnly: this.filterMisspelledOnly(),
         filterType: this.filterType(),
         filterDateFrom: this.filterDateFrom(),
         filterDateTo: this.filterDateTo(),
@@ -1342,6 +1375,7 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
         if (state.currentPage) this.currentPage.set(state.currentPage);
         if (state.pageSize) this.pageSize.set(state.pageSize);
         if (state.filterHidden !== undefined) this.filterHidden.set(state.filterHidden);
+        if (state.filterMisspelledOnly !== undefined) this.filterMisspelledOnly.set(state.filterMisspelledOnly);
         if (state.filterType !== undefined) this.filterType.set(state.filterType);
         if (state.filterDateFrom !== undefined) this.filterDateFrom.set(state.filterDateFrom);
         if (state.filterDateTo !== undefined) this.filterDateTo.set(state.filterDateTo);
@@ -3360,6 +3394,10 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
     return this.getQuestionTextSpellReport(q).errorCount;
   }
 
+  getQuestionTotalSpellErrorCount(q: Question): number {
+    return this.getQuestionTextErrorCount(q) + this.getQuestionChoicesErrorCount(q);
+  }
+
   getQuestionTextInvalidTokens(q: Question): SpellCheckToken[] {
     if (this.editingTextQuestionId() === q.id) {
       return this.getInvalidTokens();
@@ -4403,12 +4441,22 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
     this.filterDateFrom.set('');
     this.filterDateTo.set('');
     this.filterHidden.set(false);
+    this.filterMisspelledOnly.set(false);
     this.selectedCategoryId.set(null);
     this.currentPage.set(1);
   }
 
   toggleHiddenFilter() {
     this.filterHidden.set(!this.filterHidden());
+    this.currentPage.set(1);
+  }
+
+  toggleMisspelledFilter() {
+    const next = !this.filterMisspelledOnly();
+    this.filterMisspelledOnly.set(next);
+    if (next && !this.spellCheckActive()) {
+      this.spellCheckActive.set(true);
+    }
     this.currentPage.set(1);
   }
 
