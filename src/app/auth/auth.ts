@@ -168,8 +168,16 @@ export class AuthComponent implements OnInit {
   }
 
   async onSendResetLink() {
-    if (!this.email.trim()) {
+    const trimmedEmail = this.email.trim();
+    if (!trimmedEmail) {
       this.errorMessage.set('Please enter your email address.');
+      return;
+    }
+
+    // Basic syntax validation to catch obvious typos client-side
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      this.errorMessage.set('Please enter a valid email address.');
       return;
     }
 
@@ -177,16 +185,19 @@ export class AuthComponent implements OnInit {
     this.errorMessage.set('');
     this.successMessage.set('');
     try {
-      const { error } = await this.supabaseService.auth.resetPasswordForEmail(this.email.trim(), {
+      const { error } = await this.supabaseService.auth.resetPasswordForEmail(trimmedEmail, {
         redirectTo: `${window.location.origin}/auth`
       });
-      if (error) throw error;
-      this.successMessage.set('A password reset link has been successfully sent to your email.');
-      this.isForgotPasswordMode.set(false);
+      if (error) {
+        console.warn('Password reset request error (suppressed to prevent user enumeration):', error.message);
+      }
     } catch (err: any) {
-      this.errorMessage.set(err.message);
+      console.warn('Password reset request exception (suppressed to prevent user enumeration):', err?.message || err);
     } finally {
       this.loading.set(false);
+      // Security: Always show generic success message to prevent user/email enumeration attacks
+      this.successMessage.set('A recovery link has been sent to your email if it is registered in our system. Please check your inbox.');
+      this.isForgotPasswordMode.set(false);
     }
   }
 
