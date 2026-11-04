@@ -3299,38 +3299,25 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
     const cached = this.highlightedHtmlCache.get(html);
     if (cached !== undefined) return cached;
 
-    let plain = html.replace(/<[^>]*>/g, ' ');
-    plain = normalizeSpecialGlyphs(plain);
-    const report = this.spellCheckService.checkText(plain);
-    const invalidWords = new Set<string>();
-    for (const t of report.tokens) {
-      if (!t.isValid && t.isKhmer && t.text.trim().length > 0) {
-        invalidWords.add(t.text);
+    // Process each text node between HTML tags using checkText to prevent substring-matching bugs
+    // (e.g. replacing 'រ' inside 'ប្រភេទ' or 'ប្រវត្តិរូប' which breaks coeng subscripts)
+    const parts = html.split(/(<[^>]*>)/g);
+    const result = parts.map(part => {
+      if (part.startsWith('<') && part.endsWith('>')) {
+        return part;
       }
-    }
+      if (!part.trim()) return part;
 
-    if (invalidWords.size === 0) {
-      this.highlightedHtmlCache.set(html, html);
-      return html;
-    }
+      const report = this.spellCheckService.checkText(part);
+      if (report.errorCount === 0) return part;
 
-    // Highlight invalid Khmer words only inside text portions (outside HTML tags)
-    const sortedWords = Array.from(invalidWords).sort((a, b) => b.length - a.length);
-    const escapedWords = sortedWords.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    const wordRegex = new RegExp(`(${escapedWords.join('|')})`, 'g');
-
-    const result = html
-      .split(/(<[^>]*>)/g)
-      .map(part => {
-        if (part.startsWith('<') && part.endsWith('>')) {
-          return part;
+      return report.tokens.map(token => {
+        if (!token.isValid && token.isKhmer && token.text.trim().length > 0) {
+          return `<mark class="bg-rose-200/85 text-rose-900 underline decoration-wavy decoration-rose-600 decoration-2 rounded px-0.5 font-extrabold" title="ពាក្យសង្ស័យខុសអក្ខរាវិរុទ្ធ">${token.text}</mark>`;
         }
-        return part.replace(
-          wordRegex,
-          '<mark class="bg-rose-200/85 text-rose-900 underline decoration-wavy decoration-rose-600 decoration-2 rounded px-0.5 font-extrabold" title="ពាក្យសង្ស័យខុសអក្ខរាវិរុទ្ធ">$1</mark>'
-        );
-      })
-      .join('');
+        return token.text;
+      }).join('');
+    }).join('');
 
     this.highlightedHtmlCache.set(html, result);
     return result;
