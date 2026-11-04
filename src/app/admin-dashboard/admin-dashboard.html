@@ -191,14 +191,19 @@
           </div>
           <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             <div *ngFor="let tc of questionTypeCounts()"
-              class="flex items-center gap-3 px-4 py-3 rounded-none border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-all group">
+              (click)="toggleQtypeFilter(tc.type)"
+              role="button" tabindex="0" (keydown.enter)="toggleQtypeFilter(tc.type)"
+              [title]="filterQtype() === tc.type ? 'Click to clear filter' : 'Click to filter by ' + tc.label"
+              class="flex items-center gap-3 px-4 py-3 rounded-none border cursor-pointer transition-all group"
+              [ngClass]="filterQtype() === tc.type ? 'border-blue-400 bg-blue-50 shadow-sm ring-2 ring-blue-200' : 'border-gray-100 hover:border-blue-200 hover:bg-blue-50/30'">
               <span class="text-xl">{{ tc.icon }}</span>
               <div class="flex-1 min-w-0">
                 <div class="text-xs font-bold text-gray-700 truncate group-hover:text-blue-700 transition-colors">{{
                   tc.label }}</div>
                 <div class="text-[10px] text-gray-400">{{ tc.type }}</div>
               </div>
-              <div class="text-lg font-black text-gray-300 group-hover:text-blue-600 transition-colors">{{ tc.count }}
+              <div class="text-lg font-black group-hover:text-blue-600 transition-colors"
+                [ngClass]="filterQtype() === tc.type ? 'text-blue-600' : 'text-gray-300'">{{ tc.count }}
               </div>
             </div>
           </div>

@@ -1814,6 +1814,11 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     this.currentPage.set(1);
   }
 
+  toggleQtypeFilter(type: string) {
+    this.filterQtype.set(this.filterQtype() === type ? '' : type);
+    this.currentPage.set(1);
+  }
+
   toggleMisspelledFilter() {
     const next = !this.filterMisspelledOnly();
     this.filterMisspelledOnly.set(next);
