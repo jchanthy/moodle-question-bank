@@ -1580,6 +1580,11 @@ ${dropsXml}
 export function normalizeSpecialGlyphs(text: string): string {
   if (!text) return text;
   return text
+    // Canonical Khmer Unicode ordering: Subscript Coeng cluster(s) before Dependent Vowels
+    // e.g. តិ្ត (ត+ិ+្+ត) -> ត្តិ (ត+្+ត+ិ) such as in ប្រតិបតិ្តការ -> ប្រតិបត្តិការ
+    .replace(/([\u17B6-\u17C5])((?:\u17D2[\u1780-\u17A2])+)/g, (m, v, coeng) => coeng + v)
+    // Canonical Khmer Unicode ordering: Diacritics (triisap/muusikatoan) before Dependent Vowels
+    .replace(/([\u17B6-\u17C5])([\u17C9\u17CA])/g, (m, v, d) => d + v)
     // Replace combining enclosing marks (e.g. U+20DE ⃞ combining enclosing square)
     // surrounded or preceded by tabs/spaces with standard standalone white square □ (U+25A1)
     .replace(/[\t ]*[\u20DE-\u20E4][\t ]*/g, ' □ ')

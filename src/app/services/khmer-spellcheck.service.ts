@@ -606,6 +606,9 @@ export class KhmerSpellCheckService {
     if (!str) return '';
     return str
       .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      // Canonical Khmer Unicode order: Coeng cluster(s) before dependent vowels
+      // e.g. តិ្ត (ត+ិ+្+ត) -> ត្តិ (ត+្+ត+ិ) such as in ប្រតិបតិ្តការ -> ប្រតិបត្តិការ
+      .replace(/([\u17B6-\u17C5])((?:\u17D2[\u1780-\u17A2])+)/g, (m, v, coeng) => coeng + v)
       // Canonical Khmer Unicode order: diacritics (triisap/muusikatoan) before vowel signs
       .replace(/([\u17B6-\u17C5])([\u17C9\u17CA])/g, (m, v, d) => d + v)
       .trim();
@@ -695,6 +698,11 @@ export class KhmerSpellCheckService {
     if (sub === 'ចេនា') {
       return true;
     }
+    // Rule J: Out-of-order vowel-coeng sequence (e.g. តិ្ត -> ត្តិ)
+    if (/[\u17B6-\u17C5](?:\u17D2[\u1780-\u17A2])+/.test(sub)) {
+      const swapped = sub.replace(/([\u17B6-\u17C5])((?:\u17D2[\u1780-\u17A2])+)/g, (m, v, coeng) => coeng + v);
+      if (this.isWordValid(swapped, false)) return true;
+    }
     return false;
   }
 
@@ -715,26 +723,32 @@ export class KhmerSpellCheckService {
 
     // Split into Non-Word vs continuous Khmer word blocks
     // Split into Non-Word vs continuous Khmer word blocks
+    // Canonical Khmer Unicode reordering to prevent out-of-order typing (e.g. តិ្ត -> ត្តិ) from falsely flagging words
+    // Length is strictly preserved so start and end indices in the original text remain identical.
+    const normalizedText = text
+      .replace(/([\u17B6-\u17C5])((?:\u17D2[\u1780-\u17A2])+)/g, (m, v, coeng) => coeng + v)
+      .replace(/([\u17B6-\u17C5])([\u17C9\u17CA])/g, (m, v, d) => d + v);
+
     // Khmer word letters: \u1780-\u17D3, \u17D7 (ៗ), and \u17DD (excludes punctuation like ។ ៖ and digits)
     const blocks: { text: string; isKhmer: boolean; startIndex: number; endIndex: number }[] = [];
     let i = 0;
-    while (i < text.length) {
-      const ch = text[i];
+    while (i < normalizedText.length) {
+      const ch = normalizedText[i];
       const isWordChar = /[\u1780-\u17D3\u17D7\u17DD]/.test(ch);
 
       if (!isWordChar) {
         let nonWord = '';
         const start = i;
-        while (i < text.length && !/[\u1780-\u17D3\u17D7\u17DD]/.test(text[i])) {
-          nonWord += text[i];
+        while (i < normalizedText.length && !/[\u1780-\u17D3\u17D7\u17DD]/.test(normalizedText[i])) {
+          nonWord += normalizedText[i];
           i++;
         }
         blocks.push({ text: nonWord, isKhmer: false, startIndex: start, endIndex: i });
       } else {
         let wordBlock = '';
         const start = i;
-        while (i < text.length && /[\u1780-\u17D3\u17D7\u17DD]/.test(text[i])) {
-          wordBlock += text[i];
+        while (i < normalizedText.length && /[\u1780-\u17D3\u17D7\u17DD]/.test(normalizedText[i])) {
+          wordBlock += normalizedText[i];
           i++;
         }
         blocks.push({ text: wordBlock, isKhmer: true, startIndex: start, endIndex: i });
@@ -944,6 +958,14 @@ export class KhmerSpellCheckService {
       const toTriisap = cleanTarget.replace(/\u17BB\u17B8|\u17B8\u17BB/g, '\u17CA\u17B8');
       if (this.isWordValid(toTriisap, true) && toTriisap !== cleanTarget && !suggestions.includes(toTriisap)) {
         suggestions.unshift(toTriisap);
+      }
+    }
+
+    // Rule: Out-of-order vowel-coeng sequence (e.g. តិ្ត -> ត្តិ as in ប្រតិបតិ្តការ -> ប្រតិបត្តិការ)
+    if (/[\u17B6-\u17C5](?:\u17D2[\u1780-\u17A2])+/.test(cleanTarget)) {
+      const swapped = cleanTarget.replace(/([\u17B6-\u17C5])((?:\u17D2[\u1780-\u17A2])+)/g, (m, v, coeng) => coeng + v);
+      if (this.isWordValid(swapped, true) && !suggestions.includes(swapped)) {
+        suggestions.unshift(swapped);
       }
     }
 
