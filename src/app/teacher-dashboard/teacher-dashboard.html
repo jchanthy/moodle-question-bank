@@ -1127,10 +1127,11 @@
                   </div>
 
                   <div *ngIf="editingTextQuestionId() !== question.id" 
-                       (click)="startEditingText(question)"
+                       (click)="onQuestionTextClick(question, $event)"
                        class="text-xl md:text-2xl font-bold text-slate-800 leading-relaxed hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition-all relative cursor-pointer group/text">
-                    <div class="w-full leading-relaxed question-text" [innerHTML]="question.question_text"></div>
-                    <span class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 pointer-events-none">
+                    <div class="w-full leading-relaxed question-text" [innerHTML]="getHighlightedSpellHtml(question.question_text)"></div>
+                    <span (click)="startEditingText(question); $event.stopPropagation()"
+                          class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 cursor-pointer">
                       ✏️ Click to Edit Text
                     </span>
                   </div>
@@ -1355,6 +1356,7 @@
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div *ngFor="let ans of question.answers" 
                          [class]="ans.fraction > 0 ? 'bg-emerald-50/50 text-emerald-800 border-emerald-200 font-bold' : 'bg-slate-50 text-slate-600 border-slate-200'"
+                         [ngClass]="{'ring-2 ring-rose-300 !border-rose-300': spellCheckActive() && getChoiceErrorCount(ans) > 0}"
                          [class.z-30]="editingChoiceId() === ans.id"
                          class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-100 shadow-sm text-sm transition-all hover:shadow-md relative group/choice">
                       <!-- Toggle Correct Button -->
@@ -1370,12 +1372,46 @@
                         </svg>
                       </button>
                       <div class="flex-1 min-w-0">
+                        <!-- Missing / typo words chips bar on top of choice before editing -->
+                        <div *ngIf="editingChoiceId() !== ans.id && spellCheckActive() && getChoiceErrorCount(ans) > 0"
+                             class="mb-2 flex items-center gap-1.5 flex-wrap p-1.5 bg-rose-50/90 border border-rose-200 rounded-lg shadow-2xs animate-in fade-in duration-150">
+                          <span class="text-[10px] font-black text-rose-700 flex items-center gap-1 shrink-0">
+                            <span>⚠️</span> {{ getChoiceErrorCount(ans) }} ពាក្យសង្ស័យខុស:
+                          </span>
+                          <ng-container *ngFor="let token of getChoiceInvalidTokensForAnswer(ans)">
+                            <div class="inline-flex items-center rounded-full border border-rose-300 bg-white text-rose-800 shadow-2xs hover:border-rose-400 transition spell-trigger-chip">
+                              <button type="button"
+                                (click)="startEditingChoiceAndOpenSuggestion(ans, token, $event)"
+                                class="text-[10px] font-bold px-2 py-0.5 hover:bg-rose-50 rounded-l-full transition flex items-center gap-1 cursor-pointer"
+                                [title]="'ចុចដើម្បីជ្រើសរើសពាក្យត្រឹមត្រូវពីវចនានុក្រម'">
+                                <span class="line-through opacity-75">{{ token.text }}</span>
+                                <span *ngIf="token.primarySuggestion" class="text-emerald-700 font-extrabold">➔ {{ token.primarySuggestion }}</span>
+                                <span *ngIf="!token.primarySuggestion" class="text-amber-600 font-mono text-[9px]">?</span>
+                                <span class="text-[8px] text-gray-400">▾</span>
+                              </button>
+                              <button *ngIf="token.primarySuggestion"
+                                type="button"
+                                (click)="quickFixChoiceToken(token, token.primarySuggestion!, ans, question); $event.stopPropagation()"
+                                class="text-[8px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-1.5 py-1 font-bold rounded-r-full border-l border-rose-200 transition cursor-pointer"
+                                title="កែភ្លាមៗ និងរក្សាទុក">
+                                កែ ✓
+                              </button>
+                            </div>
+                          </ng-container>
+                          <button type="button"
+                            (click)="startEditingChoice(ans); $event.stopPropagation()"
+                            class="text-[9px] text-blue-600 hover:text-blue-800 font-bold ml-auto flex items-center gap-0.5 hover:underline cursor-pointer">
+                            ✏️ កែប្រែ
+                          </button>
+                        </div>
+
                         <!-- Choice text display -->
                         <div *ngIf="editingChoiceId() !== ans.id"
-                             (click)="startEditingChoice(ans)"
+                             (click)="onChoiceTextClick(ans, $event)"
                              class="break-words leading-relaxed cursor-pointer hover:bg-black/5 px-2 py-0.5 -mx-2 rounded transition flex items-start gap-1 justify-between">
-                          <span class="dashboard-choice-text" [innerHTML]="ans.answer_text"></span>
-                          <span class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5">✏️ Edit</span>
+                          <span class="dashboard-choice-text" [innerHTML]="getHighlightedSpellHtml(ans.answer_text)"></span>
+                          <span (click)="startEditingChoice(ans); $event.stopPropagation()"
+                                class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5 cursor-pointer">✏️ Edit</span>
                         </div>
                         
                         <!-- Choice text edit input -->

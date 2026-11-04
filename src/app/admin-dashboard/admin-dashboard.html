@@ -615,9 +615,9 @@
               </div>
               <!-- Editable Question Text -->
               <div class="relative group/text mt-2">
-                <div *ngIf="editingTextQuestionId() !== q.id" (click)="startEditingText(q)" class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition relative group/text">
-                  <div class="w-full leading-relaxed" [innerHTML]="q.question_text"></div>
-                  <span class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 pointer-events-none">
+                <div *ngIf="editingTextQuestionId() !== q.id" (click)="onQuestionTextClick(q, $event)" class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition relative group/text">
+                  <div class="w-full leading-relaxed" [innerHTML]="getHighlightedSpellHtml(q.question_text)"></div>
+                  <span (click)="startEditingText(q); $event.stopPropagation()" class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 cursor-pointer">
                     ✏️ Click to Edit
                   </span>
                 </div>
@@ -798,10 +798,10 @@
                     <div class="flex-1 min-w-0">
                       <!-- Choice text display -->
                       <div *ngIf="editingChoiceId() !== ans.id"
-                           (click)="startEditingChoice(ans)"
+                           (click)="onChoiceTextClick(ans, $event)"
                            class="break-words leading-relaxed cursor-pointer hover:bg-black/5 px-2 py-0.5 -mx-2 rounded transition flex items-start gap-1 justify-between">
-                        <span class="dashboard-choice-text" [innerHTML]="ans.answer_text"></span>
-                        <span class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5">✏️ Edit</span>
+                        <span class="dashboard-choice-text" [innerHTML]="getHighlightedSpellHtml(ans.answer_text)"></span>
+                        <span (click)="startEditingChoice(ans); $event.stopPropagation()" class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5 cursor-pointer">✏️ Edit</span>
                       </div>
                       
                       <!-- Choice text edit input -->
@@ -1226,9 +1226,9 @@
               </div>
               <!-- Editable Question Text -->
               <div class="relative group/text mt-2">
-                <div *ngIf="editingTextQuestionId() !== q.id" (click)="startEditingText(q)" class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition relative group/text">
-                  <div class="w-full leading-relaxed" [innerHTML]="q.question_text"></div>
-                  <span class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 pointer-events-none">
+                <div *ngIf="editingTextQuestionId() !== q.id" (click)="onQuestionTextClick(q, $event)" class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition relative group/text">
+                  <div class="w-full leading-relaxed" [innerHTML]="getHighlightedSpellHtml(q.question_text)"></div>
+                  <span (click)="startEditingText(q); $event.stopPropagation()" class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 cursor-pointer">
                     ✏️ Click to Edit
                   </span>
                 </div>
@@ -1409,10 +1409,10 @@
                     <div class="flex-1 min-w-0">
                       <!-- Choice text display -->
                       <div *ngIf="editingChoiceId() !== ans.id"
-                           (click)="startEditingChoice(ans)"
+                           (click)="onChoiceTextClick(ans, $event)"
                            class="break-words leading-relaxed cursor-pointer hover:bg-black/5 px-2 py-0.5 -mx-2 rounded transition flex items-start gap-1 justify-between">
-                        <span class="dashboard-choice-text" [innerHTML]="ans.answer_text"></span>
-                        <span class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5">✏️ Edit</span>
+                        <span class="dashboard-choice-text" [innerHTML]="getHighlightedSpellHtml(ans.answer_text)"></span>
+                        <span (click)="startEditingChoice(ans); $event.stopPropagation()" class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5 cursor-pointer">✏️ Edit</span>
                       </div>
                       
                       <!-- Choice text edit input -->
@@ -1691,9 +1691,9 @@
               </div>
               <!-- Editable Question Text -->
               <div class="relative group/text mt-2">
-                <div *ngIf="editingTextQuestionId() !== q.id" (click)="startEditingText(q)" class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition relative group/text">
-                  <div class="w-full leading-relaxed" [innerHTML]="q.question_text"></div>
-                  <span class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 pointer-events-none">
+                <div *ngIf="editingTextQuestionId() !== q.id" (click)="onQuestionTextClick(q, $event)" class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition relative group/text">
+                  <div class="w-full leading-relaxed" [innerHTML]="getHighlightedSpellHtml(q.question_text)"></div>
+                  <span (click)="startEditingText(q); $event.stopPropagation()" class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 cursor-pointer">
                     ✏️ Click to Edit
                   </span>
                 </div>
@@ -1874,10 +1874,10 @@
                     <div class="flex-1 min-w-0">
                       <!-- Choice text display -->
                       <div *ngIf="editingChoiceId() !== ans.id"
-                           (click)="startEditingChoice(ans)"
+                           (click)="onChoiceTextClick(ans, $event)"
                            class="break-words leading-relaxed cursor-pointer hover:bg-black/5 px-2 py-0.5 -mx-2 rounded transition flex items-start gap-1 justify-between">
-                        <span class="dashboard-choice-text" [innerHTML]="ans.answer_text"></span>
-                        <span class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5">✏️ Edit</span>
+                        <span class="dashboard-choice-text" [innerHTML]="getHighlightedSpellHtml(ans.answer_text)"></span>
+                        <span (click)="startEditingChoice(ans); $event.stopPropagation()" class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5 cursor-pointer">✏️ Edit</span>
                       </div>
                       
                       <!-- Choice text edit input -->
@@ -2145,9 +2145,9 @@
               </div>
               <!-- Editable Question Text -->
               <div class="relative group/text mt-2">
-                <div *ngIf="editingTextQuestionId() !== q.id" (click)="startEditingText(q)" class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition relative group/text">
-                  <div class="w-full leading-relaxed" [innerHTML]="q.question_text"></div>
-                  <span class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 pointer-events-none">
+                <div *ngIf="editingTextQuestionId() !== q.id" (click)="onQuestionTextClick(q, $event)" class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition relative group/text">
+                  <div class="w-full leading-relaxed" [innerHTML]="getHighlightedSpellHtml(q.question_text)"></div>
+                  <span (click)="startEditingText(q); $event.stopPropagation()" class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 cursor-pointer">
                     ✏️ Click to Edit
                   </span>
                 </div>
@@ -2328,10 +2328,10 @@
                     <div class="flex-1 min-w-0">
                       <!-- Choice text display -->
                       <div *ngIf="editingChoiceId() !== ans.id"
-                           (click)="startEditingChoice(ans)"
+                           (click)="onChoiceTextClick(ans, $event)"
                            class="break-words leading-relaxed cursor-pointer hover:bg-black/5 px-2 py-0.5 -mx-2 rounded transition flex items-start gap-1 justify-between">
-                        <span class="dashboard-choice-text" [innerHTML]="ans.answer_text"></span>
-                        <span class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5">✏️ Edit</span>
+                        <span class="dashboard-choice-text" [innerHTML]="getHighlightedSpellHtml(ans.answer_text)"></span>
+                        <span (click)="startEditingChoice(ans); $event.stopPropagation()" class="text-[9px] text-blue-500 opacity-0 group-hover/choice:opacity-100 transition-opacity font-bold uppercase shrink-0 mt-0.5 cursor-pointer">✏️ Edit</span>
                       </div>
                       
                       <!-- Choice text edit input -->
@@ -2635,9 +2635,9 @@
 
                 <!-- Question Text -->
                 <div class="relative group/text mt-2">
-                  <div *ngIf="editingTextQuestionId() !== q.id" (click)="startEditingText(q)" class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition relative group/text">
-                  <div class="w-full leading-relaxed" [innerHTML]="q.question_text"></div>
-                  <span class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 pointer-events-none">
+                  <div *ngIf="editingTextQuestionId() !== q.id" (click)="onQuestionTextClick(q, $event)" class="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:bg-slate-50/85 p-2 -m-2 rounded-xl transition relative group/text">
+                  <div class="w-full leading-relaxed" [innerHTML]="getHighlightedSpellHtml(q.question_text)"></div>
+                  <span (click)="startEditingText(q); $event.stopPropagation()" class="absolute top-2 right-2 text-xs text-blue-600 bg-blue-50/95 backdrop-blur-xs px-2 py-0.5 rounded-lg border border-blue-200/60 shadow-xs opacity-0 group-hover/text:opacity-100 transition-opacity font-bold uppercase flex items-center gap-1 cursor-pointer">
                     ✏️ Click to Edit
                   </span>
                 </div>

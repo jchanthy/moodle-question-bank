@@ -146,6 +146,20 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
     }
   }
 
+  private clickEditTimer: any = null;
+  private lastTextareaCaretPos = 0;
+
+  @HostListener('document:mousedown', ['$event'])
+  onDocumentMouseDown(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') && event.detail === 1) {
+      const el = target as HTMLTextAreaElement | HTMLInputElement;
+      setTimeout(() => {
+        this.lastTextareaCaretPos = el.selectionStart || 0;
+      }, 0);
+    }
+  }
+
   @HostListener('document:mouseup', ['$event'])
   onDocumentMouseUp(event?: MouseEvent) {
     this.isDraggingPopup = false;
@@ -154,8 +168,64 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
       return;
     }
     setTimeout(() => {
-      this.handleTextSelection();
+      this.handleTextSelection(event, false);
     }, 30);
+  }
+
+  onQuestionTextClick(q: Question, event: MouseEvent) {
+    if (event.detail >= 2) {
+      if (this.clickEditTimer) {
+        clearTimeout(this.clickEditTimer);
+        this.clickEditTimer = null;
+      }
+      return;
+    }
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed && sel.toString().trim().length > 0) {
+      return;
+    }
+    if (this.clickEditTimer) {
+      clearTimeout(this.clickEditTimer);
+    }
+    this.clickEditTimer = setTimeout(() => {
+      this.clickEditTimer = null;
+      const curSel = window.getSelection();
+      if (curSel && !curSel.isCollapsed && curSel.toString().trim().length > 0) {
+        return;
+      }
+      if (this.activeSelectionLookup()) {
+        return;
+      }
+      this.startEditingText(q);
+    }, 220);
+  }
+
+  onChoiceTextClick(ans: any, event: MouseEvent) {
+    if (event.detail >= 2) {
+      if (this.clickEditTimer) {
+        clearTimeout(this.clickEditTimer);
+        this.clickEditTimer = null;
+      }
+      return;
+    }
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed && sel.toString().trim().length > 0) {
+      return;
+    }
+    if (this.clickEditTimer) {
+      clearTimeout(this.clickEditTimer);
+    }
+    this.clickEditTimer = setTimeout(() => {
+      this.clickEditTimer = null;
+      const curSel = window.getSelection();
+      if (curSel && !curSel.isCollapsed && curSel.toString().trim().length > 0) {
+        return;
+      }
+      if (this.activeSelectionLookup()) {
+        return;
+      }
+      this.startEditingChoice(ans);
+    }, 220);
   }
 
   togglePopupSide(event?: MouseEvent) {
@@ -207,13 +277,17 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
 
   @HostListener('document:dblclick', ['$event'])
   onDocumentDoubleClick(event: MouseEvent) {
+    if (this.clickEditTimer) {
+      clearTimeout(this.clickEditTimer);
+      this.clickEditTimer = null;
+    }
     const target = event.target as HTMLElement;
-    if (target.closest('.dict-lookup-popup') || target.closest('.spell-suggestion-popup')) {
+    if (target?.closest('.dict-lookup-popup') || target?.closest('.spell-suggestion-popup')) {
       return;
     }
     setTimeout(() => {
-      this.handleTextSelection();
-    }, 30);
+      this.handleTextSelection(event, true);
+    }, 20);
   }
 
   closeSelectionLookup(event?: MouseEvent) {
@@ -315,13 +389,114 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
     this.copyWordText(sug);
   }
 
-  handleTextSelection() {
-    // Never trigger selection lookup if the user is typing/editing or selecting inside a textarea or input!
-    if (this.editingTextQuestionId() || this.editingChoiceId()) {
-      return;
+  private openDictionaryLookupPopup(cleanWord: string, rect: { left: number; top: number; bottom: number; width: number; height: number }) {
+    if (!cleanWord || cleanWord.length === 0) return;
+
+    const isValid = this.spellCheckService.isWordValid(cleanWord, true);
+    const suggestions = !isValid ? this.spellCheckService.getSuggestions(cleanWord, 4) : [];
+    const definition = this.spellCheckService.getDefinition(cleanWord);
+    const url = this.spellCheckService.getDictionaryUrl(cleanWord);
+
+    // Segment compound phrase into subwords if any
+    let subWords: string[] = [];
+    if (cleanWord.length > 4) {
+      const segReport = this.spellCheckService.checkText(cleanWord);
+      const tokens = segReport.tokens.filter(t => t.isKhmer && t.text.length > 1);
+      if (tokens.length > 1) {
+        subWords = tokens.map(t => t.text);
+      }
     }
-    const activeEl = document.activeElement;
-    if (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT' || (activeEl as HTMLElement).isContentEditable)) {
+
+    const popupWidth = 350;
+    let x = rect.left + (rect.width / 2) - (popupWidth / 2);
+    x = Math.max(16, Math.min(x, window.innerWidth - popupWidth - 16));
+
+    const placeAbove = rect.top > 250;
+    const y = placeAbove ? (rect.top - 8) : (rect.bottom + 8);
+
+    this.activeSelectionLookup.set({
+      word: cleanWord,
+      isValid,
+      suggestions,
+      subWords,
+      definition,
+      url,
+      x,
+      y,
+      placeAbove,
+      activeTab: 'all'
+    });
+
+    // If definitions dictionary is still fetching in background, auto-fill once loaded
+    if (!this.spellCheckService.isDefinitionsLoaded()) {
+      this.spellCheckService.loadDefinitions().then(() => {
+        const active = this.activeSelectionLookup();
+        if (active && active.word === cleanWord && !active.definition) {
+          const def = this.spellCheckService.getDefinition(cleanWord);
+          if (def) {
+            this.activeSelectionLookup.set({ ...active, definition: def });
+          }
+        }
+      });
+    }
+  }
+
+  handleTextSelection(event?: MouseEvent, isDoubleClick = false) {
+    const activeEl = document.activeElement as HTMLElement | null;
+    const targetEl = (event?.target as HTMLElement | null) || activeEl;
+    const isTextareaOrInput = !!(
+      (targetEl && (targetEl.tagName === 'TEXTAREA' || targetEl.tagName === 'INPUT')) ||
+      (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT'))
+    );
+
+    // If inside a textarea or input: only trigger on double-click (not on normal mouseup while typing/dragging)
+    if (isTextareaOrInput) {
+      if (!isDoubleClick) return;
+      const inputEl = ((targetEl && (targetEl.tagName === 'TEXTAREA' || targetEl.tagName === 'INPUT'))
+        ? targetEl
+        : activeEl) as HTMLTextAreaElement | HTMLInputElement;
+      if (!inputEl) return;
+
+      const fullText = inputEl.value || '';
+      const selStart = inputEl.selectionStart ?? 0;
+      const selEnd = inputEl.selectionEnd ?? 0;
+      const caretPos = this.lastTextareaCaretPos || selStart;
+
+      let chosenWord = fullText.substring(selStart, selEnd).trim();
+
+      // If double-clicked on Khmer text (which often selects the whole unspaced sentence), extract the exact segmented word at caretPos
+      if (fullText && (/[\u1780-\u17FF]/.test(chosenWord) || !chosenWord || chosenWord.length > 25)) {
+        const report = this.spellCheckService.checkText(fullText);
+        const token = report.tokens.find(
+          t => caretPos >= t.startIndex && caretPos <= t.endIndex && /[\u1780-\u17FF\w]/.test(t.text)
+        );
+        if (token) {
+          chosenWord = token.text.trim();
+          try {
+            inputEl.setSelectionRange(token.startIndex, token.endIndex);
+          } catch {}
+        }
+      }
+
+      if (!chosenWord || chosenWord.length > 50 || !/[\u1780-\u17FF\w]/.test(chosenWord)) {
+        return;
+      }
+
+      const cleanWord = chosenWord
+        .replace(/^[^\u1780-\u17FF\w]+|[^\u1780-\u17FF\w]+$/g, '')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .trim();
+      if (!cleanWord) return;
+
+      const clientX = event?.clientX ?? (inputEl.getBoundingClientRect().left + 100);
+      const clientY = event?.clientY ?? (inputEl.getBoundingClientRect().top + 24);
+      this.openDictionaryLookupPopup(cleanWord, {
+        left: clientX - 20,
+        top: clientY - 12,
+        bottom: clientY + 12,
+        width: 40,
+        height: 24
+      });
       return;
     }
 
@@ -330,16 +505,36 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const anchor = selection.anchorNode;
-    const focus = selection.focusNode;
-    if (
-      anchor?.parentElement?.closest('.inline-edit-textarea, .inline-edit-choice-textarea, textarea, input') ||
-      focus?.parentElement?.closest('.inline-edit-textarea, .inline-edit-choice-textarea, textarea, input')
-    ) {
-      return;
+    let raw = selection.toString().trim();
+
+    // On double-click over normal DOM text: if browser selected a long unspaced Khmer phrase, isolate the exact Khmer word under the cursor
+    if (isDoubleClick && event && (/[\u1780-\u17FF]/.test(raw) && raw.length > 10)) {
+      try {
+        const caretRange: Range | null = (document as any).caretRangeFromPoint
+          ? (document as any).caretRangeFromPoint(event.clientX, event.clientY)
+          : null;
+        if (caretRange && caretRange.startContainer && caretRange.startContainer.nodeType === Node.TEXT_NODE) {
+          const textNode = caretRange.startContainer as Text;
+          const nodeText = textNode.textContent || '';
+          const offset = caretRange.startOffset;
+          if (nodeText && /[\u1780-\u17FF]/.test(nodeText)) {
+            const report = this.spellCheckService.checkText(nodeText);
+            const token = report.tokens.find(
+              t => offset >= t.startIndex && offset <= t.endIndex && /[\u1780-\u17FF\w]/.test(t.text)
+            );
+            if (token && token.text.trim()) {
+              raw = token.text.trim();
+              const wordRange = document.createRange();
+              wordRange.setStart(textNode, token.startIndex);
+              wordRange.setEnd(textNode, token.endIndex);
+              selection.removeAllRanges();
+              selection.addRange(wordRange);
+            }
+          }
+        }
+      } catch {}
     }
 
-    const raw = selection.toString().trim();
     if (!raw || raw.length > 50) {
       return;
     }
@@ -366,53 +561,7 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
         return;
       }
 
-      const isValid = this.spellCheckService.isWordValid(cleanWord, true);
-      const suggestions = !isValid ? this.spellCheckService.getSuggestions(cleanWord, 4) : [];
-      const definition = this.spellCheckService.getDefinition(cleanWord);
-      const url = this.spellCheckService.getDictionaryUrl(cleanWord);
-
-      // Segment compound phrase into subwords if any
-      let subWords: string[] = [];
-      if (cleanWord.length > 4) {
-        const segReport = this.spellCheckService.checkText(cleanWord);
-        const tokens = segReport.tokens.filter(t => t.isKhmer && t.text.length > 1);
-        if (tokens.length > 1) {
-          subWords = tokens.map(t => t.text);
-        }
-      }
-
-      const popupWidth = 350;
-      let x = rect.left + (rect.width / 2) - (popupWidth / 2);
-      x = Math.max(16, Math.min(x, window.innerWidth - popupWidth - 16));
-
-      const placeAbove = rect.top > 250;
-      const y = placeAbove ? (rect.top - 8) : (rect.bottom + 8);
-
-      this.activeSelectionLookup.set({
-        word: cleanWord,
-        isValid,
-        suggestions,
-        subWords,
-        definition,
-        url,
-        x,
-        y,
-        placeAbove,
-        activeTab: 'all'
-      });
-
-      // If definitions dictionary is still fetching in background, auto-fill once loaded
-      if (!this.spellCheckService.isDefinitionsLoaded()) {
-        this.spellCheckService.loadDefinitions().then(() => {
-          const active = this.activeSelectionLookup();
-          if (active && active.word === cleanWord && !active.definition) {
-            const def = this.spellCheckService.getDefinition(cleanWord);
-            if (def) {
-              this.activeSelectionLookup.set({ ...active, definition: def });
-            }
-          }
-        });
-      }
+      this.openDictionaryLookupPopup(cleanWord, rect);
     } catch {
       // Ignore selection errors
     }
@@ -2923,9 +3072,11 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
       }
     }
 
-    this.editingChoiceText = replaced;
+    if (this.editingChoiceId() === targetAns.id) {
+      this.editingChoiceText = replaced;
+      this.runChoiceSpellCheck();
+    }
     this.activeSpellSuggestion.set(null);
-    this.runChoiceSpellCheck();
 
     let finalVal = normalizeSpecialGlyphs(replaced.trim());
     if (hasParagraph) {
@@ -2938,6 +3089,7 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
       this.invalidateQuestionSpellCache(targetQ.id);
     }
     await this.persistChoiceText(targetAns, finalVal, targetQ);
+    this.showToast(`បានកែតម្រូវ «${token.text}» ➔ «${suggestion}»`, 'success');
   }
 
   async quickFixChoiceToken(token: SpellCheckToken, suggestion: string, ans?: any, q?: Question) {
@@ -3097,6 +3249,8 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
 
   // Cache for question text spell check to avoid re-evaluating on every frame
   private questionTextSpellCache = new Map<string, { errorCount: number; invalidTokens: SpellCheckToken[] }>();
+  private choiceSpellCache = new Map<string, { errorCount: number; invalidTokens: SpellCheckToken[] }>();
+  private highlightedHtmlCache = new Map<string, string>();
 
   private invalidateQuestionSpellCache(qId?: string) {
     if (qId) {
@@ -3110,11 +3264,61 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
           this.questionChoicesSpellCache.delete(k);
         }
       }
+      this.choiceSpellCache.clear();
+      this.highlightedHtmlCache.clear();
     } else {
       this.questionTextSpellCache.clear();
       this.questionChoicesSpellCache.clear();
+      this.choiceSpellCache.clear();
+      this.highlightedHtmlCache.clear();
     }
     this.spellCheckVersion.update(v => v + 1);
+  }
+
+  getHighlightedSpellHtml(html: string | undefined): string {
+    this.spellCheckVersion();
+    if (!html) return '';
+    if (!this.spellCheckActive() || !this.spellCheckService.isLoaded()) {
+      return html;
+    }
+    const cached = this.highlightedHtmlCache.get(html);
+    if (cached !== undefined) return cached;
+
+    let plain = html.replace(/<[^>]*>/g, ' ');
+    plain = normalizeSpecialGlyphs(plain);
+    const report = this.spellCheckService.checkText(plain);
+    const invalidWords = new Set<string>();
+    for (const t of report.tokens) {
+      if (!t.isValid && t.isKhmer && t.text.trim().length > 0) {
+        invalidWords.add(t.text);
+      }
+    }
+
+    if (invalidWords.size === 0) {
+      this.highlightedHtmlCache.set(html, html);
+      return html;
+    }
+
+    // Highlight invalid Khmer words only inside text portions (outside HTML tags)
+    const sortedWords = Array.from(invalidWords).sort((a, b) => b.length - a.length);
+    const escapedWords = sortedWords.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const wordRegex = new RegExp(`(${escapedWords.join('|')})`, 'g');
+
+    const result = html
+      .split(/(<[^>]*>)/g)
+      .map(part => {
+        if (part.startsWith('<') && part.endsWith('>')) {
+          return part;
+        }
+        return part.replace(
+          wordRegex,
+          '<mark class="bg-rose-200/85 text-rose-900 underline decoration-wavy decoration-rose-600 decoration-2 rounded px-0.5 font-extrabold" title="ពាក្យសង្ស័យខុសអក្ខរាវិរុទ្ធ">$1</mark>'
+        );
+      })
+      .join('');
+
+    this.highlightedHtmlCache.set(html, result);
+    return result;
   }
 
   getQuestionTextSpellReport(q: Question): { errorCount: number; invalidTokens: SpellCheckToken[] } {
@@ -3231,26 +3435,82 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
 
   private questionChoicesSpellCache = new Map<string, number>();
 
+  getChoiceSpellReport(ans: any): { errorCount: number; invalidTokens: SpellCheckToken[] } {
+    this.spellCheckVersion();
+    if (!this.spellCheckActive() || !ans?.answer_text || !this.spellCheckService.isLoaded()) {
+      return { errorCount: 0, invalidTokens: [] };
+    }
+    const key = `${ans.id}_${ans.answer_text}`;
+    const cached = this.choiceSpellCache.get(key);
+    if (cached) return cached;
+
+    let txt = String(ans.answer_text).replace(/<[^>]*>/g, ' ');
+    txt = normalizeSpecialGlyphs(txt);
+    const report = this.spellCheckService.checkText(txt);
+    const seen = new Set<string>();
+    const invalidTokens: SpellCheckToken[] = [];
+    for (const t of report.tokens) {
+      if (!t.isValid && t.isKhmer && !seen.has(t.text)) {
+        seen.add(t.text);
+        const sugs = this.spellCheckService.getSuggestions(t.text, 5);
+        t.suggestions = sugs;
+        t.primarySuggestion = sugs.length > 0 ? sugs[0] : null;
+        invalidTokens.push(t);
+      }
+    }
+    const result = {
+      errorCount: invalidTokens.length,
+      invalidTokens
+    };
+    this.choiceSpellCache.set(key, result);
+    return result;
+  }
+
+  getChoiceErrorCount(ans: any): number {
+    if (this.editingChoiceId() === ans.id) {
+      return this.choiceSpellErrorsCount();
+    }
+    return this.getChoiceSpellReport(ans).errorCount;
+  }
+
+  getChoiceInvalidTokensForAnswer(ans: any): SpellCheckToken[] {
+    if (this.editingChoiceId() === ans.id) {
+      return this.getChoiceInvalidTokens();
+    }
+    return this.getChoiceSpellReport(ans).invalidTokens;
+  }
+
+  startEditingChoiceAndOpenSuggestion(ans: any, token: SpellCheckToken, event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.startEditingChoice(ans);
+    setTimeout(() => {
+      const suggestions = this.spellCheckService.getSuggestions(token.text);
+      const container = document.querySelector('.choice-edit-box') as HTMLElement;
+      const containerWidth = container ? container.clientWidth : 450;
+      const popupWidth = 350;
+      const x = Math.max(8, containerWidth - popupWidth - 8);
+      this.activeSpellSuggestion.set({
+        token,
+        isChoice: true,
+        x,
+        y: 36,
+        suggestions
+      });
+    }, 60);
+  }
+
   getQuestionChoicesErrorCount(q: Question): number {
     this.spellCheckVersion(); // reactive signal dependency
     if (!this.spellCheckActive() || !q.answers || !this.spellCheckService.isLoaded()) return 0;
-    
-    // Only bypass cache for the single question that contains the actively edited choice
+
     const activeChoiceId = this.editingChoiceId();
     const isThisQuestionBeingEdited = activeChoiceId ? q.answers.some((a: any) => a.id === activeChoiceId) : false;
 
     if (isThisQuestionBeingEdited) {
       let total = 0;
       for (const ans of q.answers) {
-        if (activeChoiceId === ans.id) {
-          total += this.choiceSpellErrorsCount();
-        } else if (ans.answer_text) {
-          let txt = ans.answer_text;
-          if (txt.toLowerCase().startsWith('<p>') && txt.toLowerCase().endsWith('</p>')) {
-            txt = txt.substring(3, txt.length - 4);
-          }
-          total += this.spellCheckService.checkText(txt).errorCount;
-        }
+        total += this.getChoiceErrorCount(ans);
       }
       return total;
     }
@@ -3261,13 +3521,7 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
 
     let total = 0;
     for (const ans of q.answers) {
-      if (ans.answer_text) {
-        let txt = ans.answer_text;
-        if (txt.toLowerCase().startsWith('<p>') && txt.toLowerCase().endsWith('</p>')) {
-          txt = txt.substring(3, txt.length - 4);
-        }
-        total += this.spellCheckService.checkText(txt).errorCount;
-      }
+      total += this.getChoiceErrorCount(ans);
     }
     this.questionChoicesSpellCache.set(key, total);
     return total;
