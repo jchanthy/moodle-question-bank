@@ -1,6 +1,7 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { SupabaseService } from '../services/supabase.service';
 
 interface QuestionGuideItem {
   type: string;
@@ -19,6 +20,7 @@ interface QuestionGuideItem {
   styleUrl: './question-guide.css'
 })
 export class QuestionGuideComponent {
+  supabaseService = inject(SupabaseService);
   activeSection = signal<'types' | 'import'>('types');
   guides: QuestionGuideItem[] = [
     // Standard
@@ -128,7 +130,31 @@ export class QuestionGuideComponent {
       iconColor: 'bg-amber-500',
       icon: '↕️'
     },
+    {
+      type: 'gapselect',
+      label: 'Select Missing Words',
+      category: 'Interactive',
+      description: 'Students fill in missing words in a text passage by selecting them from embedded dropdown menus.',
+      iconColor: 'bg-violet-500',
+      icon: '🔠'
+    },
+    {
+      type: 'gapfill',
+      label: 'Gap Fill',
+      category: 'Interactive',
+      description: 'Fill-in-the-blank style questions. Words inside brackets [like this] become gaps. Supports drag-drop, dropdown, or text input with decoy answers.',
+      iconColor: 'bg-emerald-600',
+      icon: '📝'
+    },
     // Specialized
+    {
+      type: 'multianswer',
+      label: 'Embedded Answers (Cloze)',
+      category: 'Specialized',
+      description: 'Complex question type with embedded multiple choice, short answer, or numerical responses directly inside text passages.',
+      iconColor: 'bg-indigo-600',
+      icon: '🧩'
+    },
     {
       type: 'coderunner',
       label: 'CodeRunner',

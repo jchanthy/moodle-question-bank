@@ -26,6 +26,16 @@ export const routes: Routes = [
     loadComponent: () => import('./teacher-profile/teacher-profile').then(m => m.TeacherProfileComponent) 
   },
   { 
+    path: 'teacher/guide', 
+    canActivate: [authGuard],
+    loadComponent: () => import('./question-guide/question-guide').then(m => m.QuestionGuideComponent) 
+  },
+  { 
+    path: 'guide', 
+    canActivate: [authGuard],
+    loadComponent: () => import('./question-guide/question-guide').then(m => m.QuestionGuideComponent) 
+  },
+  { 
     path: 'admin', 
     canActivate: [adminGuard],
     loadComponent: () => import('./admin-dashboard/admin-dashboard').then(m => m.AdminDashboardComponent) 

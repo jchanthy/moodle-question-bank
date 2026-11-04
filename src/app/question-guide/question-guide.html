@@ -3,7 +3,7 @@
 
     <!-- Navigation & Header -->
     <div class="mb-8">
-      <a routerLink="/teacher"
+      <a [routerLink]="supabaseService.currentUserRole() === 'admin' ? '/admin' : '/teacher'"
         class="text-blue-600 hover:text-blue-800 font-bold flex items-center gap-2 mb-6 group w-fit">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transform group-hover:-translate-x-1 transition"
           fill="none" viewBox="0 0 24 24" stroke="currentColor">

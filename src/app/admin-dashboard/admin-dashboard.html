@@ -180,9 +180,19 @@
             <h2 class="text-lg font-extrabold text-gray-900 tracking-tight">Question Types</h2>
             <p class="text-xs text-gray-400 mt-0.5">Distribution across the entire question bank</p>
           </div>
-          <div class="bg-blue-50 px-4 py-2 rounded-none">
-            <span class="text-2xl font-black text-blue-600">{{ totalQuestions() }}</span>
-            <span class="text-xs font-bold text-blue-400 ml-1">Total</span>
+          <div class="flex items-center gap-3">
+            <a routerLink="/teacher/guide" target="_blank"
+              class="h-9 px-3 flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50/60 hover:bg-blue-100/80 transition-colors border border-blue-100"
+              title="View Moodle Question Type Documentation">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+              </svg>
+              <span>View Type Guide</span>
+            </a>
+            <div class="bg-blue-50 px-4 py-2 rounded-none">
+              <span class="text-2xl font-black text-blue-600">{{ totalQuestions() }}</span>
+              <span class="text-xs font-bold text-blue-400 ml-1">Total</span>
+            </div>
           </div>
         </div>
         <div class="p-6">
