@@ -44,8 +44,9 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <div *ngFor="let item of getGuidesByCategory(category)"
-            class="bg-white rounded-none p-8 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+          <a *ngFor="let item of getGuidesByCategory(category)"
+            [routerLink]="['/teacher/guide', item.type]"
+            class="block bg-white rounded-none p-8 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer">
 
             <div
               [class]="item.iconColor + ' w-12 h-12 rounded-none flex items-center justify-center text-white mb-6 shadow-lg transform group-hover:rotate-12 transition text-2xl'">
@@ -54,7 +55,10 @@
 
             <h3 class="text-xl font-black text-gray-900 mb-3">{{ item.label }}</h3>
             <p class="text-gray-600 leading-relaxed text-sm">{{ item.description }}</p>
-          </div>
+            <div class="mt-5 text-xs font-black uppercase tracking-widest text-blue-600 group-hover:text-blue-800 flex items-center gap-1.5">
+              View details &amp; examples <span class="transition-transform group-hover:translate-x-1">→</span>
+            </div>
+          </a>
         </div>
       </section>
     </div>

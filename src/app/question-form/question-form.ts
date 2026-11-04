@@ -683,6 +683,12 @@ export class QuestionFormComponent implements OnInit, OnDestroy {
       this.handleTypeChange(type);
     });
 
+    // Preselect question type when coming from the Question Type Guide (?qtype=...)
+    const presetType = this.route.snapshot.queryParamMap.get('qtype');
+    if (presetType && !id && this.questionTypes.some(t => t.value === presetType)) {
+      this.questionForm.patchValue({ qtype: presetType });
+    }
+
     // Listen for Single vs Multiple mode changes
     this.questionForm.get('single')?.valueChanges.subscribe(singleVal => {
       const isSingle = singleVal !== false;

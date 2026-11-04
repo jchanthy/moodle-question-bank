@@ -1,0 +1,136 @@
+<div class="min-h-screen bg-gray-50 p-6 md:p-12">
+  <div class="max-w-5xl mx-auto">
+
+    <!-- Breadcrumb -->
+    <div class="flex flex-wrap items-center gap-3 mb-6 text-sm font-bold">
+      <a routerLink="/teacher/guide" class="text-blue-600 hover:text-blue-800 flex items-center gap-2 group">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transform group-hover:-translate-x-1 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        All Question Types
+      </a>
+      <span class="text-gray-300">/</span>
+      <a [routerLink]="isAdmin ? '/admin' : '/teacher'" class="text-gray-500 hover:text-gray-700">Dashboard</a>
+    </div>
+
+    <ng-container *ngIf="meta() && detail(); else notFound">
+
+      <!-- Header -->
+      <div class="bg-white border border-gray-100 shadow-sm p-8 mb-8 flex flex-col md:flex-row md:items-center gap-6">
+        <div [class]="meta()!.color + ' w-16 h-16 flex items-center justify-center text-white text-3xl shadow-lg shrink-0'">
+          {{ meta()!.icon }}
+        </div>
+        <div class="flex-1">
+          <h1 class="text-3xl font-black text-gray-900 tracking-tight">{{ meta()!.label }}</h1>
+          <p class="text-xs font-mono text-gray-400 mt-1">{{ meta()!.type }}</p>
+          <p class="text-gray-700 mt-3 font-medium leading-relaxed">{{ detail()!.khSummary }}</p>
+        </div>
+        <a [routerLink]="'/teacher/new-question'" [queryParams]="{ qtype: meta()!.type }"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-200 transition whitespace-nowrap text-center">
+          + Create this question
+        </a>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2 space-y-8">
+
+          <!-- Best for -->
+          <section class="bg-white border border-gray-100 shadow-sm p-6">
+            <h2 class="text-lg font-black text-gray-900 mb-4">🎯 When to use it</h2>
+            <ul class="space-y-2 text-sm text-gray-600">
+              <li *ngFor="let b of detail()!.bestFor" class="flex items-start gap-2.5">
+                <span class="text-blue-500">●</span><span>{{ b }}</span>
+              </li>
+            </ul>
+          </section>
+
+          <!-- Steps -->
+          <section class="bg-white border border-gray-100 shadow-sm p-6">
+            <h2 class="text-lg font-black text-gray-900 mb-4">🛠️ How to create it</h2>
+            <ol class="space-y-4">
+              <li *ngFor="let s of detail()!.steps; let i = index" class="flex items-start gap-4">
+                <span class="w-7 h-7 shrink-0 bg-blue-600 text-white text-xs font-black flex items-center justify-center">{{ i + 1 }}</span>
+                <span class="text-sm text-gray-700 leading-relaxed pt-1">{{ s }}</span>
+              </li>
+            </ol>
+          </section>
+
+          <!-- Examples -->
+          <section class="space-y-6">
+            <h2 class="text-lg font-black text-gray-900">📘 Examples</h2>
+            <div *ngFor="let ex of detail()!.examples; let n = index" class="bg-white border border-blue-100 shadow-sm">
+              <div class="px-6 py-3 bg-blue-50 border-b border-blue-100 text-xs font-black uppercase tracking-widest text-blue-700">
+                Example {{ n + 1 }} — {{ ex.title }}
+              </div>
+              <div class="p-6 space-y-5">
+                <div>
+                  <div class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Question text</div>
+                  <div class="p-4 bg-gray-50 border border-gray-200 text-gray-900 font-semibold leading-relaxed whitespace-pre-line">{{ ex.questionText }}</div>
+                </div>
+
+                <div *ngIf="ex.choices?.length">
+                  <div class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">{{ ex.choicesLabel || 'Choices' }}</div>
+                  <div class="space-y-2">
+                    <div *ngFor="let c of ex.choices"
+                      class="flex items-center justify-between gap-3 px-4 py-2.5 border text-sm"
+                      [ngClass]="c.correct ? 'bg-green-50 border-green-200 text-green-800 font-bold' : 'bg-white border-gray-200 text-gray-700'">
+                      <span class="flex items-center gap-2">
+                        <span>{{ c.correct ? '✔' : '○' }}</span>
+                        <span>{{ c.text }}</span>
+                      </span>
+                      <span *ngIf="c.note" class="text-xs font-mono text-gray-500">{{ c.note }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 text-sm text-amber-900">
+                  <span>💡</span><span>{{ ex.explanation }}</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Side column -->
+        <aside class="space-y-8">
+          <section class="bg-white border border-green-100 shadow-sm p-6">
+            <h3 class="text-sm font-black text-green-700 uppercase tracking-widest mb-3">✅ Tips</h3>
+            <ul class="space-y-2.5 text-sm text-gray-600">
+              <li *ngFor="let t of detail()!.tips" class="flex items-start gap-2"><span class="text-green-600">✔</span><span>{{ t }}</span></li>
+            </ul>
+          </section>
+          <section class="bg-white border border-red-100 shadow-sm p-6">
+            <h3 class="text-sm font-black text-red-600 uppercase tracking-widest mb-3">⚠️ Common mistakes</h3>
+            <ul class="space-y-2.5 text-sm text-gray-600">
+              <li *ngFor="let m of detail()!.mistakes" class="flex items-start gap-2"><span class="text-red-500">✖</span><span>{{ m }}</span></li>
+            </ul>
+          </section>
+        </aside>
+      </div>
+
+      <!-- Prev / Next -->
+      <div class="flex items-stretch justify-between gap-4 mt-12">
+        <a *ngIf="prev() as p" [routerLink]="['/teacher/guide', p.type]"
+          class="flex-1 bg-white border border-gray-100 hover:border-blue-300 p-4 transition">
+          <div class="text-[10px] font-black uppercase tracking-widest text-gray-400">← Previous</div>
+          <div class="font-bold text-gray-800 mt-1">{{ p.icon }} {{ p.label }}</div>
+        </a>
+        <div *ngIf="!prev()" class="flex-1"></div>
+        <a *ngIf="next() as nx" [routerLink]="['/teacher/guide', nx.type]"
+          class="flex-1 bg-white border border-gray-100 hover:border-blue-300 p-4 text-right transition">
+          <div class="text-[10px] font-black uppercase tracking-widest text-gray-400">Next →</div>
+          <div class="font-bold text-gray-800 mt-1">{{ nx.icon }} {{ nx.label }}</div>
+        </a>
+        <div *ngIf="!next()" class="flex-1"></div>
+      </div>
+    </ng-container>
+
+    <ng-template #notFound>
+      <div class="bg-white border border-gray-100 p-12 text-center">
+        <h1 class="text-2xl font-black text-gray-900 mb-2">Question type not found</h1>
+        <p class="text-gray-500 mb-6">We could not find a guide for this question type.</p>
+        <a routerLink="/teacher/guide" class="bg-blue-600 text-white px-6 py-3 font-black text-xs uppercase tracking-widest">Back to guide</a>
+      </div>
+    </ng-template>
+  </div>
+</div>

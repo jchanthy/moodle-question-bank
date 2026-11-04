@@ -31,6 +31,16 @@ export const routes: Routes = [
     loadComponent: () => import('./question-guide/question-guide').then(m => m.QuestionGuideComponent) 
   },
   { 
+    path: 'teacher/guide/:type', 
+    canActivate: [authGuard],
+    loadComponent: () => import('./question-guide/question-guide-detail').then(m => m.QuestionGuideDetailComponent) 
+  },
+  { 
+    path: 'guide/:type', 
+    canActivate: [authGuard],
+    loadComponent: () => import('./question-guide/question-guide-detail').then(m => m.QuestionGuideDetailComponent) 
+  },
+  { 
     path: 'guide', 
     canActivate: [authGuard],
     loadComponent: () => import('./question-guide/question-guide').then(m => m.QuestionGuideComponent) 
