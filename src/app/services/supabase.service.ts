@@ -152,9 +152,18 @@ export class SupabaseService {
         this.currentUserRole.set(null);
         this.currentUserProfile.set(null);
         
-        // Securely redirect to /auth if we are currently on a secure page
+        // Only redirect to /auth if the user explicitly signed out from a protected page.
+        // Public pages (/test, /dictionary, /auth) must remain accessible without login.
+        const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
         const currentUrl = this.router.url;
-        if (!currentUrl.includes('/auth')) {
+        const isPublic = currentPath.startsWith('/test') || 
+                         currentPath.startsWith('/dictionary') || 
+                         currentPath.startsWith('/auth') ||
+                         currentUrl.includes('/test') || 
+                         currentUrl.includes('/dictionary') || 
+                         currentUrl.includes('/auth');
+
+        if (!isPublic && event === 'SIGNED_OUT') {
           console.log(`onAuthStateChange: User signed out (event: ${event}). Redirecting to /auth`);
           this.router.navigate(['/auth']);
         }

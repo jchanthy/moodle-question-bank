@@ -23,7 +23,7 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
   private router = inject(Router);
 
   // Mode: free practice OR room code/URL test
-  mode = signal<'practice' | 'room'>('practice');
+  mode = signal<'practice' | 'room'>('room');
 
   // Room State
   roomCodeInput = signal<string>('');
@@ -114,8 +114,20 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
       this.roomCodeInput.set(urlRoom.trim().toUpperCase());
       await this.lookupRoom(urlRoom.trim().toUpperCase());
     } else {
+      // Default to room mode so code input is ready immediately
+      this.mode.set('room');
       await this.loadSubjects();
     }
+
+    // Subscribe to query param changes (in case user clicks or pastes without page reload)
+    this.route.queryParamMap.subscribe(params => {
+      const roomParam = params.get('room');
+      if (roomParam && roomParam.trim() && roomParam.trim().toUpperCase() !== this.roomInfo()?.room_code) {
+        this.mode.set('room');
+        this.roomCodeInput.set(roomParam.trim().toUpperCase());
+        this.lookupRoom(roomParam.trim().toUpperCase());
+      }
+    });
   }
 
   ngOnDestroy() {
