@@ -839,6 +839,25 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   roomParticipantsResults = signal<RoomParticipantResult[]>([]);
   loadingRoomResults = signal(false);
 
+  // Room Question Manager State
+  showRoomQuestionsModal = signal(false);
+  activeManageRoom = signal<TestRoomAdminItem | null>(null);
+  roomManageTab = signal<'active' | 'bank' | 'create'>('active');
+  roomBankSearch = signal('');
+  roomBankSameSubjectOnly = signal(true);
+  roomBankSelectedIds = signal<Set<string>>(new Set());
+  updatingRoomQuestions = signal(false);
+
+  // Quick Create Question Form (inside Room Manager)
+  quickQuestionName = signal('');
+  quickQuestionText = signal('');
+  quickOptions = signal<{ text: string; isCorrect: boolean }[]>([
+    { text: '', isCorrect: true },
+    { text: '', isCorrect: false },
+    { text: '', isCorrect: false },
+    { text: '', isCorrect: false }
+  ]);
+
   // Create Room Form
   newRoomTitle = signal('');
   newRoomSubjectId = signal('');
@@ -2583,6 +2602,389 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     this.showRoomResultsModal.set(false);
     this.activeResultsRoom.set(null);
     this.roomParticipantsResults.set([]);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Room Question Management (View Total, Add from Bank, Quick Create, Remove)
+  // ---------------------------------------------------------------------------
+
+  getLatestFamilyQuestions(): Question[] {
+    const familyMap = new Map<string, Question>();
+    for (const q of this.allQuestions()) {
+      const familyId = q.parent_id || q.id;
+      const existing = familyMap.get(familyId);
+      if (!existing || q.version > existing.version) {
+        familyMap.set(familyId, q);
+      }
+    }
+    return Array.from(familyMap.values());
+  }
+
+  getSubjectTestingCount(subjectId: string): number {
+    if (!subjectId) return 0;
+    return this.getLatestFamilyQuestions().filter(
+      q => q.category_id === subjectId && q.status === 'testing'
+    ).length;
+  }
+
+  getSubjectTotalCount(subjectId: string): number {
+    if (!subjectId) return 0;
+    return this.getLatestFamilyQuestions().filter(
+      q => q.category_id === subjectId
+    ).length;
+  }
+
+  getRoomPoolCount(room: TestRoomAdminItem): number {
+    return this.getSubjectTestingCount(room.subject_id);
+  }
+
+  getRoomServedCount(room: TestRoomAdminItem): number {
+    const pool = this.getRoomPoolCount(room);
+    return room.question_limit ? Math.min(room.question_limit, pool) : pool;
+  }
+
+  roomActiveQuestions = computed(() => {
+    const room = this.activeManageRoom();
+    if (!room) return [];
+    return this.getLatestFamilyQuestions().filter(
+      q => q.category_id === room.subject_id && q.status === 'testing'
+    );
+  });
+
+  roomBankCandidateQuestions = computed(() => {
+    const room = this.activeManageRoom();
+    if (!room) return [];
+    const sameSubjectOnly = this.roomBankSameSubjectOnly();
+    const search = this.roomBankSearch().trim().toLowerCase();
+
+    return this.getLatestFamilyQuestions().filter(q => {
+      // Exclude questions already active in this room
+      if (q.category_id === room.subject_id && q.status === 'testing') {
+        return false;
+      }
+      if (sameSubjectOnly && q.category_id !== room.subject_id) {
+        return false;
+      }
+      if (search) {
+        const nameMatch = (q.name || '').toLowerCase().includes(search);
+        const textMatch = (q.question_text || '').toLowerCase().includes(search);
+        return nameMatch || textMatch;
+      }
+      return true;
+    });
+  });
+
+  openManageRoomQuestionsModal(room: TestRoomAdminItem, defaultTab?: 'active' | 'bank' | 'create') {
+    this.activeManageRoom.set(room);
+    this.roomBankSearch.set('');
+    this.roomBankSelectedIds.set(new Set());
+
+    const subjectBankCount = this.getLatestFamilyQuestions().filter(
+      q => q.category_id === room.subject_id && q.status !== 'testing'
+    ).length;
+    // If subject has no candidate questions in bank, automatically show all subjects in bank
+    this.roomBankSameSubjectOnly.set(subjectBankCount > 0);
+
+    if (defaultTab) {
+      this.roomManageTab.set(defaultTab);
+    } else if (this.getRoomPoolCount(room) === 0) {
+      // When room has 0 questions, jump straight to Add from Bank or Quick Create
+      const totalBank = this.getLatestFamilyQuestions().length;
+      this.roomManageTab.set(totalBank > 0 ? 'bank' : 'create');
+    } else {
+      this.roomManageTab.set('active');
+    }
+
+    this.resetQuickQuestionForm();
+    this.showRoomQuestionsModal.set(true);
+  }
+
+  closeManageRoomQuestionsModal() {
+    this.showRoomQuestionsModal.set(false);
+    this.activeManageRoom.set(null);
+    this.roomBankSelectedIds.set(new Set());
+  }
+
+  toggleBankQuestionSelect(id: string) {
+    const next = new Set(this.roomBankSelectedIds());
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    this.roomBankSelectedIds.set(next);
+  }
+
+  toggleSelectAllBankQuestions() {
+    const visible = this.roomBankCandidateQuestions();
+    const current = this.roomBankSelectedIds();
+    const allSelected = visible.length > 0 && visible.every(q => current.has(q.id));
+    if (allSelected) {
+      this.roomBankSelectedIds.set(new Set());
+    } else {
+      this.roomBankSelectedIds.set(new Set(visible.map(q => q.id)));
+    }
+  }
+
+  async addQuestionToRoom(q: Question) {
+    const room = this.activeManageRoom();
+    if (!room) return;
+
+    this.updatingRoomQuestions.set(true);
+    try {
+      const { error } = await this.supabaseService.db
+        .from('questions')
+        .update({
+          status: 'testing',
+          category_id: room.subject_id
+        })
+        .eq('id', q.id);
+
+      if (error) throw error;
+
+      // Update local state immediately
+      this.allQuestions.set(
+        this.allQuestions().map(item =>
+          item.id === q.id ? { ...item, status: 'testing', category_id: room.subject_id } : item
+        )
+      );
+
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Added to Room',
+        detail: `"${q.name}" is now active in Room #${room.room_code}.`
+      });
+
+      this.loadQuestionsForActiveTab();
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Failed to Add',
+        detail: err.message || 'Could not add question to room'
+      });
+    } finally {
+      this.updatingRoomQuestions.set(false);
+    }
+  }
+
+  async bulkAddSelectedToRoom() {
+    const room = this.activeManageRoom();
+    const ids = Array.from(this.roomBankSelectedIds());
+    if (!room || ids.length === 0) return;
+
+    this.updatingRoomQuestions.set(true);
+    try {
+      const { error } = await this.supabaseService.db
+        .from('questions')
+        .update({
+          status: 'testing',
+          category_id: room.subject_id
+        })
+        .in('id', ids);
+
+      if (error) throw error;
+
+      const idSet = new Set(ids);
+      this.allQuestions.set(
+        this.allQuestions().map(item =>
+          idSet.has(item.id) ? { ...item, status: 'testing', category_id: room.subject_id } : item
+        )
+      );
+
+      this.roomBankSelectedIds.set(new Set());
+      this.roomManageTab.set('active');
+
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Questions Added!',
+        detail: `Added ${ids.length} question(s) to Room #${room.room_code}.`
+      });
+
+      this.loadQuestionsForActiveTab();
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Bulk Add Failed',
+        detail: err.message || 'Could not add selected questions'
+      });
+    } finally {
+      this.updatingRoomQuestions.set(false);
+    }
+  }
+
+  async removeQuestionFromRoom(q: Question) {
+    const room = this.activeManageRoom();
+    if (!room) return;
+
+    this.updatingRoomQuestions.set(true);
+    try {
+      const { error } = await this.supabaseService.db
+        .from('questions')
+        .update({ status: 'pending_review' })
+        .eq('id', q.id);
+
+      if (error) throw error;
+
+      this.allQuestions.set(
+        this.allQuestions().map(item =>
+          item.id === q.id ? { ...item, status: 'pending_review' } : item
+        )
+      );
+
+      this.messageService.add({
+        severity: 'info',
+        summary: 'Removed from Room',
+        detail: `"${q.name}" moved back to Pending Review.`
+      });
+
+      this.loadQuestionsForActiveTab();
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Remove Failed',
+        detail: err.message || 'Could not remove question from room'
+      });
+    } finally {
+      this.updatingRoomQuestions.set(false);
+    }
+  }
+
+  resetQuickQuestionForm() {
+    this.quickQuestionName.set('');
+    this.quickQuestionText.set('');
+    this.quickOptions.set([
+      { text: '', isCorrect: true },
+      { text: '', isCorrect: false },
+      { text: '', isCorrect: false },
+      { text: '', isCorrect: false }
+    ]);
+  }
+
+  updateQuickOptionText(index: number, text: string) {
+    const next = [...this.quickOptions()];
+    if (next[index]) {
+      next[index] = { ...next[index], text };
+      this.quickOptions.set(next);
+    }
+  }
+
+  setQuickCorrectOption(index: number) {
+    const next = this.quickOptions().map((opt, idx) => ({
+      ...opt,
+      isCorrect: idx === index
+    }));
+    this.quickOptions.set(next);
+  }
+
+  addQuickOption() {
+    if (this.quickOptions().length >= 8) return;
+    this.quickOptions.set([...this.quickOptions(), { text: '', isCorrect: false }]);
+  }
+
+  removeQuickOption(index: number) {
+    const list = this.quickOptions();
+    if (list.length <= 2) return;
+    const wasCorrect = list[index]?.isCorrect;
+    const next = list.filter((_, i) => i !== index);
+    if (wasCorrect && next.length > 0) {
+      next[0] = { ...next[0], isCorrect: true };
+    }
+    this.quickOptions.set(next);
+  }
+
+  async handleQuickCreateRoomQuestion() {
+    const room = this.activeManageRoom();
+    const user = this.supabaseService.currentUser();
+    if (!room || !user) return;
+
+    const text = this.quickQuestionText().trim();
+    const name = this.quickQuestionName().trim() || text.slice(0, 60);
+
+    if (!text) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Missing Question',
+        detail: 'Please enter the question prompt.'
+      });
+      return;
+    }
+
+    const validOptions = this.quickOptions().filter(o => o.text.trim().length > 0);
+    if (validOptions.length < 2) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Missing Options',
+        detail: 'Please provide at least 2 answer choices.'
+      });
+      return;
+    }
+
+    if (!validOptions.some(o => o.isCorrect)) {
+      validOptions[0].isCorrect = true;
+    }
+
+    this.updatingRoomQuestions.set(true);
+    try {
+      const { data: newQ, error: qErr } = await this.supabaseService.db
+        .from('questions')
+        .insert({
+          name,
+          question_text: text,
+          qtype: 'multichoice',
+          status: 'testing',
+          created_by: user.id,
+          category_id: room.subject_id,
+          metadata: {
+            author_id: user.id,
+            author_name: this.supabaseService.currentUserName,
+            author_email: user.email,
+            tags: []
+          }
+        })
+        .select('id, name, question_text, qtype, status, category_id, created_at, version')
+        .single();
+
+      if (qErr || !newQ) throw qErr || new Error('Failed to insert question');
+
+      const answersPayload = validOptions.map(o => ({
+        question_id: newQ.id,
+        answer_text: o.text.trim(),
+        fraction: o.isCorrect ? 100 : 0,
+        feedback: ''
+      }));
+
+      const { error: aErr } = await this.supabaseService.db
+        .from('answers')
+        .insert(answersPayload);
+
+      if (aErr) throw aErr;
+
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Question Created!',
+        detail: `Added "${name}" directly to Room #${room.room_code}.`
+      });
+
+      this.resetQuickQuestionForm();
+      await this.loadAllQuestionsData();
+      this.loadQuestionsForActiveTab();
+      this.roomManageTab.set('active');
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Create Failed',
+        detail: err.message || 'Could not create question'
+      });
+    } finally {
+      this.updatingRoomQuestions.set(false);
+    }
+  }
+
+  openImportForRoom(room: TestRoomAdminItem) {
+    this.closeManageRoomQuestionsModal();
+    this.resetImport();
+    this.importTargetCategoryId.set(room.subject_id);
+    this.showImportModal.set(true);
   }
 
   getAttemptsBadge(q: Question): { label: string; subLabel: string; badgeClass: string } {

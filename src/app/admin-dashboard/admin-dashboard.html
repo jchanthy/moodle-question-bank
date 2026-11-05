@@ -2644,7 +2644,8 @@
                   <th class="py-3 px-3">Join Code</th>
                   <th class="py-3 px-3">Title &amp; Subject</th>
                   <th class="py-3 px-3">Audience</th>
-                  <th class="py-3 px-3">Limits</th>
+                  <th class="py-3 px-3">Questions in Room</th>
+                  <th class="py-3 px-3">Timer &amp; Limit</th>
                   <th class="py-3 px-3 text-center">Participants</th>
                   <th class="py-3 px-3 text-center">Status</th>
                   <th class="py-3 px-3 text-right">Actions</th>
@@ -2672,8 +2673,33 @@
                       {{ room.audience }}
                     </span>
                   </td>
+                  <td class="py-3 px-3 whitespace-nowrap">
+                    <!-- Has Questions in Pool -->
+                    <div *ngIf="getRoomPoolCount(room) > 0" class="flex items-center gap-1.5">
+                      <button type="button" (click)="openManageRoomQuestionsModal(room, 'active')"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs transition"
+                        title="Click to view or add questions">
+                        <span>📝 {{ getRoomPoolCount(room) }} in pool</span>
+                      </button>
+                      <button type="button" (click)="openManageRoomQuestionsModal(room, 'bank')"
+                        class="px-2 py-1 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px] transition"
+                        title="Add more questions to this room">
+                        + Add
+                      </button>
+                    </div>
+                    <!-- 0 Questions Warning + Add Button -->
+                    <div *ngIf="getRoomPoolCount(room) === 0" class="flex items-center gap-1.5">
+                      <span class="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-black uppercase">
+                        ⚠️ 0 Questions
+                      </span>
+                      <button type="button" (click)="openManageRoomQuestionsModal(room)"
+                        class="px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-sm transition flex items-center gap-1">
+                        <span>+ Add Questions</span>
+                      </button>
+                    </div>
+                  </td>
                   <td class="py-3 px-3 text-gray-600 whitespace-nowrap">
-                    <div>{{ room.question_limit ? room.question_limit + ' questions' : 'All in pool' }}</div>
+                    <div>{{ room.question_limit ? 'Max ' + room.question_limit + ' served' : 'All in pool' }}</div>
                     <div class="text-[10px] text-gray-400">{{ room.time_limit_minutes ? room.time_limit_minutes + ' min timer' : 'No timer' }}</div>
                   </td>
                   <td class="py-3 px-3 text-center whitespace-nowrap">
@@ -2689,7 +2715,11 @@
                       {{ room.is_active ? '● Live' : 'Closed' }}
                     </button>
                   </td>
-                  <td class="py-3 px-3 text-right whitespace-nowrap space-x-1.5">
+                  <td class="py-3 px-3 text-right whitespace-nowrap space-x-1">
+                    <button (click)="openManageRoomQuestionsModal(room)" title="Manage Room Questions"
+                      class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded font-bold text-[11px] transition">
+                      📝 Questions ({{ getRoomPoolCount(room) }})
+                    </button>
                     <button (click)="openShareRoomModal(room)" title="Present Screen & QR Code (Slido View)"
                       class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold text-[11px] transition shadow-sm">
                       🖥️ Present / QR
@@ -4277,9 +4307,12 @@
         <select [ngModel]="newRoomSubjectId()" (ngModelChange)="newRoomSubjectId.set($event)"
           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-none text-sm text-gray-900 font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-white">
           <option *ngFor="let cat of categories()" [value]="cat.id">
-            {{ cat.name }}
+            {{ cat.name }} ({{ getSubjectTestingCount(cat.id) }} in pool / {{ getSubjectTotalCount(cat.id) }} total)
           </option>
         </select>
+        <p *ngIf="newRoomSubjectId() && getSubjectTestingCount(newRoomSubjectId()) === 0" class="text-[11px] text-amber-600 font-semibold mt-1">
+          ⚠️ 0 questions in testing pool for this subject. You can add or create questions right after creating the room!
+        </p>
       </div>
 
       <div>
@@ -4350,6 +4383,21 @@
 <p-dialog [(visible)]="showRoomShareModal" [modal]="true" [style]="{ width: '94vw', maxWidth: '680px' }"
   header="Live Room Presenter &amp; Share" [closable]="true" (onHide)="closeShareRoomModal()">
   <div *ngIf="activeShareRoom() as room" class="space-y-5 pt-1">
+    <!-- Alert if 0 Questions in Room -->
+    <div *ngIf="getRoomPoolCount(room) === 0" class="p-4 bg-amber-50 border border-amber-200 flex items-center justify-between gap-4 flex-wrap">
+      <div class="flex items-start gap-2.5 text-amber-900 text-xs">
+        <span class="text-base leading-none">⚠️</span>
+        <div>
+          <strong class="block font-black uppercase tracking-wider text-amber-800">No Questions in This Room Yet</strong>
+          <span>This room's subject (<strong>{{ room.subject_name }}</strong>) currently has 0 questions in the testing pool. Add questions before students join!</span>
+        </div>
+      </div>
+      <button type="button" (click)="closeShareRoomModal(); openManageRoomQuestionsModal(room)"
+        class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black uppercase tracking-wider shadow-sm transition shrink-0">
+        + Add Questions Now
+      </button>
+    </div>
+
     <!-- Slido Presenter Dark Card -->
     <div class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 shadow-xl relative overflow-hidden">
       <!-- Top Header inside Presenter Card -->
@@ -4367,6 +4415,10 @@
 
         <div class="flex items-center gap-3 bg-white/5 border border-white/10 px-3.5 py-2 rounded-xl">
           <div class="text-right">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Questions</div>
+            <div class="text-lg font-black text-indigo-300 leading-none">{{ getRoomServedCount(room) }}</div>
+          </div>
+          <div class="pl-3 border-l border-white/10 text-right">
             <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Submissions</div>
             <div class="text-lg font-black text-white leading-none">{{ room.attempts }}</div>
           </div>
@@ -4403,7 +4455,7 @@
           <div class="flex items-center gap-3 text-xs text-slate-300 pt-1">
             <span>⚡ No login required</span>
             <span>&bull;</span>
-            <span>{{ room.question_limit ? room.question_limit + ' questions' : 'All pool questions' }}</span>
+            <span>{{ getRoomPoolCount(room) }} questions in pool</span>
             <span>&bull;</span>
             <span>{{ room.time_limit_minutes ? room.time_limit_minutes + ' min' : 'Untimed' }}</span>
           </div>
@@ -4441,11 +4493,18 @@
       </div>
     </div>
 
-    <div class="flex items-center justify-between pt-2 border-t border-gray-100">
-      <button type="button" (click)="closeShareRoomModal(); openRoomResultsModal(room)"
-        class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center gap-1">
-        <span>📊 View Participant Results ({{ room.attempts }})</span>
-      </button>
+    <div class="flex items-center justify-between pt-2 border-t border-gray-100 flex-wrap gap-2">
+      <div class="flex items-center gap-3">
+        <button type="button" (click)="closeShareRoomModal(); openManageRoomQuestionsModal(room)"
+          class="text-xs font-bold text-emerald-700 hover:text-emerald-900 transition flex items-center gap-1">
+          <span>📝 Manage Questions ({{ getRoomPoolCount(room) }})</span>
+        </button>
+        <span class="text-gray-300">|</span>
+        <button type="button" (click)="closeShareRoomModal(); openRoomResultsModal(room)"
+          class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center gap-1">
+          <span>📊 View Results ({{ room.attempts }})</span>
+        </button>
+      </div>
       <button type="button" (click)="closeShareRoomModal()"
         class="px-5 py-2 bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold transition">
         Done
@@ -4462,7 +4521,7 @@
   <div *ngIf="activeResultsRoom() as room" class="space-y-4 pt-2">
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-gray-50 border border-gray-200">
       <div>
-        <h4 class="text-sm font-black text-gray-900">{{ room.title }} (<code>{{ room.room_code }}</code>)</h4>
+        <h4 class="text-sm font-black text-gray-900">{{ room.title }} (<code>#{{ room.room_code }}</code>)</h4>
         <p class="text-xs text-gray-500">{{ room.subject_name }} &bull; Total Submissions: <strong>{{ roomParticipantsResults().length }}</strong></p>
       </div>
       <button type="button" (click)="openRoomResultsModal(room)"
@@ -4522,6 +4581,267 @@
       <button type="button" (click)="closeRoomResultsModal()"
         class="px-4 py-2 bg-gray-800 text-white text-xs font-bold">
         Close
+      </button>
+    </div>
+  </div>
+</p-dialog>
+
+<!-- ============================================================= -->
+<!-- MODAL 4: MANAGE ROOM QUESTIONS (VIEW, ADD FROM BANK, CREATE) -->
+<!-- ============================================================= -->
+<p-dialog [(visible)]="showRoomQuestionsModal" [modal]="true" [style]="{ width: '95vw', maxWidth: '880px' }"
+  header="Manage Room Questions" [closable]="true" (onHide)="closeManageRoomQuestionsModal()">
+  <div *ngIf="activeManageRoom() as room" class="space-y-4 pt-1">
+    <!-- Top Room Summary Header -->
+    <div class="p-4 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div class="space-y-1">
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 bg-indigo-600 text-white font-mono font-black text-xs rounded">
+            #{{ room.room_code }}
+          </span>
+          <span class="text-xs font-bold text-indigo-300">Subject: {{ room.subject_name }}</span>
+        </div>
+        <h4 class="text-base font-black text-white">{{ room.title }}</h4>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="px-3.5 py-2 bg-white/10 rounded-lg text-right">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300">Total in Room Pool</div>
+          <div class="text-lg font-black" [ngClass]="roomActiveQuestions().length > 0 ? 'text-emerald-400' : 'text-amber-400'">
+            {{ roomActiveQuestions().length }} Questions
+          </div>
+        </div>
+        <button type="button" (click)="openImportForRoom(room)"
+          class="px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5">
+          <span>📥 Import File</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 3-Tab Switcher -->
+    <div class="flex items-center gap-1 border-b border-gray-200">
+      <button type="button" (click)="roomManageTab.set('active')"
+        class="px-4 py-2.5 text-xs font-black uppercase tracking-wider border-b-2 transition flex items-center gap-2"
+        [ngClass]="roomManageTab() === 'active' ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50' : 'border-transparent text-gray-500 hover:text-gray-800'">
+        <span>📝 Active in Room</span>
+        <span class="px-1.5 py-0.5 rounded-full text-[10px]"
+          [ngClass]="roomActiveQuestions().length > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'">
+          {{ roomActiveQuestions().length }}
+        </span>
+      </button>
+
+      <button type="button" (click)="roomManageTab.set('bank')"
+        class="px-4 py-2.5 text-xs font-black uppercase tracking-wider border-b-2 transition flex items-center gap-2"
+        [ngClass]="roomManageTab() === 'bank' ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50' : 'border-transparent text-gray-500 hover:text-gray-800'">
+        <span>➕ Add from Question Bank</span>
+        <span class="px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700 text-[10px]">
+          {{ roomBankCandidateQuestions().length }}
+        </span>
+      </button>
+
+      <button type="button" (click)="roomManageTab.set('create')"
+        class="px-4 py-2.5 text-xs font-black uppercase tracking-wider border-b-2 transition flex items-center gap-2"
+        [ngClass]="roomManageTab() === 'create' ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50' : 'border-transparent text-gray-500 hover:text-gray-800'">
+        <span>⚡ Quick Create Question</span>
+      </button>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- TAB 1: ACTIVE QUESTIONS IN THIS ROOM -->
+    <!-- ========================================================= -->
+    <div *ngIf="roomManageTab() === 'active'" class="space-y-3">
+      <!-- Empty State when 0 Questions -->
+      <div *ngIf="roomActiveQuestions().length === 0" class="py-12 px-4 text-center bg-amber-50/40 border border-dashed border-amber-200 space-y-3">
+        <div class="text-3xl">📭</div>
+        <div class="space-y-1">
+          <h5 class="text-sm font-black text-gray-900">No Questions in Room #{{ room.room_code }} Yet</h5>
+          <p class="text-xs text-gray-500 max-w-md mx-auto">
+            Add existing questions from your Question Bank or create a new question right now so participants can take the test.
+          </p>
+        </div>
+        <div class="flex items-center justify-center gap-2 pt-2 flex-wrap">
+          <button type="button" (click)="roomManageTab.set('bank')"
+            class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition">
+            ➕ Select from Question Bank
+          </button>
+          <button type="button" (click)="roomManageTab.set('create')"
+            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition">
+            ⚡ Quick Create New Question
+          </button>
+        </div>
+      </div>
+
+      <!-- List of Active Questions -->
+      <div *ngIf="roomActiveQuestions().length > 0" class="max-h-96 overflow-y-auto divide-y divide-gray-100 border border-gray-200">
+        <div *ngFor="let q of roomActiveQuestions(); let idx = index"
+          class="p-3.5 bg-white hover:bg-slate-50 transition flex items-start justify-between gap-4">
+          <div class="space-y-1 flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="px-2 py-0.5 bg-slate-100 text-slate-700 font-mono font-bold text-[10px] rounded">
+                #{{ idx + 1 }}
+              </span>
+              <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 font-bold text-[10px] uppercase rounded">
+                {{ q.qtype }}
+              </span>
+              <span class="font-bold text-gray-900 text-xs truncate">{{ q.name }}</span>
+              <span class="text-[10px] text-gray-400">({{ q.total_attempts || 0 }} attempts)</span>
+            </div>
+            <div class="text-xs text-gray-600 line-clamp-2" [innerHTML]="q.question_text"></div>
+          </div>
+
+          <button type="button" (click)="removeQuestionFromRoom(q)" [disabled]="updatingRoomQuestions()"
+            class="px-2.5 py-1 border border-rose-200 text-rose-600 hover:bg-rose-50 text-[11px] font-bold transition shrink-0">
+            Remove
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- TAB 2: ADD EXISTING QUESTIONS FROM QUESTION BANK -->
+    <!-- ========================================================= -->
+    <div *ngIf="roomManageTab() === 'bank'" class="space-y-3">
+      <!-- Filter & Search Bar -->
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 bg-gray-50 p-3 border border-gray-200">
+        <div class="flex-1 flex items-center gap-2">
+          <input type="text" [ngModel]="roomBankSearch()" (ngModelChange)="roomBankSearch.set($event)"
+            placeholder="Search questions in bank by title or content..."
+            class="flex-1 px-3 py-1.5 bg-white border border-gray-200 text-xs outline-none focus:border-indigo-500">
+          <label class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer whitespace-nowrap px-2">
+            <input type="checkbox" [ngModel]="roomBankSameSubjectOnly()" (ngModelChange)="roomBankSameSubjectOnly.set($event)"
+              class="rounded text-indigo-600">
+            <span>Only "{{ room.subject_name }}"</span>
+          </label>
+        </div>
+
+        <div class="flex items-center gap-2 justify-end">
+          <button type="button" (click)="toggleSelectAllBankQuestions()"
+            class="px-2.5 py-1.5 bg-white border border-gray-200 hover:bg-gray-100 text-[11px] font-bold text-gray-700 transition">
+            Select All ({{ roomBankCandidateQuestions().length }})
+          </button>
+          <button *ngIf="roomBankSelectedIds().size > 0" type="button" (click)="bulkAddSelectedToRoom()" [disabled]="updatingRoomQuestions()"
+            class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black shadow-sm transition">
+            + Add Selected ({{ roomBankSelectedIds().size }}) to Room
+          </button>
+        </div>
+      </div>
+
+      <!-- Empty Bank Candidates -->
+      <div *ngIf="roomBankCandidateQuestions().length === 0" class="py-10 text-center border border-dashed border-gray-200 space-y-2">
+        <p class="text-xs font-bold text-gray-600">
+          {{ roomBankSameSubjectOnly() ? 'No other questions found in subject "' + room.subject_name + '".' : 'No matching questions found in the Question Bank.' }}
+        </p>
+        <div class="flex items-center justify-center gap-2 pt-1">
+          <button *ngIf="roomBankSameSubjectOnly()" type="button" (click)="roomBankSameSubjectOnly.set(false)"
+            class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold transition">
+            🔍 Show Questions from All Subjects
+          </button>
+          <button type="button" (click)="roomManageTab.set('create')"
+            class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition">
+            ⚡ Quick Create Question
+          </button>
+        </div>
+      </div>
+
+      <!-- Candidate Questions List -->
+      <div *ngIf="roomBankCandidateQuestions().length > 0" class="max-h-96 overflow-y-auto divide-y divide-gray-100 border border-gray-200">
+        <div *ngFor="let q of roomBankCandidateQuestions()"
+          class="p-3 bg-white hover:bg-indigo-50/30 transition flex items-start gap-3">
+          <input type="checkbox"
+            [checked]="roomBankSelectedIds().has(q.id)"
+            (change)="toggleBankQuestionSelect(q.id)"
+            class="mt-1 rounded text-indigo-600 cursor-pointer">
+
+          <div class="flex-1 min-w-0 space-y-1 cursor-pointer" (click)="toggleBankQuestionSelect(q.id)">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="px-1.5 py-0.5 bg-gray-100 text-gray-700 font-bold text-[10px] uppercase rounded">
+                {{ q.qtype }}
+              </span>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase"
+                [ngClass]="q.status === 'approved' ? 'bg-emerald-50 text-emerald-700' :
+                           q.status === 'pending_review' ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-600'">
+                {{ q.status }}
+              </span>
+              <span class="font-bold text-gray-900 text-xs truncate">{{ q.name }}</span>
+            </div>
+            <div class="text-xs text-gray-600 line-clamp-2" [innerHTML]="q.question_text"></div>
+          </div>
+
+          <button type="button" (click)="addQuestionToRoom(q)" [disabled]="updatingRoomQuestions()"
+            class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white font-bold text-xs transition shrink-0">
+            + Add to Room
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- TAB 3: QUICK CREATE NEW QUESTION DIRECTLY INTO ROOM -->
+    <!-- ========================================================= -->
+    <div *ngIf="roomManageTab() === 'create'" class="space-y-4 bg-gray-50/70 p-4 border border-gray-200">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="sm:col-span-1">
+          <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1">
+            Short Title (Optional)
+          </label>
+          <input type="text" [ngModel]="quickQuestionName()" (ngModelChange)="quickQuestionName.set($event)"
+            placeholder="e.g. Q1 - AI Basics"
+            class="w-full px-3 py-2 bg-white border border-gray-200 text-xs font-bold outline-none focus:border-indigo-500">
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1">
+            Question Prompt <span class="text-rose-500">*</span>
+          </label>
+          <input type="text" [ngModel]="quickQuestionText()" (ngModelChange)="quickQuestionText.set($event)"
+            placeholder="Enter the question text here..."
+            class="w-full px-3 py-2 bg-white border border-gray-200 text-xs font-bold outline-none focus:border-indigo-500">
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="block text-xs font-black uppercase tracking-wider text-gray-700">
+            Answer Choices (Select the radio button for the correct answer)
+          </label>
+          <button type="button" (click)="addQuickOption()" *ngIf="quickOptions().length < 6"
+            class="text-xs font-bold text-indigo-600 hover:underline">
+            + Add Choice
+          </button>
+        </div>
+
+        <div *ngFor="let opt of quickOptions(); let i = index" class="flex items-center gap-2">
+          <button type="button" (click)="setQuickCorrectOption(i)"
+            class="px-2.5 py-2 border text-xs font-black uppercase transition shrink-0 flex items-center gap-1"
+            [ngClass]="opt.isCorrect ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-gray-200 text-gray-400 hover:text-gray-700'">
+            <span>{{ opt.isCorrect ? '✓ Correct' : 'Option ' + (i + 1) }}</span>
+          </button>
+          <input type="text" [ngModel]="opt.text" (ngModelChange)="updateQuickOptionText(i, $event)"
+            [placeholder]="'Enter choice ' + (i + 1) + '...'"
+            class="flex-1 px-3 py-2 bg-white border border-gray-200 text-xs outline-none focus:border-indigo-500">
+          <button *ngIf="quickOptions().length > 2" type="button" (click)="removeQuickOption(i)"
+            class="px-2 py-2 text-gray-400 hover:text-rose-600 text-xs font-bold">
+            &times;
+          </button>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button type="button" (click)="handleQuickCreateRoomQuestion()" [disabled]="updatingRoomQuestions()"
+          class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider shadow-sm transition disabled:opacity-50">
+          ⚡ Save &amp; Add to Room #{{ room.room_code }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="flex items-center justify-between pt-3 border-t border-gray-100">
+      <button type="button" (click)="closeManageRoomQuestionsModal(); openShareRoomModal(room)"
+        class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center gap-1">
+        <span>🖥️ Switch to Present / QR View</span>
+      </button>
+      <button type="button" (click)="closeManageRoomQuestionsModal()"
+        class="px-5 py-2 bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold transition">
+        Done
       </button>
     </div>
   </div>
