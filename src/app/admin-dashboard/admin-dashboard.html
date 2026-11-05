@@ -2833,6 +2833,55 @@
             </button>
           </div>
 
+          <!-- Sub-Filter Bar for Pre-Testing Pool (Distinguish Questions from Ready vs Others) -->
+          <div class="bg-white border border-gray-200/90 shadow-sm p-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-xs font-black uppercase tracking-wider text-slate-500 mr-1 flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                Filter Pool:
+              </span>
+
+              <button type="button" (click)="pretestSubTab.set('all')"
+                class="px-3 py-1.5 text-xs font-bold transition rounded-none border"
+                [ngClass]="pretestSubTab() === 'all' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'">
+                All In Testing ({{ totalCounts().testing }})
+              </button>
+
+              <button type="button" (click)="pretestSubTab.set('from_ready')"
+                class="px-3 py-1.5 text-xs font-bold transition rounded-none border flex items-center gap-1.5"
+                [ngClass]="pretestSubTab() === 'from_ready' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'">
+                <span>🟢</span>
+                <span>From Ready Tab</span>
+              </button>
+
+              <button type="button" (click)="pretestSubTab.set('needs_data')"
+                class="px-3 py-1.5 text-xs font-bold transition rounded-none border flex items-center gap-1.5"
+                [ngClass]="pretestSubTab() === 'needs_data' ? 'bg-amber-500 text-white border-amber-500 shadow-sm' : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'">
+                <span>⏳</span>
+                <span>Needs Attempts (&lt; 20)</span>
+              </button>
+
+              <button type="button" (click)="pretestSubTab.set('ready_release')"
+                class="px-3 py-1.5 text-xs font-bold transition rounded-none border flex items-center gap-1.5"
+                [ngClass]="pretestSubTab() === 'ready_release' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'">
+                <span>✅</span>
+                <span>Qualified for Release</span>
+              </button>
+            </div>
+
+            <!-- Pretest Search Bar -->
+            <div class="relative w-full sm:w-64">
+              <input type="text" [ngModel]="filterSearch()" (ngModelChange)="onSearchChange($event)"
+                placeholder="Search in testing pool..."
+                class="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-none text-xs font-medium bg-slate-50 focus:bg-white focus:border-indigo-400 outline-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+
           <!-- Question Cards in Testing Pool -->
           <div *ngFor="let q of paginatedQuestions()"
             id="question-card-{{ q.id }}"
@@ -2848,6 +2897,18 @@
 
                   <span class="inline-flex items-center justify-center px-2 py-0.5 rounded bg-slate-800 text-white text-[10px] font-black tracking-wider uppercase shrink-0 shadow-sm border border-slate-700">
                     #{{ q.sequenceNumber }}
+                  </span>
+
+                  <!-- Origin Badge: Clearly shows if question came from Ready or elsewhere -->
+                  <span *ngIf="q.metadata?.pretest_origin === 'ready'"
+                    class="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm"
+                    title="Moved directly from Ready / Approved Bank">
+                    <span>🟢</span>
+                    <span>From Ready Tab</span>
+                  </span>
+                  <span *ngIf="q.metadata?.pretest_origin && q.metadata?.pretest_origin !== 'ready'"
+                    class="px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded text-[10px] font-bold uppercase tracking-wider">
+                    From {{ q.metadata?.pretest_origin }}
                   </span>
 
                   <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1">

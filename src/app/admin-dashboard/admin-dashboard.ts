@@ -827,6 +827,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   filterCategory = signal(sessionStorage.getItem('admin_filter_category') || '');
   filterSearch = signal(sessionStorage.getItem('admin_filter_search') || '');
   filterMisspelledOnly = signal(sessionStorage.getItem('admin_filter_misspelled') === 'true');
+  pretestSubTab = signal<'all' | 'from_ready' | 'needs_data' | 'ready_release'>('all');
 
   // Pre-Test Rooms State
   testRooms = signal<TestRoomAdminItem[]>([]);
@@ -1725,10 +1726,36 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       const teacher = this.filterTeacher().toLowerCase();
       result = result.filter(q => q.metadata?.author_name?.toLowerCase().includes(teacher));
     }
+
+    // 2b. Pre-testing specific sub-tab filter
+    if (this.activeTab() === 'testing') {
+      const subTab = this.pretestSubTab();
+      if (subTab === 'from_ready') {
+        result = result.filter(q => q.metadata?.pretest_origin === 'ready');
+      } else if (subTab === 'needs_data') {
+        result = result.filter(q => !q.total_attempts || q.total_attempts < 20);
+      } else if (subTab === 'ready_release') {
+        result = result.filter(q => {
+          const attempts = q.total_attempts || 0;
+          const p = q.difficulty_index !== null && q.difficulty_index !== undefined ? Number(q.difficulty_index) : null;
+          const d = q.discrimination_index !== null && q.discrimination_index !== undefined ? Number(q.discrimination_index) : null;
+          return attempts >= 20 && p !== null && p >= 0.30 && p <= 0.85 && d !== null && d >= 0.25;
+        });
+      }
+    }
     
-    // 3. Sort before sequence number mapping (Pending is oldest-first, others are newest-first)
+    // 3. Sort before sequence number mapping:
+    // Testing tab prioritizes newly moved questions (moved_to_testing_at or updated_at desc)
+    // Pending is oldest-first, others are newest-first
     const isPending = this.activeTab() === 'pending';
+    const isTesting = this.activeTab() === 'testing';
+
     result.sort((a, b) => {
+      if (isTesting) {
+        const timeA = new Date(a.metadata?.moved_to_testing_at || a.updated_at || a.created_at).getTime();
+        const timeB = new Date(b.metadata?.moved_to_testing_at || b.updated_at || b.created_at).getTime();
+        return timeB - timeA;
+      }
       const dateA = new Date(a.created_at).getTime();
       const dateB = new Date(b.created_at).getTime();
       return isPending ? dateA - dateB : dateB - dateA;
@@ -2184,7 +2211,21 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       .single();
 
     let extraMetadata: any = null;
-    if (question && status === 'rejected') {
+    const nowIso = new Date().toISOString();
+
+    if (question && status === 'testing') {
+      const prevOrigin = question.status === 'approved' ? 'ready' : (question.status === 'pending_review' ? 'review' : 'draft');
+      extraMetadata = {
+        ...(question.metadata || {}),
+        pretest_origin: prevOrigin,
+        moved_to_testing_at: nowIso
+      };
+    } else if (question && status === 'approved') {
+      extraMetadata = {
+        ...(question.metadata || {}),
+        approved_at: nowIso
+      };
+    } else if (question && status === 'rejected') {
       const reason = prompt('Reason for rejection:');
       if (reason === null) return;
 
@@ -2192,7 +2233,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       const newComment = {
         user: this.supabaseService.currentUserName,
         text: trimmedReason,
-        date: new Date().toISOString()
+        date: nowIso
       };
 
       const currentComments = (question.metadata as any)?.comments || [];
@@ -2200,7 +2241,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
         ...(question.metadata || {}),
         rejection_reason: trimmedReason,
         rejected_by: this.supabaseService.currentUserName,
-        rejected_at: new Date().toISOString(),
+        rejected_at: nowIso,
         comments: [...currentComments, newComment]
       };
     }
@@ -2323,12 +2364,34 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
 
     this.loading.set(true);
     try {
-      const { error } = await this.supabaseService.db
-        .from('questions')
-        .update({ status, updated_at: new Date().toISOString() })
-        .in('id', ids);
+      const nowIso = new Date().toISOString();
+      const allQs = this.allQuestions();
+      const idSet = new Set(ids);
 
-      if (error) throw error;
+      // Perform updates with metadata tracking
+      if (status === 'testing') {
+        const updatePromises = ids.map(id => {
+          const q = allQs.find(item => item.id === id);
+          const prevOrigin = q?.status === 'approved' ? 'ready' : (q?.status === 'pending_review' ? 'review' : 'draft');
+          const meta = {
+            ...(q?.metadata || {}),
+            pretest_origin: prevOrigin,
+            moved_to_testing_at: nowIso
+          };
+          return this.supabaseService.db
+            .from('questions')
+            .update({ status, metadata: meta, updated_at: nowIso })
+            .eq('id', id);
+        });
+        await Promise.all(updatePromises);
+      } else {
+        const { error } = await this.supabaseService.db
+          .from('questions')
+          .update({ status, updated_at: nowIso })
+          .in('id', ids);
+
+        if (error) throw error;
+      }
 
       if (status === 'testing') {
         await this.preTestService.recalculateMetrics().catch(e => console.warn(e));
