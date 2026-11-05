@@ -827,7 +827,38 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   filterCategory = signal(sessionStorage.getItem('admin_filter_category') || '');
   filterSearch = signal(sessionStorage.getItem('admin_filter_search') || '');
   filterMisspelledOnly = signal(sessionStorage.getItem('admin_filter_misspelled') === 'true');
-  pretestSubTab = signal<'all' | 'from_ready' | 'needs_data' | 'ready_release'>('all');
+  pretestSubTab = signal<'all' | 'from_ready' | 'needs_data' | 'in_progress' | 'ready_release'>('all');
+
+  pretestPoolStats = computed(() => {
+    const allQs = this.allQuestions();
+    const familyMap = new Map<string, Question>();
+    allQs.forEach(q => {
+      const familyId = q.parent_id || q.id;
+      const existing = familyMap.get(familyId);
+      if (!existing || q.version > existing.version) {
+        familyMap.set(familyId, q);
+      }
+    });
+
+    const testingQs = Array.from(familyMap.values()).filter(q => q.status === 'testing');
+    const fromReady = testingQs.filter(q => q.metadata?.pretest_origin === 'ready').length;
+    const awaitingTest = testingQs.filter(q => !q.total_attempts || q.total_attempts === 0).length;
+    const inProgress = testingQs.filter(q => (q.total_attempts || 0) > 0 && (q.total_attempts || 0) < 20).length;
+    const readyRelease = testingQs.filter(q => {
+      const attempts = q.total_attempts || 0;
+      const p = q.difficulty_index !== null && q.difficulty_index !== undefined ? Number(q.difficulty_index) : null;
+      const d = q.discrimination_index !== null && q.discrimination_index !== undefined ? Number(q.discrimination_index) : null;
+      return attempts >= 20 && p !== null && p >= 0.30 && p <= 0.85 && d !== null && d >= 0.25;
+    }).length;
+
+    return {
+      total: testingQs.length,
+      fromReady,
+      awaitingTest,
+      inProgress,
+      readyRelease
+    };
+  });
 
   // Pre-Test Rooms State
   testRooms = signal<TestRoomAdminItem[]>([]);
@@ -1733,7 +1764,9 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       if (subTab === 'from_ready') {
         result = result.filter(q => q.metadata?.pretest_origin === 'ready');
       } else if (subTab === 'needs_data') {
-        result = result.filter(q => !q.total_attempts || q.total_attempts < 20);
+        result = result.filter(q => !q.total_attempts || q.total_attempts === 0);
+      } else if (subTab === 'in_progress') {
+        result = result.filter(q => (q.total_attempts || 0) > 0 && (q.total_attempts || 0) < 20);
       } else if (subTab === 'ready_release') {
         result = result.filter(q => {
           const attempts = q.total_attempts || 0;
@@ -2473,6 +2506,27 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     } else if (this.categories().length > 0) {
       this.newRoomSubjectId.set(this.categories()[0].id);
     }
+
+    this.showCreateRoomModal.set(true);
+  }
+
+  createRoomWithSelectedQuestions() {
+    const ids = Array.from(this.selectedQuestionIds());
+    if (ids.length === 0) return;
+
+    const allQs = this.allQuestions();
+    const selectedQs = allQs.filter(q => ids.includes(q.id));
+    
+    // Detect primary subject from selection
+    const firstCat = selectedQs[0]?.category_id;
+    const catName = this.getCategoryName(firstCat) || 'Test Session';
+
+    this.newRoomTitle.set(`${catName} Practice (${ids.length} Qs)`);
+    this.newRoomSubjectId.set(firstCat || (this.categories()[0]?.id || ''));
+    this.newRoomQuestionLimit.set(ids.length);
+    this.newRoomTimeLimitMinutes.set(null);
+    this.newRoomAudience.set('any');
+    this.newRoomExpiresInDays.set(7);
 
     this.showCreateRoomModal.set(true);
   }

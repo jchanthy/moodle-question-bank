@@ -2799,9 +2799,13 @@
           </div>
 
           <div class="flex items-center gap-2 flex-wrap">
+            <button (click)="createRoomWithSelectedQuestions()"
+              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black rounded-none shadow transition flex items-center gap-1.5">
+              <span>🚀</span> Create Room With Selected
+            </button>
             <button (click)="bulkUpdateStatus('approved')"
               class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-none shadow transition flex items-center gap-1.5">
-              Approve for Production
+              <span>✓</span> Return to Ready (Release)
             </button>
             <button (click)="bulkUpdateStatus('rejected')"
               class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black rounded-none shadow transition flex items-center gap-1.5">
@@ -2833,52 +2837,115 @@
             </button>
           </div>
 
-          <!-- Sub-Filter Bar for Pre-Testing Pool (Distinguish Questions from Ready vs Others) -->
-          <div class="bg-white border border-gray-200/90 shadow-sm p-4 flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-xs font-black uppercase tracking-wider text-slate-500 mr-1 flex items-center gap-1.5">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                </svg>
-                Filter Pool:
-              </span>
-
+          <!-- Pre-Testing Pool Pipeline Kanban & Filtering Header -->
+          <div class="bg-white border border-gray-200/90 shadow-sm p-5 space-y-4">
+            <!-- 3 Pipeline Workflow Stages (Tabs) -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <!-- Stage 0: All -->
               <button type="button" (click)="pretestSubTab.set('all')"
-                class="px-3 py-1.5 text-xs font-bold transition rounded-none border"
-                [ngClass]="pretestSubTab() === 'all' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'">
-                All In Testing ({{ totalCounts().testing }})
+                class="p-3 text-left transition rounded-xl border flex flex-col justify-between"
+                [ngClass]="pretestSubTab() === 'all' ? 'bg-indigo-50/80 border-indigo-400 ring-2 ring-indigo-500/20' : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/80'">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-black uppercase tracking-wider text-slate-700">All In Pool</span>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-200 text-slate-800">
+                    {{ pretestPoolStats().total }}
+                  </span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">Complete question pool</p>
               </button>
 
-              <button type="button" (click)="pretestSubTab.set('from_ready')"
-                class="px-3 py-1.5 text-xs font-bold transition rounded-none border flex items-center gap-1.5"
-                [ngClass]="pretestSubTab() === 'from_ready' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'">
-                <span>🟢</span>
-                <span>From Ready Tab</span>
-              </button>
-
+              <!-- Stage 1: Awaiting Test (0 attempts) -->
               <button type="button" (click)="pretestSubTab.set('needs_data')"
-                class="px-3 py-1.5 text-xs font-bold transition rounded-none border flex items-center gap-1.5"
-                [ngClass]="pretestSubTab() === 'needs_data' ? 'bg-amber-500 text-white border-amber-500 shadow-sm' : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'">
-                <span>⏳</span>
-                <span>Needs Attempts (&lt; 20)</span>
+                class="p-3 text-left transition rounded-xl border flex flex-col justify-between"
+                [ngClass]="pretestSubTab() === 'needs_data' ? 'bg-amber-50/80 border-amber-400 ring-2 ring-amber-500/20' : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/80'">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                    <span>⏳</span> Awaiting Test
+                  </span>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200 text-amber-900">
+                    {{ pretestPoolStats().awaitingTest }}
+                  </span>
+                </div>
+                <p class="text-[11px] text-amber-700/80 mt-1">0 attempts collected yet</p>
               </button>
 
+              <!-- Stage 2: In Progress (1-19 attempts) -->
+              <button type="button" (click)="pretestSubTab.set('in_progress')"
+                class="p-3 text-left transition rounded-xl border flex flex-col justify-between"
+                [ngClass]="pretestSubTab() === 'in_progress' ? 'bg-blue-50/80 border-blue-400 ring-2 ring-blue-500/20' : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/80'">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-black uppercase tracking-wider text-blue-800 flex items-center gap-1.5">
+                    <span>🔄</span> In Progress
+                  </span>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-200 text-blue-900">
+                    {{ pretestPoolStats().inProgress }}
+                  </span>
+                </div>
+                <p class="text-[11px] text-blue-700/80 mt-1">1–19 student responses</p>
+              </button>
+
+              <!-- Stage 3: Ready for Graduation (20+ attempts & calibrated) -->
               <button type="button" (click)="pretestSubTab.set('ready_release')"
-                class="px-3 py-1.5 text-xs font-bold transition rounded-none border flex items-center gap-1.5"
-                [ngClass]="pretestSubTab() === 'ready_release' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'">
-                <span>✅</span>
-                <span>Qualified for Release</span>
+                class="p-3 text-left transition rounded-xl border flex flex-col justify-between"
+                [ngClass]="pretestSubTab() === 'ready_release' ? 'bg-emerald-50/80 border-emerald-400 ring-2 ring-emerald-500/20' : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/80'">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                    <span>🎉</span> Calibrated
+                  </span>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-200 text-emerald-900">
+                    {{ pretestPoolStats().readyRelease }}
+                  </span>
+                </div>
+                <p class="text-[11px] text-emerald-700/80 mt-1">Ready to release to Ready Tab</p>
               </button>
             </div>
 
-            <!-- Pretest Search Bar -->
-            <div class="relative w-full sm:w-64">
-              <input type="text" [ngModel]="filterSearch()" (ngModelChange)="onSearchChange($event)"
-                placeholder="Search in testing pool..."
-                class="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-none text-xs font-medium bg-slate-50 focus:bg-white focus:border-indigo-400 outline-none">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+            <!-- Pretest Filter Controls (Category, Origin, Search, Clear) -->
+            <div class="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-2.5 flex-wrap flex-1">
+                <!-- Quick Origin Button: From Ready Only -->
+                <button type="button" (click)="pretestSubTab.set(pretestSubTab() === 'from_ready' ? 'all' : 'from_ready')"
+                  class="px-3 py-2 text-xs font-bold transition rounded-none border flex items-center gap-1.5"
+                  [ngClass]="pretestSubTab() === 'from_ready' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'">
+                  <span>🟢</span>
+                  <span>From Ready Only ({{ pretestPoolStats().fromReady }})</span>
+                </button>
+
+                <!-- Category / Subject Filter -->
+                <div class="w-48">
+                  <select [ngModel]="filterCategory()" (ngModelChange)="filterCategory.set($event)"
+                    class="w-full px-3 py-2 border border-slate-200 rounded-none text-xs font-semibold bg-slate-50 focus:bg-white focus:border-indigo-400 outline-none">
+                    <option value="">All Subjects</option>
+                    <option *ngFor="let cat of categories()" [value]="cat.id">{{ cat.name }}</option>
+                  </select>
+                </div>
+
+                <!-- Teacher Filter -->
+                <div class="w-44">
+                  <select [ngModel]="filterTeacher()" (ngModelChange)="onTeacherFilterChange($event)"
+                    class="w-full px-3 py-2 border border-slate-200 rounded-none text-xs font-semibold bg-slate-50 focus:bg-white focus:border-indigo-400 outline-none">
+                    <option value="">All Teachers</option>
+                    <option *ngFor="let t of availableTeachers()" [value]="t.name">{{ t.name }}</option>
+                  </select>
+                </div>
+
+                <!-- Clear Active Filters -->
+                <button *ngIf="filterCategory() || filterTeacher() || filterSearch() || pretestSubTab() !== 'all'"
+                  (click)="filterCategory.set(''); filterTeacher.set(''); filterSearch.set(''); pretestSubTab.set('all')"
+                  class="text-xs font-bold text-rose-600 hover:text-rose-700 px-3 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition">
+                  Clear Filters
+                </button>
+              </div>
+
+              <!-- Pretest Search Bar -->
+              <div class="relative w-full sm:w-64">
+                <input type="text" [ngModel]="filterSearch()" (ngModelChange)="onSearchChange($event)"
+                  placeholder="Search questions or #index..."
+                  class="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-none text-xs font-medium bg-slate-50 focus:bg-white focus:border-indigo-400 outline-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
             </div>
           </div>
 
@@ -3083,6 +3150,12 @@
 
               <!-- Action Buttons -->
               <div class="flex flex-row items-center justify-end gap-2.5 pt-4 border-t border-slate-100 flex-wrap">
+                <button (click)="openCreateRoomModal(q.category_id)"
+                  class="bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white px-4 py-2 rounded-none font-bold transition text-xs border border-indigo-200 flex items-center gap-1.5"
+                  title="Create or launch a live test room for this subject">
+                  <span>🚀</span>
+                  <span>Launch in Room</span>
+                </button>
                 <button [routerLink]="['/teacher/edit-question', q.id]"
                   class="bg-slate-50 text-slate-700 hover:bg-slate-100 px-4 py-2 rounded-none font-bold transition text-xs border border-slate-200">
                   Review Details
@@ -3092,11 +3165,12 @@
                   Reject / Revision Needed
                 </button>
                 <button (click)="updateStatus(q.id, 'approved')"
-                  class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-none font-bold transition shadow-md shadow-emerald-600/20 text-xs flex items-center gap-1.5">
+                  class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-none font-bold transition shadow-md shadow-emerald-600/20 text-xs flex items-center gap-1.5"
+                  title="Mark as calibrated & return to Ready Tab">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                   </svg>
-                  <span>Approve for Production</span>
+                  <span>Return to Ready (Release)</span>
                 </button>
               </div>
             </div>
