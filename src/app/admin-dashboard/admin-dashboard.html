@@ -2566,46 +2566,46 @@
 
         <!-- Top Header Bar: Clean Executive Strip -->
         <div class="bg-white border border-gray-200/90 shadow-sm p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-md shadow-indigo-600/20">
+          <div class="flex items-center gap-3.5 min-w-0">
+            <div class="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-md shadow-indigo-600/20 shrink-0">
               🧪
             </div>
-            <div>
-              <div class="flex items-center gap-2">
-                <h2 class="text-base font-black text-gray-900 uppercase tracking-tight">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2.5 flex-wrap">
+                <h2 class="text-base sm:text-lg font-black text-gray-900 tracking-tight whitespace-nowrap">
                   Pre-Testing &amp; Calibration Lab
                 </h2>
-                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap shrink-0">
                   {{ totalCounts().testing }} In Pool
                 </span>
               </div>
-              <p class="text-xs text-gray-500">
+              <p class="text-xs text-gray-500 mt-0.5">
                 Evaluate question difficulty (p) &amp; discrimination (D) through live student responses before releasing to Ready.
               </p>
             </div>
           </div>
 
-          <div class="flex items-center gap-2.5 flex-wrap shrink-0">
+          <div class="flex items-center gap-2 flex-wrap shrink-0">
             <button type="button" (click)="openCreateRoomModal()"
-              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-sm rounded-none">
+              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg transition flex items-center gap-1.5 shadow-sm shadow-indigo-600/20">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
               </svg>
-              <span>+ Create Test Room</span>
+              <span>Create Test Room</span>
             </button>
 
             <a routerLink="/test" target="_blank"
-              class="px-3.5 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 font-bold text-xs uppercase tracking-wider transition flex items-center gap-1.5 rounded-none">
+              class="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs rounded-lg transition flex items-center gap-1.5">
               <span>Candidate Portal</span>
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
               </svg>
             </a>
 
             <button type="button" (click)="recalculateQualityMetrics()" [disabled]="loading()"
-              class="px-3 py-2 bg-white hover:bg-gray-50 text-gray-600 border border-gray-200 font-bold text-xs uppercase tracking-wider transition flex items-center gap-1.5 rounded-none"
+              class="px-3 py-2 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-bold text-xs rounded-lg transition flex items-center gap-1.5"
               title="Recalculate Psychometric Metrics">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400" [class.animate-spin]="loading()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400" [class.animate-spin]="loading()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               <span>Refresh Stats</span>
