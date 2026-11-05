@@ -85,16 +85,11 @@ LANGUAGE plpgsql
 SET search_path = public
 AS $$
 DECLARE
-  -- No 0/O/1/I/L to avoid confusion when read aloud or typed
-  v_alphabet CONSTANT TEXT := 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   v_code TEXT;
-  v_i INT;
 BEGIN
   LOOP
-    v_code := '';
-    FOR v_i IN 1..6 LOOP
-      v_code := v_code || substr(v_alphabet, 1 + floor(random() * length(v_alphabet))::int, 1);
-    END LOOP;
+    -- Generate 6-digit numeric PIN (100000 to 999999)
+    v_code := lpad(floor(100000 + random() * 900000)::text, 6, '0');
     EXIT WHEN NOT EXISTS (SELECT 1 FROM test_rooms WHERE room_code = v_code);
   END LOOP;
   RETURN v_code;

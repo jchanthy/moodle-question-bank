@@ -78,7 +78,7 @@
         </h2>
         <p class="text-sm text-slate-500 max-w-md mx-auto">
           {{ mode() === 'room' 
-              ? 'Enter the 6-character #code or open the direct link shared by your instructor. No account or login needed!'
+              ? 'Enter the 6-digit PIN code or open the direct link shared by your instructor. No account or login needed!'
               : 'Select any available subject below to practice and help calibrate candidate questions.' }}
         </p>
       </div>
@@ -93,10 +93,11 @@
           </div>
           <input type="text" [ngModel]="roomCodeInput()" (ngModelChange)="roomCodeInput.set($event)"
             (keydown.enter)="lookupRoom()"
-            placeholder="Enter code here (e.g. 7K9M4X)"
-            maxlength="60"
+            placeholder="Enter code here (e.g. 582914)"
+            maxlength="20"
+            inputmode="numeric"
             autofocus
-            class="flex-1 bg-transparent text-white placeholder-indigo-200 font-mono font-black text-lg sm:text-2xl tracking-widest uppercase focus:outline-none px-2">
+            class="flex-1 bg-transparent text-white placeholder-indigo-200 font-mono font-black text-lg sm:text-2xl tracking-widest focus:outline-none px-2">
           <button type="button" (click)="lookupRoom()" [disabled]="verifyingRoom() || !roomCodeInput().trim()"
             class="h-12 px-6 sm:px-8 bg-white hover:bg-indigo-50 text-indigo-700 font-black text-xs sm:text-sm uppercase tracking-wider rounded-full shadow-md transition disabled:opacity-50 flex items-center gap-2 shrink-0">
             <span *ngIf="verifyingRoom()" class="w-4 h-4 border-2 border-indigo-700 border-t-transparent rounded-full animate-spin"></span>
