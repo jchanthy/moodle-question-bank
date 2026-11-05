@@ -880,6 +880,11 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   roomBankSelectedIds = signal<Set<string>>(new Set());
   updatingRoomQuestions = signal(false);
 
+  // Pre-test Table & View Mode State
+  pretestViewMode = signal<'table' | 'cards'>('table');
+  pretestExpandedQuestionIds = signal<Set<string>>(new Set());
+  filterPretestRoom = signal<string>('');
+
   // Quick Create Question Form (inside Room Manager)
   quickQuestionName = signal('');
   quickQuestionText = signal('');
@@ -1774,6 +1779,13 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
           const d = q.discrimination_index !== null && q.discrimination_index !== undefined ? Number(q.discrimination_index) : null;
           return attempts >= 20 && p !== null && p >= 0.30 && p <= 0.85 && d !== null && d >= 0.25;
         });
+      }
+
+      if (this.filterPretestRoom()) {
+        const room = this.testRooms().find(r => r.id === this.filterPretestRoom());
+        if (room) {
+          result = result.filter(q => q.category_id === room.subject_id);
+        }
       }
     }
     
@@ -3161,6 +3173,46 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     const p = q.difficulty_index !== null && q.difficulty_index !== undefined ? Number(q.difficulty_index) : null;
     const d = q.discrimination_index !== null && q.discrimination_index !== undefined ? Number(q.discrimination_index) : null;
     return this.preTestService.evaluateReadiness(attempts, p, d);
+  }
+
+  togglePretestExpand(id: string) {
+    const current = new Set(this.pretestExpandedQuestionIds());
+    if (current.has(id)) {
+      current.delete(id);
+    } else {
+      current.add(id);
+    }
+    this.pretestExpandedQuestionIds.set(current);
+  }
+
+  isPretestExpanded(id: string): boolean {
+    return this.pretestExpandedQuestionIds().has(id);
+  }
+
+  getPlainQuestionSnippet(html: string): string {
+    if (!html) return '';
+    const text = html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    return text.length > 95 ? text.slice(0, 95) + '...' : text;
+  }
+
+  getAttemptPercent(attempts: number | undefined): number {
+    const att = attempts || 0;
+    return Math.min(100, Math.round((att / 20) * 100));
+  }
+
+  formatMetric(val: number | null | undefined): string {
+    if (val === null || val === undefined) return '—';
+    return Number(val).toFixed(2);
+  }
+
+  getDifficultyClass(p: number | null | undefined): string {
+    const pVal = p !== null && p !== undefined ? Number(p) : null;
+    return this.preTestService.getDifficultyClass(pVal);
+  }
+
+  getDiscriminationClass(d: number | null | undefined): string {
+    const dVal = d !== null && d !== undefined ? Number(d) : null;
+    return this.preTestService.getDiscriminationClass(dVal);
   }
 
   assigningQuestionId = signal<string | null>(null);

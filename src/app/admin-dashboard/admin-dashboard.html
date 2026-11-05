@@ -2795,26 +2795,41 @@
           </div>
 
           <!-- Pre-Testing Pool Pipeline Kanban & Filtering Header -->
-          <div class="bg-white border border-gray-200/90 shadow-sm p-5 space-y-4">
-            <!-- 3 Pipeline Workflow Stages (Tabs) -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <!-- Stage 0: All -->
+          <div class="bg-white border border-gray-200/90 shadow-sm p-4 sm:p-5 space-y-4">
+            <!-- 5 Pipeline Workflow Stages (Tabs) -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+              <!-- Stage 0: All in Pool -->
               <button type="button" (click)="pretestSubTab.set('all')"
                 class="p-3 text-left transition rounded-xl border flex flex-col justify-between"
-                [ngClass]="pretestSubTab() === 'all' ? 'bg-indigo-50/80 border-indigo-400 ring-2 ring-indigo-500/20' : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/80'">
+                [ngClass]="pretestSubTab() === 'all' ? 'bg-indigo-50/90 border-indigo-400 ring-2 ring-indigo-500/20' : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/80'">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-black uppercase tracking-wider text-slate-700">All In Pool</span>
+                  <span class="text-xs font-black uppercase tracking-wider text-slate-700">All in Pool</span>
                   <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-200 text-slate-800">
                     {{ pretestPoolStats().total }}
                   </span>
                 </div>
-                <p class="text-[11px] text-slate-400 mt-1">Complete question pool</p>
+                <p class="text-[11px] text-slate-400 mt-1">Full pre-test queue</p>
               </button>
 
-              <!-- Stage 1: Awaiting Test (0 attempts) -->
+              <!-- Stage 1: From Ready Tab (Candidates from Production) -->
+              <button type="button" (click)="pretestSubTab.set('from_ready')"
+                class="p-3 text-left transition rounded-xl border flex flex-col justify-between"
+                [ngClass]="pretestSubTab() === 'from_ready' ? 'bg-emerald-100/90 border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm' : 'bg-emerald-50/50 border-emerald-200 hover:bg-emerald-100/70'">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1">
+                    <span>🟢</span> From Ready
+                  </span>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white">
+                    {{ pretestPoolStats().fromReady }}
+                  </span>
+                </div>
+                <p class="text-[11px] text-emerald-700 mt-1">Ready items being re-tested</p>
+              </button>
+
+              <!-- Stage 2: Awaiting Test (0 attempts) -->
               <button type="button" (click)="pretestSubTab.set('needs_data')"
                 class="p-3 text-left transition rounded-xl border flex flex-col justify-between"
-                [ngClass]="pretestSubTab() === 'needs_data' ? 'bg-amber-50/80 border-amber-400 ring-2 ring-amber-500/20' : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/80'">
+                [ngClass]="pretestSubTab() === 'needs_data' ? 'bg-amber-50/90 border-amber-400 ring-2 ring-amber-500/20' : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/80'">
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
                     <span>⏳</span> Awaiting Test
@@ -2823,13 +2838,13 @@
                     {{ pretestPoolStats().awaitingTest }}
                   </span>
                 </div>
-                <p class="text-[11px] text-amber-700/80 mt-1">0 attempts collected yet</p>
+                <p class="text-[11px] text-amber-700/80 mt-1">0 attempts recorded</p>
               </button>
 
-              <!-- Stage 2: In Progress (1-19 attempts) -->
+              <!-- Stage 3: In Progress (1-19 attempts) -->
               <button type="button" (click)="pretestSubTab.set('in_progress')"
                 class="p-3 text-left transition rounded-xl border flex flex-col justify-between"
-                [ngClass]="pretestSubTab() === 'in_progress' ? 'bg-blue-50/80 border-blue-400 ring-2 ring-blue-500/20' : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/80'">
+                [ngClass]="pretestSubTab() === 'in_progress' ? 'bg-blue-50/90 border-blue-400 ring-2 ring-blue-500/20' : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/80'">
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-black uppercase tracking-wider text-blue-800 flex items-center gap-1.5">
                     <span>🔄</span> In Progress
@@ -2841,10 +2856,10 @@
                 <p class="text-[11px] text-blue-700/80 mt-1">1–19 student responses</p>
               </button>
 
-              <!-- Stage 3: Ready for Graduation (20+ attempts & calibrated) -->
+              <!-- Stage 4: Calibrated & Ready for Release (20+ attempts) -->
               <button type="button" (click)="pretestSubTab.set('ready_release')"
                 class="p-3 text-left transition rounded-xl border flex flex-col justify-between"
-                [ngClass]="pretestSubTab() === 'ready_release' ? 'bg-emerald-50/80 border-emerald-400 ring-2 ring-emerald-500/20' : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/80'">
+                [ngClass]="pretestSubTab() === 'ready_release' ? 'bg-emerald-50/90 border-emerald-400 ring-2 ring-emerald-500/20' : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/80'">
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
                     <span>🎉</span> Calibrated
@@ -2857,19 +2872,22 @@
               </button>
             </div>
 
-            <!-- Pretest Filter Controls (Category, Origin, Search, Clear) -->
+            <!-- Pretest Filter Controls (Room, Subject, Teacher, Search, View Mode) -->
             <div class="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
               <div class="flex items-center gap-2.5 flex-wrap flex-1">
-                <!-- Quick Origin Button: From Ready Only -->
-                <button type="button" (click)="pretestSubTab.set(pretestSubTab() === 'from_ready' ? 'all' : 'from_ready')"
-                  class="px-3 py-2 text-xs font-bold transition rounded-none border flex items-center gap-1.5"
-                  [ngClass]="pretestSubTab() === 'from_ready' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'">
-                  <span>🟢</span>
-                  <span>From Ready Only ({{ pretestPoolStats().fromReady }})</span>
-                </button>
+                <!-- Filter by Live Test Room -->
+                <div class="w-56">
+                  <select [ngModel]="filterPretestRoom()" (ngModelChange)="filterPretestRoom.set($event)"
+                    class="w-full px-3 py-2 border border-slate-200 rounded-none text-xs font-bold bg-indigo-50/60 text-indigo-900 focus:bg-white focus:border-indigo-400 outline-none">
+                    <option value="">🎯 All Rooms &amp; Pool</option>
+                    <option *ngFor="let room of testRooms()" [value]="room.id">
+                      #{{ room.room_code }} - {{ room.title }}
+                    </option>
+                  </select>
+                </div>
 
                 <!-- Category / Subject Filter -->
-                <div class="w-48">
+                <div class="w-44">
                   <select [ngModel]="filterCategory()" (ngModelChange)="filterCategory.set($event)"
                     class="w-full px-3 py-2 border border-slate-200 rounded-none text-xs font-semibold bg-slate-50 focus:bg-white focus:border-indigo-400 outline-none">
                     <option value="">All Subjects</option>
@@ -2878,7 +2896,7 @@
                 </div>
 
                 <!-- Teacher Filter -->
-                <div class="w-44">
+                <div class="w-40">
                   <select [ngModel]="filterTeacher()" (ngModelChange)="onTeacherFilterChange($event)"
                     class="w-full px-3 py-2 border border-slate-200 rounded-none text-xs font-semibold bg-slate-50 focus:bg-white focus:border-indigo-400 outline-none">
                     <option value="">All Teachers</option>
@@ -2887,25 +2905,250 @@
                 </div>
 
                 <!-- Clear Active Filters -->
-                <button *ngIf="filterCategory() || filterTeacher() || filterSearch() || pretestSubTab() !== 'all'"
-                  (click)="filterCategory.set(''); filterTeacher.set(''); filterSearch.set(''); pretestSubTab.set('all')"
+                <button *ngIf="filterCategory() || filterTeacher() || filterSearch() || filterPretestRoom() || pretestSubTab() !== 'all'"
+                  (click)="filterCategory.set(''); filterTeacher.set(''); filterSearch.set(''); filterPretestRoom.set(''); pretestSubTab.set('all')"
                   class="text-xs font-bold text-rose-600 hover:text-rose-700 px-3 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition">
                   Clear Filters
                 </button>
               </div>
 
-              <!-- Pretest Search Bar -->
-              <div class="relative w-full sm:w-64">
-                <input type="text" [ngModel]="filterSearch()" (ngModelChange)="onSearchChange($event)"
-                  placeholder="Search questions or #index..."
-                  class="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-none text-xs font-medium bg-slate-50 focus:bg-white focus:border-indigo-400 outline-none">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+              <!-- Right: Search Bar & View Mode Switcher -->
+              <div class="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+                <div class="relative w-full sm:w-60">
+                  <input type="text" [ngModel]="filterSearch()" (ngModelChange)="onSearchChange($event)"
+                    placeholder="Search questions or #index..."
+                    class="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-none text-xs font-medium bg-slate-50 focus:bg-white focus:border-indigo-400 outline-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+
+                <!-- View Mode Switcher (Table vs Cards) -->
+                <div class="flex items-center border border-slate-200 bg-slate-100 p-0.5 shrink-0">
+                  <button type="button" (click)="pretestViewMode.set('table')"
+                    class="px-3 py-1.5 text-xs font-black transition flex items-center gap-1.5"
+                    [ngClass]="pretestViewMode() === 'table' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
+                    <span>📋</span> Table
+                  </button>
+                  <button type="button" (click)="pretestViewMode.set('cards')"
+                    class="px-3 py-1.5 text-xs font-black transition flex items-center gap-1.5"
+                    [ngClass]="pretestViewMode() === 'cards' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
+                    <span>🗂️</span> Cards
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
+          <!-- ============================================================= -->
+          <!-- VIEW 1: COMPACT DATA TABLE (DEFAULT - High Readability & Control) -->
+          <!-- ============================================================= -->
+          <div *ngIf="pretestViewMode() === 'table'" class="bg-white border border-slate-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-slate-50 text-slate-700 text-[11px] font-black uppercase tracking-wider border-b border-slate-200">
+                    <th class="py-3 px-3 w-10 text-center">
+                      <input type="checkbox" [checked]="isAllSelected()" (change)="toggleSelectAll()" class="rounded" />
+                    </th>
+                    <th class="py-3 px-2 w-14 text-center">#ID</th>
+                    <th class="py-3 px-3 min-w-[280px]">Question Name &amp; Text</th>
+                    <th class="py-3 px-3 whitespace-nowrap">Subject</th>
+                    <th class="py-3 px-3 whitespace-nowrap">Origin</th>
+                    <th class="py-3 px-3 text-center whitespace-nowrap">Attempts</th>
+                    <th class="py-3 px-3 text-center whitespace-nowrap">Diff (p)</th>
+                    <th class="py-3 px-3 text-center whitespace-nowrap">Disc (D)</th>
+                    <th class="py-3 px-3 text-center whitespace-nowrap">Readiness</th>
+                    <th class="py-3 px-3 text-right whitespace-nowrap">Quick Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-xs">
+                  <ng-container *ngFor="let q of paginatedQuestions()">
+                    <tr class="hover:bg-indigo-50/30 transition group"
+                      [class.bg-emerald-50/20]="q.metadata && q.metadata['pretest_origin'] === 'ready'">
+                      <!-- Checkbox -->
+                      <td class="py-3 px-3 text-center">
+                        <input type="checkbox" [checked]="isQuestionSelected(q.id)" (change)="toggleSelectQuestion(q.id)"
+                          class="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                      </td>
+
+                      <!-- Sequence / ID -->
+                      <td class="py-3 px-2 text-center font-mono font-bold text-slate-500 text-[11px]">
+                        #{{ q.sequenceNumber }}
+                      </td>
+
+                      <!-- Question Name & Text Preview -->
+                      <td class="py-3 px-3">
+                        <div class="cursor-pointer" (click)="togglePretestExpand(q.id)">
+                          <div class="font-bold text-slate-900 group-hover:text-indigo-600 transition flex items-center gap-1.5">
+                            <span class="text-[10px] text-slate-400">{{ isPretestExpanded(q.id) ? '▼' : '▶' }}</span>
+                            <span>{{ q.name }}</span>
+                            <span class="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-slate-100 text-slate-600">
+                              {{ q.qtype }}
+                            </span>
+                          </div>
+                          <div class="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                            {{ getPlainQuestionSnippet(q.question_text) }}
+                          </div>
+                        </div>
+                      </td>
+
+                      <!-- Subject -->
+                      <td class="py-3 px-3 whitespace-nowrap">
+                        <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold text-[11px]">
+                          {{ getCategoryName(q.category_id) }}
+                        </span>
+                      </td>
+
+                      <!-- Origin -->
+                      <td class="py-3 px-3 whitespace-nowrap">
+                        <span *ngIf="q.metadata && q.metadata['pretest_origin'] === 'ready'"
+                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm"
+                          title="Moved from Ready Tab to Pre-test">
+                          <span>🟢</span> From Ready
+                        </span>
+                        <span *ngIf="!q.metadata || q.metadata['pretest_origin'] !== 'ready'"
+                          class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">
+                          Draft/Review
+                        </span>
+                      </td>
+
+                      <!-- Attempts -->
+                      <td class="py-3 px-3 text-center whitespace-nowrap">
+                        <div class="font-bold text-slate-800">{{ q.total_attempts || 0 }} / 20</div>
+                        <div class="w-16 h-1.5 bg-slate-100 rounded-full mx-auto mt-1 overflow-hidden">
+                          <div class="h-full bg-indigo-600 transition-all duration-300"
+                            [style.width.%]="getAttemptPercent(q.total_attempts)">
+                          </div>
+                        </div>
+                      </td>
+
+                      <!-- Difficulty (p) -->
+                      <td class="py-3 px-3 text-center whitespace-nowrap">
+                        <span class="px-2 py-0.5 rounded text-[11px] font-mono border"
+                          [ngClass]="getDifficultyClass(q.difficulty_index)">
+                          {{ formatMetric(q.difficulty_index) }}
+                        </span>
+                      </td>
+
+                      <!-- Discrimination (D) -->
+                      <td class="py-3 px-3 text-center whitespace-nowrap">
+                        <span class="px-2 py-0.5 rounded text-[11px] font-mono border"
+                          [ngClass]="getDiscriminationClass(q.discrimination_index)">
+                          {{ formatMetric(q.discrimination_index) }}
+                        </span>
+                      </td>
+
+                      <!-- Readiness Status Badge -->
+                      <td class="py-3 px-3 text-center whitespace-nowrap">
+                        <ng-container [ngSwitch]="getReadinessEvaluation(q).status">
+                          <span *ngSwitchCase="'ready'" class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            🎉 Calibrated
+                          </span>
+                          <span *ngSwitchCase="'needs_data'" class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">
+                            ⏳ Needs Data
+                          </span>
+                          <span *ngSwitchCase="'flagged'" class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-300">
+                            ⚠️ Flagged
+                          </span>
+                          <span *ngSwitchDefault class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-800 border border-blue-300">
+                            🔄 Testing
+                          </span>
+                        </ng-container>
+                      </td>
+
+                      <!-- Quick Action Buttons -->
+                      <td class="py-3 px-3 text-right whitespace-nowrap space-x-1.5">
+                        <!-- Expand / Preview Button -->
+                        <button type="button" (click)="togglePretestExpand(q.id)"
+                          class="px-2.5 py-1 text-[11px] font-bold rounded border bg-white hover:bg-slate-50 text-slate-700 transition"
+                          title="Preview question stem & answers inline">
+                          {{ isPretestExpanded(q.id) ? 'Collapse' : '👁️ View' }}
+                        </button>
+
+                        <!-- Return to Ready Button -->
+                        <button type="button" (click)="updateStatus(q.id, 'approved')"
+                          class="px-2.5 py-1 text-[11px] font-bold rounded shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 transition"
+                          title="Return question to Ready for Production Tab">
+                          ✓ Return to Ready
+                        </button>
+
+                        <!-- Edit in Form -->
+                        <a [routerLink]="['/teacher/edit-question', q.id]"
+                          class="inline-block px-2.5 py-1 text-[11px] font-bold rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 transition"
+                          title="Open editor">
+                          ✏️
+                        </a>
+                      </td>
+                    </tr>
+
+                    <!-- Inline Expandable Detail Accordion (shown when row is expanded) -->
+                    <tr *ngIf="isPretestExpanded(q.id)" class="bg-slate-50/70 border-b border-slate-200 animate-in fade-in duration-200">
+                      <td colspan="10" class="p-5">
+                        <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-inner space-y-4">
+                          <!-- Question Details Header -->
+                          <div class="flex items-center justify-between border-b pb-2 text-xs">
+                            <div class="font-bold text-slate-900">
+                              Question: <span class="text-indigo-600 font-mono">{{ q.name }}</span> (Type: {{ q.qtype }})
+                            </div>
+                            <div class="text-slate-500">
+                              Author: <span class="font-semibold text-slate-800">{{ q.metadata?.author_name || 'N/A' }}</span>
+                            </div>
+                          </div>
+
+                          <!-- Question Text -->
+                          <div class="text-sm text-slate-800 leading-relaxed" [innerHTML]="q.question_text"></div>
+
+                          <!-- Answer Choices -->
+                          <div *ngIf="q.answers && q.answers.length > 0" class="space-y-1.5 pt-2">
+                            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Answer Options:</div>
+                            <div *ngFor="let a of q.answers; let aIdx = index"
+                              class="p-2.5 rounded border text-xs flex items-center justify-between gap-3"
+                              [ngClass]="(a.fraction >= 100 || a.fraction === 1) ? 'bg-emerald-50/80 border-emerald-300 text-emerald-900 font-bold' : 'bg-white border-slate-200 text-slate-700'">
+                              <div class="flex items-center gap-2">
+                                <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono"
+                                  [ngClass]="(a.fraction >= 100 || a.fraction === 1) ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'">
+                                  {{ aIdx + 1 }}
+                                </span>
+                                <span [innerHTML]="a.answer_text"></span>
+                              </div>
+                              <span *ngIf="a.fraction >= 100 || a.fraction === 1" class="text-[10px] font-black uppercase text-emerald-700 flex items-center gap-1">
+                                <span>✓ Correct</span>
+                              </span>
+                            </div>
+                          </div>
+
+                          <!-- Quality Stats Footer Strip -->
+                          <div class="pt-3 border-t flex flex-wrap items-center justify-between gap-3 text-xs">
+                            <div class="text-slate-500 flex items-center gap-4">
+                              <span>Attempts: <strong class="text-slate-800">{{ q.total_attempts || 0 }}</strong></span>
+                              <span>Difficulty (p): <strong class="text-slate-800">{{ formatMetric(q.difficulty_index) }}</strong></span>
+                              <span>Discrimination (D): <strong class="text-slate-800">{{ formatMetric(q.discrimination_index) }}</strong></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                              <button type="button" (click)="updateStatus(q.id, 'approved')"
+                                class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded transition">
+                                ✓ Release to Ready Tab
+                              </button>
+                              <button type="button" (click)="openCreateRoomModal(q.category_id || undefined)"
+                                class="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded transition">
+                                🚀 Launch in Test Room
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  </ng-container>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ============================================================= -->
+          <!-- VIEW 2: DETAILED CARDS VIEW (Optional view mode) -->
+          <!-- ============================================================= -->
+          <div *ngIf="pretestViewMode() === 'cards'" class="space-y-4">
           <!-- Question Cards in Testing Pool -->
           <div *ngFor="let q of paginatedQuestions()"
             id="question-card-{{ q.id }}"
@@ -3131,6 +3374,7 @@
                 </button>
               </div>
             </div>
+          </div>
           </div>
 
           <!-- Infinite Scroll Footer -->
