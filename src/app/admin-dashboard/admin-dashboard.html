@@ -2603,14 +2603,14 @@
             <div>
               <div class="flex items-center gap-2">
                 <h3 class="text-base font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
-                  <span>🔗 Active Pre-Test Rooms &amp; Links</span>
+                  <span>🎯 Live Pre-Test Rooms (Slido Style)</span>
                 </h3>
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-700">
                   {{ testRooms().length }}
                 </span>
               </div>
               <p class="text-xs text-gray-500 mt-0.5">
-                Share room URLs or 6-character room codes with students or peer teachers to collect test responses with or without passcodes.
+                Share the <strong>#RoomCode</strong>, <strong>QR Code</strong>, or <strong>Direct Link</strong> with students or teachers—instant join without login or extra passcodes.
               </p>
             </div>
             <div class="flex items-center gap-2">
@@ -2630,9 +2630,9 @@
 
           <!-- Empty Rooms State -->
           <div *ngIf="testRooms().length === 0 && !loadingRooms()" class="py-8 text-center space-y-2">
-            <p class="text-sm font-semibold text-gray-500">No test rooms created yet.</p>
+            <p class="text-sm font-semibold text-gray-500">No live test rooms created yet.</p>
             <p class="text-xs text-gray-400 max-w-md mx-auto">
-              Click <strong>"+ New Room"</strong> to generate a shareable test URL and room code for a subject in your testing pool.
+              Click <strong>"+ New Room"</strong> to generate a Slido-style <strong>#Code</strong>, <strong>QR Code</strong>, and <strong>Direct Link</strong> for any subject in your testing pool.
             </p>
           </div>
 
@@ -2641,20 +2641,24 @@
             <table class="w-full text-left text-xs">
               <thead>
                 <tr class="border-b border-gray-100 text-[10px] font-black uppercase tracking-wider text-gray-400 bg-gray-50/50">
-                  <th class="py-3 px-3">Room Code</th>
+                  <th class="py-3 px-3">Join Code</th>
                   <th class="py-3 px-3">Title &amp; Subject</th>
                   <th class="py-3 px-3">Audience</th>
-                  <th class="py-3 px-3">Security</th>
                   <th class="py-3 px-3">Limits</th>
-                  <th class="py-3 px-3 text-center">Attempts</th>
+                  <th class="py-3 px-3 text-center">Participants</th>
                   <th class="py-3 px-3 text-center">Status</th>
                   <th class="py-3 px-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100">
                 <tr *ngFor="let room of testRooms()" class="hover:bg-slate-50/50 transition">
-                  <td class="py-3 px-3 font-mono font-black text-indigo-700 text-sm whitespace-nowrap">
-                    {{ room.room_code }}
+                  <td class="py-3 px-3 whitespace-nowrap">
+                    <button type="button" (click)="copyRoomCode(room.room_code)" title="Click to copy room code"
+                      class="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md font-mono font-black text-indigo-700 text-sm transition group">
+                      <span class="text-indigo-400 font-bold">#</span>
+                      <span>{{ room.room_code }}</span>
+                      <span class="text-[10px] opacity-0 group-hover:opacity-100 transition text-indigo-500">📋</span>
+                    </button>
                   </td>
                   <td class="py-3 px-3">
                     <div class="font-bold text-gray-900">{{ room.title }}</div>
@@ -2668,37 +2672,33 @@
                       {{ room.audience }}
                     </span>
                   </td>
-                  <td class="py-3 px-3 whitespace-nowrap">
-                    <span *ngIf="room.has_passcode" class="text-amber-700 font-bold flex items-center gap-1">
-                      <span>🔒 Passcode</span>
-                    </span>
-                    <span *ngIf="!room.has_passcode" class="text-gray-400 font-medium">
-                      🔓 Public
-                    </span>
-                  </td>
                   <td class="py-3 px-3 text-gray-600 whitespace-nowrap">
                     <div>{{ room.question_limit ? room.question_limit + ' questions' : 'All in pool' }}</div>
                     <div class="text-[10px] text-gray-400">{{ room.time_limit_minutes ? room.time_limit_minutes + ' min timer' : 'No timer' }}</div>
                   </td>
                   <td class="py-3 px-3 text-center whitespace-nowrap">
                     <span class="font-bold text-gray-900">{{ room.attempts }}</span>
-                    <span *ngIf="room.avg_percentage !== null" class="text-[10px] text-gray-400 block">
+                    <span *ngIf="room.avg_percentage !== null" class="text-[10px] text-emerald-600 font-semibold block">
                       avg {{ room.avg_percentage }}%
                     </span>
                   </td>
                   <td class="py-3 px-3 text-center whitespace-nowrap">
                     <button (click)="toggleRoomActive(room)"
-                      class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider transition"
+                      class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition"
                       [ngClass]="room.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'">
-                      {{ room.is_active ? '● Open' : 'Closed' }}
+                      {{ room.is_active ? '● Live' : 'Closed' }}
                     </button>
                   </td>
                   <td class="py-3 px-3 text-right whitespace-nowrap space-x-1.5">
-                    <button (click)="openShareRoomModal(room)" title="Share Link & QR"
-                      class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded font-bold text-[11px] transition">
-                      🔗 Share
+                    <button (click)="openShareRoomModal(room)" title="Present Screen & QR Code (Slido View)"
+                      class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold text-[11px] transition shadow-sm">
+                      🖥️ Present / QR
                     </button>
-                    <button (click)="openRoomResultsModal(room)" title="View Results"
+                    <button (click)="copyRoomUrl(room.room_code)" title="Copy Direct Link"
+                      class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded font-bold text-[11px] transition">
+                      🔗 Copy Link
+                    </button>
+                    <button (click)="openRoomResultsModal(room)" title="View Participant Results"
                       class="px-2.5 py-1 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded font-bold text-[11px] transition">
                       📊 Results
                     </button>
@@ -4248,42 +4248,38 @@
 </div>
 
 <!-- ============================================================= -->
-<!-- MODAL 1: CREATE PRE-TEST ROOM -->
+<!-- MODAL 1: CREATE PRE-TEST ROOM (SLIDO STYLE) -->
 <!-- ============================================================= -->
-<p-dialog [(visible)]="showCreateRoomModal" [modal]="true" [style]="{ width: '92vw', maxWidth: '580px' }"
-  header="Create Pre-Test Room & Link" [closable]="true" (onHide)="closeCreateRoomModal()">
+<p-dialog [(visible)]="showCreateRoomModal" [modal]="true" [style]="{ width: '92vw', maxWidth: '560px' }"
+  header="Create Live Pre-Test Room (Slido Style)" [closable]="true" (onHide)="closeCreateRoomModal()">
   <div class="space-y-4 pt-2">
+    <div class="p-3 bg-indigo-50/70 border border-indigo-100 text-xs text-indigo-800 flex items-start gap-2.5">
+      <span class="text-base leading-none">🎯</span>
+      <div>
+        <strong>One Code, Instant Access:</strong> Generates a unique <strong>#RoomCode</strong>, <strong>QR Code</strong>, and <strong>Direct Link</strong>. Students or teachers join immediately with just the code or URL—no login or extra security code needed.
+      </div>
+    </div>
+
     <div>
       <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1">
-        Room Title <span class="text-rose-500">*</span>
+        Room / Session Title <span class="text-rose-500">*</span>
       </label>
       <input type="text" [ngModel]="newRoomTitle()" (ngModelChange)="newRoomTitle.set($event)"
         placeholder="e.g. Midterm Calibration Test - Cohort A"
         class="w-full px-3.5 py-2.5 border border-gray-200 rounded-none text-sm text-gray-900 font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
     </div>
 
-    <div>
-      <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1">
-        Subject (Category) <span class="text-rose-500">*</span>
-      </label>
-      <select [ngModel]="newRoomSubjectId()" (ngModelChange)="newRoomSubjectId.set($event)"
-        class="w-full px-3.5 py-2.5 border border-gray-200 rounded-none text-sm text-gray-900 font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-white">
-        <option *ngFor="let cat of categories()" [value]="cat.id">
-          {{ cat.name }}
-        </option>
-      </select>
-      <p class="text-[11px] text-gray-400 mt-1">Questions marked as 'Testing' in this subject will be served.</p>
-    </div>
-
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <div>
         <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1">
-          Passcode (Optional)
+          Subject (Category) <span class="text-rose-500">*</span>
         </label>
-        <input type="text" [ngModel]="newRoomPasscode()" (ngModelChange)="newRoomPasscode.set($event)"
-          placeholder="e.g. 1234 (min 4 chars)"
-          class="w-full px-3.5 py-2.5 border border-gray-200 rounded-none text-sm font-mono focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
-        <p class="text-[10px] text-gray-400 mt-0.5">Leave blank for no passcode.</p>
+        <select [ngModel]="newRoomSubjectId()" (ngModelChange)="newRoomSubjectId.set($event)"
+          class="w-full px-3.5 py-2.5 border border-gray-200 rounded-none text-sm text-gray-900 font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-white">
+          <option *ngFor="let cat of categories()" [value]="cat.id">
+            {{ cat.name }}
+          </option>
+        </select>
       </div>
 
       <div>
@@ -4342,66 +4338,114 @@
       <button type="button" (click)="handleCreateRoom()" [disabled]="creatingRoom()"
         class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center gap-2 shadow-sm disabled:opacity-50">
         <span *ngIf="creatingRoom()" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-        <span>Generate Room &amp; Link</span>
+        <span>Create &amp; Launch Room</span>
       </button>
     </div>
   </div>
 </p-dialog>
 
 <!-- ============================================================= -->
-<!-- MODAL 2: SHARE TEST ROOM & URL -->
+<!-- MODAL 2: SLIDO-STYLE PRESENTER & SHARE VIEW -->
 <!-- ============================================================= -->
-<p-dialog [(visible)]="showRoomShareModal" [modal]="true" [style]="{ width: '90vw', maxWidth: '520px' }"
-  header="Share Pre-Test Room" [closable]="true" (onHide)="closeShareRoomModal()">
-  <div *ngIf="activeShareRoom() as room" class="space-y-5 pt-2">
-    <div class="p-4 bg-indigo-50/70 border border-indigo-100 space-y-1">
-      <div class="text-[10px] font-black uppercase tracking-widest text-indigo-500">Test Room</div>
-      <h4 class="text-base font-black text-gray-900">{{ room.title }}</h4>
-      <p class="text-xs text-indigo-700 font-semibold">{{ room.subject_name }}</p>
+<p-dialog [(visible)]="showRoomShareModal" [modal]="true" [style]="{ width: '94vw', maxWidth: '680px' }"
+  header="Live Room Presenter &amp; Share" [closable]="true" (onHide)="closeShareRoomModal()">
+  <div *ngIf="activeShareRoom() as room" class="space-y-5 pt-1">
+    <!-- Slido Presenter Dark Card -->
+    <div class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 shadow-xl relative overflow-hidden">
+      <!-- Top Header inside Presenter Card -->
+      <div class="flex items-center justify-between gap-3 flex-wrap pb-5 mb-6 border-b border-white/10">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              {{ room.is_active ? 'LIVE PRE-TEST' : 'CLOSED' }}
+            </span>
+            <span class="text-xs font-bold text-indigo-300">{{ room.subject_name }}</span>
+          </div>
+          <h3 class="text-xl sm:text-2xl font-black tracking-tight text-white mt-1">{{ room.title }}</h3>
+        </div>
+
+        <div class="flex items-center gap-3 bg-white/5 border border-white/10 px-3.5 py-2 rounded-xl">
+          <div class="text-right">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Submissions</div>
+            <div class="text-lg font-black text-white leading-none">{{ room.attempts }}</div>
+          </div>
+          <div *ngIf="room.avg_percentage !== null" class="pl-3 border-l border-white/10 text-right">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Avg Score</div>
+            <div class="text-lg font-black text-emerald-400 leading-none">{{ room.avg_percentage }}%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slido 2-Column Join Layout: Instructions + QR Code -->
+      <div class="grid grid-cols-1 sm:grid-cols-5 gap-6 items-center">
+        <!-- Left 3 cols: Join at URL + #CODE -->
+        <div class="sm:col-span-3 space-y-5">
+          <div class="space-y-1">
+            <div class="text-xs font-bold uppercase tracking-widest text-indigo-300">1. Go to</div>
+            <div class="text-base sm:text-lg font-mono font-bold text-white break-all">
+              {{ getBaseTestUrl() }}
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="text-xs font-bold uppercase tracking-widest text-indigo-300">2. Enter room code</div>
+            <button type="button" (click)="copyRoomCode(room.room_code)" title="Click to copy code"
+              class="w-full sm:w-auto inline-flex items-center justify-between sm:justify-start gap-3 px-5 py-3.5 bg-indigo-600 hover:bg-indigo-500 transition rounded-2xl shadow-lg shadow-indigo-600/30 group">
+              <span class="text-2xl sm:text-3xl font-black text-indigo-200">#</span>
+              <span class="text-3xl sm:text-4xl font-mono font-black tracking-widest text-white">{{ room.room_code }}</span>
+              <span class="ml-2 px-2 py-1 bg-black/20 rounded text-[10px] font-bold uppercase tracking-wider text-indigo-100 group-hover:bg-black/30">
+                Copy
+              </span>
+            </button>
+          </div>
+
+          <div class="flex items-center gap-3 text-xs text-slate-300 pt-1">
+            <span>⚡ No login required</span>
+            <span>&bull;</span>
+            <span>{{ room.question_limit ? room.question_limit + ' questions' : 'All pool questions' }}</span>
+            <span>&bull;</span>
+            <span>{{ room.time_limit_minutes ? room.time_limit_minutes + ' min' : 'Untimed' }}</span>
+          </div>
+        </div>
+
+        <!-- Right 2 cols: QR Code Card -->
+        <div class="sm:col-span-2 flex flex-col items-center justify-center">
+          <div class="bg-white p-3 rounded-2xl shadow-lg inline-block">
+            <img [src]="getRoomQrUrl(room.room_code)" [alt]="'QR Code for ' + room.room_code"
+              class="w-40 h-40 sm:w-44 sm:h-44 object-contain block">
+          </div>
+          <span class="text-[11px] font-bold text-indigo-200 mt-2 flex items-center gap-1">
+            📱 Scan QR to join directly
+          </span>
+        </div>
+      </div>
     </div>
 
-    <!-- Room Code Big Display -->
-    <div class="text-center p-6 bg-slate-900 text-white rounded-none space-y-1">
-      <span class="text-[10px] font-black uppercase tracking-widest text-indigo-300">Room Code</span>
-      <div class="text-4xl font-mono font-black tracking-widest text-white">{{ room.room_code }}</div>
-      <p class="text-xs text-slate-400">Students can enter this code at <code>/test</code> without login</p>
-    </div>
-
-    <!-- Shareable URL Box -->
+    <!-- Direct Shareable Link Bar -->
     <div>
-      <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1">
-        Direct Shareable URL
+      <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1.5">
+        Direct Participation Link (One-Click Join)
       </label>
-      <div class="flex gap-1.5">
+      <div class="flex gap-2">
         <input type="text" readonly [value]="getRoomUrl(room.room_code)"
-          class="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 text-xs font-mono text-gray-800 select-all outline-none">
+          class="flex-1 px-3.5 py-2.5 bg-gray-50 border border-gray-200 text-xs font-mono font-bold text-gray-800 select-all outline-none">
         <button type="button" (click)="copyRoomUrl(room.room_code)"
-          class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition whitespace-nowrap shadow-sm">
-          📋 Copy
+          class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition whitespace-nowrap shadow-sm">
+          📋 Copy Link
         </button>
-      </div>
-      <p class="text-[11px] text-gray-400 mt-1">Anyone with this link can take the practice test immediately.</p>
-    </div>
-
-    <!-- Security Info -->
-    <div class="p-3 bg-gray-50 border border-gray-200 text-xs space-y-1 text-gray-600">
-      <div class="flex items-center justify-between">
-        <span class="font-bold">Passcode Protection:</span>
-        <span class="font-bold" [ngClass]="room.has_passcode ? 'text-amber-700' : 'text-gray-500'">
-          {{ room.has_passcode ? 'Required (Share it separately)' : 'None (Open access)' }}
-        </span>
-      </div>
-      <div class="flex items-center justify-between">
-        <span class="font-bold">Target Audience:</span>
-        <span class="capitalize font-semibold text-gray-800">{{ room.audience }}</span>
-      </div>
-      <div *ngIf="room.expires_at" class="flex items-center justify-between">
-        <span class="font-bold">Expires:</span>
-        <span class="font-mono text-gray-800">{{ room.expires_at | date:'medium' }}</span>
+        <a [href]="getRoomUrl(room.room_code)" target="_blank"
+          class="px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition whitespace-nowrap flex items-center gap-1">
+          <span>Open ↗</span>
+        </a>
       </div>
     </div>
 
-    <div class="flex justify-end pt-2">
+    <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+      <button type="button" (click)="closeShareRoomModal(); openRoomResultsModal(room)"
+        class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center gap-1">
+        <span>📊 View Participant Results ({{ room.attempts }})</span>
+      </button>
       <button type="button" (click)="closeShareRoomModal()"
         class="px-5 py-2 bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold transition">
         Done

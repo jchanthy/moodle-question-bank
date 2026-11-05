@@ -149,13 +149,33 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
     this.errorMessage.set(null);
   }
 
+  changeRoom() {
+    this.roomInfo.set(null);
+    this.roomCodeInput.set('');
+    this.errorMessage.set(null);
+    this.router.navigate([], { queryParams: { room: null }, queryParamsHandling: 'merge' });
+  }
+
+  private normalizeRoomCode(raw: string): string {
+    let cleaned = (raw || '').trim();
+    // If user pasted a full URL like http://.../test?room=ABC123
+    const match = cleaned.match(/[?&]room=([A-Za-z0-9]+)/i);
+    if (match && match[1]) {
+      cleaned = match[1];
+    }
+    // Strip leading '#' if user typed #ABC123
+    cleaned = cleaned.replace(/^#+/, '').trim().toUpperCase();
+    return cleaned;
+  }
+
   async lookupRoom(code?: string) {
-    const targetCode = (code || this.roomCodeInput()).trim().toUpperCase();
+    const targetCode = this.normalizeRoomCode(code || this.roomCodeInput());
     if (!targetCode) {
       this.errorMessage.set('Please enter a room code.');
       return;
     }
 
+    this.roomCodeInput.set(targetCode);
     this.verifyingRoom.set(true);
     this.errorMessage.set(null);
 
@@ -163,10 +183,11 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
       const info = await this.preTestService.getRoomPublicInfo(targetCode);
       if (!info) {
         this.roomInfo.set(null);
-        this.errorMessage.set(`Room "${targetCode}" was not found. Please check the code and try again.`);
+        this.errorMessage.set(`Room "#${targetCode}" was not found. Please check the code and try again.`);
       } else {
         this.roomInfo.set(info);
         this.roomCodeInput.set(info.room_code);
+        this.router.navigate([], { queryParams: { room: info.room_code }, queryParamsHandling: 'merge' });
         if (info.audience !== 'any') {
           this.participantRole.set(info.audience);
         }
@@ -181,7 +202,7 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
   async startRoomExam() {
     const info = this.roomInfo();
     if (!info) {
-      this.errorMessage.set('Please look up a valid room first.');
+      this.errorMessage.set('Please enter a valid room code first.');
       return;
     }
 
@@ -192,12 +213,7 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
 
     const name = this.participantName().trim();
     if (!name || name.length < 2) {
-      this.errorMessage.set('Please enter your full name (at least 2 characters).');
-      return;
-    }
-
-    if (info.requires_passcode && !this.roomPasscode().trim()) {
-      this.errorMessage.set('This room requires a passcode. Please enter it.');
+      this.errorMessage.set('Please enter your name (at least 2 characters) to join.');
       return;
     }
 
@@ -207,7 +223,7 @@ export class TestRunnerComponent implements OnInit, OnDestroy {
     try {
       const res = await this.preTestService.startRoomTest(
         info.room_code,
-        info.requires_passcode ? this.roomPasscode() : null,
+        null,
         name,
         this.participantRole()
       );

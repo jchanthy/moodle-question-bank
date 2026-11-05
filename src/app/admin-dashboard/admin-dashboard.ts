@@ -2363,6 +2363,13 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     this.loadingRooms.set(true);
     try {
       const rooms = await this.preTestService.listRooms();
+      // Ensure all rooms operate in Slido single-code mode (no separate passcode)
+      for (const r of rooms) {
+        if (r.has_passcode) {
+          this.preTestService.setRoomPasscode(r.id, null).catch(() => {});
+          r.has_passcode = false;
+        }
+      }
       this.testRooms.set(rooms);
     } catch (err: any) {
       console.warn('Failed to load test rooms:', err);
@@ -2414,16 +2421,6 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const passcode = this.newRoomPasscode().trim();
-    if (passcode && passcode.length < 4) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Validation Error',
-        detail: 'Passcode must be at least 4 characters long.'
-      });
-      return;
-    }
-
     this.creatingRoom.set(true);
     try {
       let expiresAt: string | null = null;
@@ -2437,7 +2434,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       const res = await this.preTestService.createRoom({
         title,
         subject_id: subjectId,
-        passcode: passcode || undefined,
+        passcode: undefined,
         audience: this.newRoomAudience(),
         question_limit: this.newRoomQuestionLimit() || null,
         time_limit_minutes: this.newRoomTimeLimitMinutes() || null,
@@ -2447,13 +2444,13 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       this.messageService.add({
         severity: 'success',
         summary: 'Room Created!',
-        detail: `Room Code: ${res.room_code}`
+        detail: `Join Code: #${res.room_code}`
       });
 
       this.showCreateRoomModal.set(false);
       await this.loadTestRooms();
 
-      // Open share modal immediately
+      // Open Slido presenter/share modal immediately
       const created = this.testRooms().find(r => r.room_code === res.room_code);
       if (created) {
         this.openShareRoomModal(created);
@@ -2479,9 +2476,35 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     this.activeShareRoom.set(null);
   }
 
+  getBaseTestUrl(): string {
+    return `${window.location.origin}/test`;
+  }
+
   getRoomUrl(roomCode: string): string {
     const origin = window.location.origin;
     return `${origin}/test?room=${roomCode}`;
+  }
+
+  getRoomQrUrl(roomCode: string): string {
+    const url = this.getRoomUrl(roomCode);
+    return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(url)}`;
+  }
+
+  async copyRoomCode(roomCode: string) {
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Code Copied!',
+        detail: `Room code #${roomCode} copied to clipboard.`
+      });
+    } catch {
+      this.messageService.add({
+        severity: 'info',
+        summary: 'Room Code',
+        detail: `#${roomCode}`
+      });
+    }
   }
 
   async copyRoomUrl(roomCode: string) {
@@ -2490,8 +2513,8 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       await navigator.clipboard.writeText(url);
       this.messageService.add({
         severity: 'success',
-        summary: 'Copied!',
-        detail: 'Test link copied to clipboard.'
+        summary: 'Link Copied!',
+        detail: 'Direct test link copied to clipboard.'
       });
     } catch {
       this.messageService.add({
