@@ -2561,229 +2561,186 @@
       </ng-container>
     </div>
 
-      <!-- ===== PRE-TESTING POOL TAB ===== -->
+      <!-- ===== PRE-TESTING POOL TAB (REDESIGNED) ===== -->
       <div *ngIf="activeTab() === 'testing'" class="space-y-6">
-        <!-- Quality Analysis Banner (Clean White Enterprise Card Style) -->
-        <div class="bg-white border border-gray-200/80 shadow-sm p-6 space-y-5">
-          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-5 border-b border-gray-100">
-            <!-- Left Info -->
-            <div class="flex items-start gap-4">
-              <div class="w-12 h-12 bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0 text-2xl">
-                🧪
-              </div>
-              <div class="space-y-1">
-                <div class="flex items-center gap-2 flex-wrap">
-                  <h2 class="text-lg font-black text-gray-900 tracking-tight uppercase">
-                    Question Pre-Testing &amp; Calibration Engine
-                  </h2>
-                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
-                    {{ filteredQuestions().length }} In Testing
-                  </span>
-                </div>
-                <p class="text-xs text-gray-500 max-w-3xl leading-relaxed">
-                  Calibrate candidate questions with live student/peer responses before releasing to production. Automatically measures difficulty (<span class="font-mono font-bold text-gray-700">p</span>) and discrimination (<span class="font-mono font-bold text-gray-700">D</span>). Once 20+ attempts are collected with <span class="font-bold text-emerald-700">0.30 &le; p &le; 0.85</span> and <span class="font-bold text-emerald-700">D &ge; 0.25</span>, questions qualify for production.
-                </p>
-              </div>
+
+        <!-- Top Header Bar: Clean Executive Strip -->
+        <div class="bg-white border border-gray-200/90 shadow-sm p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-md shadow-indigo-600/20">
+              🧪
             </div>
-
-            <!-- Right Action Buttons -->
-            <div class="flex items-center gap-2.5 shrink-0 flex-wrap">
-              <button type="button" (click)="openCreateRoomModal()"
-                class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                <span>Create Test Room &amp; Link</span>
-              </button>
-
-              <a routerLink="/test" target="_blank"
-                class="px-4 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 font-bold text-xs uppercase tracking-wider transition flex items-center gap-2">
-                <span>Candidate Portal</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
-
-              <button type="button" (click)="recalculateQualityMetrics()" [disabled]="loading()"
-                class="px-3.5 py-2.5 bg-white hover:bg-gray-50 text-gray-600 border border-gray-200 font-bold text-xs uppercase tracking-wider transition flex items-center gap-2"
-                title="Recalculate Psychometric Metrics">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" [class.animate-spin]="loading()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                <span>Refresh</span>
-              </button>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-base font-black text-gray-900 uppercase tracking-tight">
+                  Pre-Testing &amp; Calibration Lab
+                </h2>
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  {{ totalCounts().testing }} In Pool
+                </span>
+              </div>
+              <p class="text-xs text-gray-500">
+                Evaluate question difficulty (p) &amp; discrimination (D) through live student responses before releasing to Ready.
+              </p>
             </div>
           </div>
 
-          <!-- Psychometric Standards Legend Strip -->
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs">
-            <div class="p-3 bg-slate-50 border border-slate-100 flex items-start gap-2.5">
-              <span class="text-base">⏳</span>
-              <div>
-                <span class="font-bold text-gray-800 block">Needs Data (&lt; 20 attempts)</span>
-                <span class="text-[11px] text-gray-500">Requires at least 20 student responses before calibration stats are valid.</span>
-              </div>
-            </div>
-            <div class="p-3 bg-emerald-50/60 border border-emerald-100 flex items-start gap-2.5">
-              <span class="text-base">✅</span>
-              <div>
-                <span class="font-bold text-emerald-900 block">Ready for Release</span>
-                <span class="text-[11px] text-emerald-700">Difficulty 0.30–0.85 and Discrimination &ge; 0.25. Optimal question quality.</span>
-              </div>
-            </div>
-            <div class="p-3 bg-rose-50/60 border border-rose-100 flex items-start gap-2.5">
-              <span class="text-base">⚠️</span>
-              <div>
-                <span class="font-bold text-rose-900 block">Flagged / Review Needed</span>
-                <span class="text-[11px] text-rose-700">Extremely hard (p &lt; 0.25) or negative discrimination (suspected wrong key).</span>
-              </div>
-            </div>
+          <div class="flex items-center gap-2.5 flex-wrap shrink-0">
+            <button type="button" (click)="openCreateRoomModal()"
+              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-sm rounded-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>+ Create Test Room</span>
+            </button>
+
+            <a routerLink="/test" target="_blank"
+              class="px-3.5 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 font-bold text-xs uppercase tracking-wider transition flex items-center gap-1.5 rounded-none">
+              <span>Candidate Portal</span>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+
+            <button type="button" (click)="recalculateQualityMetrics()" [disabled]="loading()"
+              class="px-3 py-2 bg-white hover:bg-gray-50 text-gray-600 border border-gray-200 font-bold text-xs uppercase tracking-wider transition flex items-center gap-1.5 rounded-none"
+              title="Recalculate Psychometric Metrics">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400" [class.animate-spin]="loading()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>Refresh Stats</span>
+            </button>
           </div>
         </div>
 
         <!-- ============================================================= -->
-        <!-- ACTIVE TEST ROOMS LIST SECTION -->
+        <!-- SECTION 1: LIVE TEST ROOMS (Slido Grid Cards) -->
         <!-- ============================================================= -->
-        <div class="mb-8 bg-white border border-gray-100 shadow-sm p-6 space-y-4">
-          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
-            <div>
-              <div class="flex items-center gap-2">
-                <h3 class="text-base font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
-                  <span>🎯 Live Pre-Test Rooms (Slido Style)</span>
-                </h3>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-700">
-                  {{ testRooms().length }}
-                </span>
-              </div>
-              <p class="text-xs text-gray-500 mt-0.5">
-                Share the <strong>#RoomCode</strong>, <strong>QR Code</strong>, or <strong>Direct Link</strong> with students or teachers—instant join without login or extra passcodes.
-              </p>
-            </div>
+        <div class="bg-white border border-gray-200/90 shadow-sm p-5 space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-gray-100 flex-wrap gap-2">
             <div class="flex items-center gap-2">
-              <button (click)="loadTestRooms()" [disabled]="loadingRooms()"
-                class="px-3 py-1.5 border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-bold transition flex items-center gap-1.5">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" [class.animate-spin]="loadingRooms()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                <span>Refresh</span>
-              </button>
-              <button (click)="openCreateRoomModal()"
-                class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
-                <span>+ New Room</span>
-              </button>
+              <span class="text-sm font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
+                <span>🎯 Live Slido Test Rooms</span>
+              </span>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-700">
+                {{ testRooms().length }}
+              </span>
             </div>
-          </div>
-
-          <!-- Empty Rooms State -->
-          <div *ngIf="testRooms().length === 0 && !loadingRooms()" class="py-8 text-center space-y-2">
-            <p class="text-sm font-semibold text-gray-500">No live test rooms created yet.</p>
-            <p class="text-xs text-gray-400 max-w-md mx-auto">
-              Click <strong>"+ New Room"</strong> to generate a Slido-style <strong>#Code</strong>, <strong>QR Code</strong>, and <strong>Direct Link</strong> for any subject in your testing pool.
+            <p class="text-xs text-gray-400">
+              Launch PIN on projector screen for participants to join via phone or computer
             </p>
           </div>
 
-          <!-- Rooms Table / Cards -->
-          <div *ngIf="testRooms().length > 0" class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
-              <thead>
-                <tr class="border-b border-gray-100 text-[10px] font-black uppercase tracking-wider text-gray-400 bg-gray-50/50">
-                  <th class="py-3 px-3">Join Code</th>
-                  <th class="py-3 px-3">Title &amp; Subject</th>
-                  <th class="py-3 px-3">Audience</th>
-                  <th class="py-3 px-3">Questions in Room</th>
-                  <th class="py-3 px-3">Timer &amp; Limit</th>
-                  <th class="py-3 px-3 text-center">Participants</th>
-                  <th class="py-3 px-3 text-center">Status</th>
-                  <th class="py-3 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-100">
-                <tr *ngFor="let room of testRooms()" class="hover:bg-slate-50/50 transition">
-                  <td class="py-3 px-3 whitespace-nowrap">
-                    <button type="button" (click)="copyRoomCode(room.room_code)" title="Click to copy room code"
-                      class="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md font-mono font-black text-indigo-700 text-sm transition group">
-                      <span class="text-indigo-400 font-bold">#</span>
-                      <span>{{ room.room_code }}</span>
-                      <span class="text-[10px] opacity-0 group-hover:opacity-100 transition text-indigo-500">📋</span>
-                    </button>
-                  </td>
-                  <td class="py-3 px-3">
-                    <div class="font-bold text-gray-900">{{ room.title }}</div>
-                    <div class="text-[11px] text-gray-400">{{ room.subject_name }}</div>
-                  </td>
-                  <td class="py-3 px-3">
-                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"
-                      [ngClass]="room.audience === 'student' ? 'bg-blue-50 text-blue-700 border border-blue-100' :
-                                 room.audience === 'teacher' ? 'bg-purple-50 text-purple-700 border border-purple-100' :
-                                 'bg-gray-100 text-gray-700'">
-                      {{ room.audience }}
-                    </span>
-                  </td>
-                  <td class="py-3 px-3 whitespace-nowrap">
-                    <!-- Has Questions in Pool -->
-                    <div *ngIf="getRoomPoolCount(room) > 0" class="flex items-center gap-1.5">
-                      <button type="button" (click)="openManageRoomQuestionsModal(room, 'active')"
-                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs transition"
-                        title="Click to view or add questions">
-                        <span>📝 {{ getRoomPoolCount(room) }} in pool</span>
-                      </button>
-                      <button type="button" (click)="openManageRoomQuestionsModal(room, 'bank')"
-                        class="px-2 py-1 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px] transition"
-                        title="Add more questions to this room">
-                        + Add
-                      </button>
-                    </div>
-                    <!-- 0 Questions Warning + Add Button -->
-                    <div *ngIf="getRoomPoolCount(room) === 0" class="flex items-center gap-1.5">
-                      <span class="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-black uppercase">
-                        ⚠️ 0 Questions
-                      </span>
-                      <button type="button" (click)="openManageRoomQuestionsModal(room)"
-                        class="px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-sm transition flex items-center gap-1">
-                        <span>+ Add Questions</span>
-                      </button>
-                    </div>
-                  </td>
-                  <td class="py-3 px-3 text-gray-600 whitespace-nowrap">
-                    <div>{{ room.question_limit ? 'Max ' + room.question_limit + ' served' : 'All in pool' }}</div>
-                    <div class="text-[10px] text-gray-400">{{ room.time_limit_minutes ? room.time_limit_minutes + ' min timer' : 'No timer' }}</div>
-                  </td>
-                  <td class="py-3 px-3 text-center whitespace-nowrap">
-                    <span class="font-bold text-gray-900">{{ room.attempts }}</span>
-                    <span *ngIf="room.avg_percentage !== null" class="text-[10px] text-emerald-600 font-semibold block">
-                      avg {{ room.avg_percentage }}%
-                    </span>
-                  </td>
-                  <td class="py-3 px-3 text-center whitespace-nowrap">
-                    <button (click)="toggleRoomActive(room)"
-                      class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition"
-                      [ngClass]="room.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'">
-                      {{ room.is_active ? '● Live' : 'Closed' }}
-                    </button>
-                  </td>
-                  <td class="py-3 px-3 text-right whitespace-nowrap space-x-1">
-                    <button (click)="openShareRoomModal(room)" title="Present Screen & QR Code (Slido View)"
-                      class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold text-[11px] transition shadow-sm">
-                      🖥️ Present / QR
-                    </button>
-                    <button (click)="copyRoomUrl(room.room_code)" title="Copy Direct Link"
-                      class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded font-bold text-[11px] transition">
-                      🔗 Copy Link
-                    </button>
-                    <button (click)="openRoomResultsModal(room)" title="View Participant Results"
-                      class="px-2.5 py-1 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded font-bold text-[11px] transition">
-                      📊 Results
-                    </button>
-                    <button (click)="handleDeleteRoom(room)" title="Delete Room"
-                      class="px-2 py-1 text-red-500 hover:bg-red-50 rounded text-[11px] transition">
-                      🗑️
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <!-- Empty Rooms State -->
+          <div *ngIf="testRooms().length === 0 && !loadingRooms()" class="py-6 text-center space-y-2">
+            <p class="text-xs font-semibold text-gray-500">No active test rooms created yet.</p>
+            <button (click)="openCreateRoomModal()"
+              class="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition">
+              + Create First Room
+            </button>
+          </div>
+
+          <!-- Slido Interactive Room Cards Grid -->
+          <div *ngIf="testRooms().length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div *ngFor="let room of testRooms()"
+              class="rounded-2xl border p-4 transition-all flex flex-col justify-between gap-3 group"
+              [ngClass]="room.is_active ? 'bg-slate-900 text-white border-slate-800 shadow-md' : 'bg-slate-50 text-slate-700 border-slate-200 opacity-75'">
+              
+              <!-- Card Top: Room Code & Status -->
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-2">
+                  <button type="button" (click)="copyRoomCode(room.room_code)" title="Click to copy room code"
+                    class="px-2.5 py-1 rounded-lg font-mono font-black text-base transition flex items-center gap-1.5"
+                    [ngClass]="room.is_active ? 'bg-indigo-600/50 hover:bg-indigo-600 text-white' : 'bg-slate-200 text-slate-800'">
+                    <span class="text-indigo-300">#</span>
+                    <span>{{ room.room_code }}</span>
+                    <span class="text-[10px] opacity-70">📋</span>
+                  </button>
+
+                  <button (click)="toggleRoomActive(room)"
+                    class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider transition"
+                    [ngClass]="room.is_active ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-700 text-slate-400'">
+                    {{ room.is_active ? '● LIVE' : 'CLOSED' }}
+                  </button>
+                </div>
+
+                <h4 class="font-bold text-sm tracking-tight truncate" [class.text-white]="room.is_active">{{ room.title }}</h4>
+                <div class="text-[11px] truncate mt-0.5" [ngClass]="room.is_active ? 'text-indigo-200' : 'text-slate-500'">
+                  {{ room.subject_name }}
+                </div>
+              </div>
+
+              <!-- Card Middle: Questions in Room Button & Attempts -->
+              <div class="pt-2.5 pb-1 border-t flex items-center justify-between gap-2"
+                [ngClass]="room.is_active ? 'border-slate-800' : 'border-slate-200'">
+                <!-- Questions in Room Button & Add (opens Manage Questions Modal) -->
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <button type="button" (click)="openManageRoomQuestionsModal(room, 'active')"
+                    class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                    [ngClass]="room.is_active ? 'bg-indigo-600/40 hover:bg-indigo-600 text-indigo-100 border border-indigo-400/40' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'"
+                    title="View & manage questions in this test room">
+                    <span>📝 Questions ({{ getRoomPoolCount(room) }})</span>
+                  </button>
+                  <button type="button" (click)="openManageRoomQuestionsModal(room, 'bank')"
+                    class="px-2 py-1 rounded-lg text-xs font-bold transition"
+                    [ngClass]="room.is_active ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200'"
+                    title="Add questions from question pool to this test room">
+                    + Add
+                  </button>
+                </div>
+
+                <div class="text-[11px] text-right shrink-0" [ngClass]="room.is_active ? 'text-slate-400' : 'text-slate-500'">
+                  <div>👥 <span class="font-bold" [class.text-white]="room.is_active">{{ room.attempts }}</span> tests</div>
+                  <div *ngIf="room.avg_percentage !== null" class="font-bold text-emerald-400 text-[10px]">
+                    avg {{ room.avg_percentage }}%
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card Bottom: Actions -->
+              <div class="pt-2 flex items-center gap-1.5 border-t" [ngClass]="room.is_active ? 'border-slate-800' : 'border-slate-200'">
+                <button (click)="openShareRoomModal(room)" title="Present on Projector Screen"
+                  class="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg transition shadow flex items-center justify-center gap-1">
+                  <span>🖥️</span>
+                  <span>Present</span>
+                </button>
+                <button (click)="copyRoomUrl(room.room_code)" title="Copy Direct Join Link"
+                  class="p-1.5 rounded-lg border text-xs transition"
+                  [ngClass]="room.is_active ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'">
+                  🔗
+                </button>
+                <button (click)="openRoomResultsModal(room)" title="View Results"
+                  class="p-1.5 rounded-lg border text-xs transition"
+                  [ngClass]="room.is_active ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'">
+                  📊
+                </button>
+                <button (click)="handleDeleteRoom(room)" title="Delete Room"
+                  class="p-1.5 rounded-lg border text-xs transition text-rose-400 hover:bg-rose-950/40 border-rose-900/30">
+                  🗑️
+                </button>
+              </div>
+
+            </div>
           </div>
         </div>
+
+        <!-- ============================================================= -->
+        <!-- SECTION 2: QUESTION POOL & PIPELINE OPERATIONS -->
+        <!-- ============================================================= -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between flex-wrap gap-2 pt-2">
+            <div>
+              <h3 class="text-base font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
+                <span>📝 Question Management &amp; Calibration Pool</span>
+              </h3>
+              <p class="text-xs text-gray-500">
+                Manage, filter, and calibrate candidate questions before promoting to Ready.
+              </p>
+            </div>
+            <div class="text-xs text-gray-400 font-bold">
+              Showing {{ paginatedQuestions().length }} of {{ filteredQuestions().length }} questions
+            </div>
+          </div>
 
         <!-- Fixed Bottom Bulk Action Bar -->
         <div *ngIf="selectedQuestionIds().size > 0"
