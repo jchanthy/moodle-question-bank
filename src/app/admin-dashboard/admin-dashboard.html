@@ -299,31 +299,39 @@
 
 
       <!-- Filter Bar (Hidden in Pre-Testing Pool as requested) -->
-      <div *ngIf="activeTab() !== 'testing'" class="mb-6 bg-white rounded-none border border-gray-100 shadow-sm p-4">
-        <!-- Filters Header with Recalculate Metrics Action -->
-        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <!-- Khmer Spell Check Toggle -->
-          <button type="button"
-            (click)="toggleSpellCheck()"
-            class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 border shadow-sm cursor-pointer select-none"
-            [ngClass]="spellCheckActive() ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'"
-            title="បើក/បិទ ការត្រួតពិនិត្យអក្ខរាវិរុទ្ធភាសាខ្មែរ">
-            <span>🔍 ពិនិត្យអក្ខរាវិរុទ្ធ (Khmer Spell Check)</span>
-            <span *ngIf="spellCheckActive()" class="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-200 text-indigo-800">
-              ON
-            </span>
-          </button>
-          
-          <div class="flex items-center gap-2 text-xs font-black text-gray-400 uppercase tracking-widest">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
-                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-            Filters & Quality Engine
+      <div *ngIf="activeTab() !== 'testing'" class="mb-6 bg-white rounded-none border border-gray-100 shadow-sm p-5 space-y-4">
+        <!-- Top Row: Section Header & Action Controls -->
+        <div class="flex items-center justify-between pb-3 border-b border-gray-100 flex-wrap gap-3">
+          <!-- Left: Clear Header Label -->
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-xs font-black text-gray-900 uppercase tracking-wider">
+                Filters &amp; Quality Engine
+              </h3>
+              <p class="text-[11px] text-gray-400">Search and filter questions across subjects, types, and quality checks</p>
+            </div>
           </div>
 
-          <div class="flex items-center gap-2">
+          <!-- Right: Toggles and Bulk Tools -->
+          <div class="flex items-center gap-2 flex-wrap">
+            <!-- Khmer Spell Check Toggle -->
+            <button type="button"
+              (click)="toggleSpellCheck()"
+              class="px-3 py-1.5 rounded-none text-xs font-bold transition flex items-center gap-1.5 border shadow-sm cursor-pointer select-none"
+              [ngClass]="spellCheckActive() ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'"
+              title="បើក/បិទ ការត្រួតពិនិត្យអក្ខរាវិរុទ្ធភាសាខ្មែរ">
+              <span>🔍 ពិនិត្យអក្ខរាវិរុទ្ធ (Khmer Spell Check)</span>
+              <span *ngIf="spellCheckActive()" class="px-1.5 py-0.2 rounded text-[9px] font-black bg-indigo-600 text-white">
+                ON
+              </span>
+            </button>
+
             <!-- Select All Visible Questions -->
             <button (click)="toggleSelectAll()"
               class="text-xs font-bold text-slate-700 hover:text-blue-600 flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-slate-50 hover:bg-slate-100 border border-slate-200 transition">
@@ -333,12 +341,21 @@
 
             <!-- Recalculate Quality Metrics Button -->
             <button (click)="recalculateQualityMetrics()" [disabled]="loading()"
-              class="text-xs font-black text-indigo-700 hover:text-indigo-800 flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition shadow-sm"
+              class="text-xs font-black text-indigo-700 hover:bg-indigo-100 flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-indigo-50 border border-indigo-200 transition shadow-sm"
               title="Re-run Difficulty (p) and Discrimination (D) calculations across all questions">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               <span>Recalculate Metrics</span>
+            </button>
+
+            <!-- Clear Filters Button -->
+            <button *ngIf="hasActiveFilters()" (click)="clearFilters()"
+              class="text-xs font-black text-rose-600 hover:text-rose-700 flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-rose-50 hover:bg-rose-100 border border-rose-200 transition">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              <span>Clear</span>
             </button>
           </div>
         </div>
@@ -372,16 +389,6 @@
                   [ngClass]="filterMisspelledOnly() ? 'bg-rose-600 text-white' : 'bg-rose-100 text-rose-700 border border-rose-200'">
                   {{ misspelledQuestionsCount() }}
                 </span>
-              </button>
-
-              <!-- Clear Filters (Moved to top row) -->
-              <button *ngIf="hasActiveFilters()" (click)="clearFilters()"
-                class="text-xs font-black text-red-600 hover:text-red-700 flex items-center gap-2 whitespace-nowrap transition px-4 py-2 rounded-none bg-red-50/50 hover:bg-red-50 border border-red-100">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                  stroke="currentColor">
-                  <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Clear Filters
               </button>
             </div>
 
