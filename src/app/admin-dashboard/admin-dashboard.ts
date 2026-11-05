@@ -841,7 +841,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     });
 
     const testingQs = Array.from(familyMap.values()).filter(q => q.status === 'testing');
-    const fromReady = testingQs.filter(q => q.metadata?.pretest_origin === 'ready').length;
+    const fromReady = testingQs.filter(q => q.metadata && q.metadata['pretest_origin'] === 'ready').length;
     const awaitingTest = testingQs.filter(q => !q.total_attempts || q.total_attempts === 0).length;
     const inProgress = testingQs.filter(q => (q.total_attempts || 0) > 0 && (q.total_attempts || 0) < 20).length;
     const readyRelease = testingQs.filter(q => {
@@ -1762,7 +1762,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     if (this.activeTab() === 'testing') {
       const subTab = this.pretestSubTab();
       if (subTab === 'from_ready') {
-        result = result.filter(q => q.metadata?.pretest_origin === 'ready');
+        result = result.filter(q => q.metadata && q.metadata['pretest_origin'] === 'ready');
       } else if (subTab === 'needs_data') {
         result = result.filter(q => !q.total_attempts || q.total_attempts === 0);
       } else if (subTab === 'in_progress') {
@@ -1785,8 +1785,8 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
 
     result.sort((a, b) => {
       if (isTesting) {
-        const timeA = new Date(a.metadata?.moved_to_testing_at || a.updated_at || a.created_at).getTime();
-        const timeB = new Date(b.metadata?.moved_to_testing_at || b.updated_at || b.created_at).getTime();
+        const timeA = new Date((a.metadata && a.metadata['moved_to_testing_at']) || a.updated_at || a.created_at).getTime();
+        const timeB = new Date((b.metadata && b.metadata['moved_to_testing_at']) || b.updated_at || b.created_at).getTime();
         return timeB - timeA;
       }
       const dateA = new Date(a.created_at).getTime();

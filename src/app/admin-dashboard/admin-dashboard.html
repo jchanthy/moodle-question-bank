@@ -2967,15 +2967,15 @@
                   </span>
 
                   <!-- Origin Badge: Clearly shows if question came from Ready or elsewhere -->
-                  <span *ngIf="q.metadata?.pretest_origin === 'ready'"
+                  <span *ngIf="q.metadata && q.metadata['pretest_origin'] === 'ready'"
                     class="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm"
                     title="Moved directly from Ready / Approved Bank">
                     <span>🟢</span>
                     <span>From Ready Tab</span>
                   </span>
-                  <span *ngIf="q.metadata?.pretest_origin && q.metadata?.pretest_origin !== 'ready'"
+                  <span *ngIf="q.metadata && q.metadata['pretest_origin'] && q.metadata['pretest_origin'] !== 'ready'"
                     class="px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded text-[10px] font-bold uppercase tracking-wider">
-                    From {{ q.metadata?.pretest_origin }}
+                    From {{ q.metadata['pretest_origin'] }}
                   </span>
 
                   <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
@@ -3150,7 +3150,7 @@
 
               <!-- Action Buttons -->
               <div class="flex flex-row items-center justify-end gap-2.5 pt-4 border-t border-slate-100 flex-wrap">
-                <button (click)="openCreateRoomModal(q.category_id)"
+                <button (click)="openCreateRoomModal(q.category_id || undefined)"
                   class="bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white px-4 py-2 rounded-none font-bold transition text-xs border border-indigo-200 flex items-center gap-1.5"
                   title="Create or launch a live test room for this subject">
                   <span>🚀</span>
