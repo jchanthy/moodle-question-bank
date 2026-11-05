@@ -156,10 +156,10 @@ export class SupabaseService {
         // Public pages (/test, /dictionary, /auth) must remain accessible without login.
         const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
         const currentUrl = this.router.url;
-        const isPublic = currentPath.startsWith('/test') || 
+        const isPublic = currentPath.startsWith('/test') || currentPath.startsWith('/present') || 
                          currentPath.startsWith('/dictionary') || 
                          currentPath.startsWith('/auth') ||
-                         currentUrl.includes('/test') || 
+                         currentUrl.includes('/test') || currentUrl.includes('/present') || 
                          currentUrl.includes('/dictionary') || 
                          currentUrl.includes('/auth');
 

@@ -2469,10 +2469,14 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       this.showCreateRoomModal.set(false);
       await this.loadTestRooms();
 
-      // Open Slido presenter/share modal immediately
+      // If the room has 0 questions, open the Question Manager first; otherwise launch the Presenter Page
       const created = this.testRooms().find(r => r.room_code === res.room_code);
       if (created) {
-        this.openShareRoomModal(created);
+        if (this.getRoomPoolCount(created) === 0) {
+          this.openManageRoomQuestionsModal(created);
+        } else {
+          this.openShareRoomModal(created);
+        }
       }
     } catch (err: any) {
       this.messageService.add({
@@ -2486,8 +2490,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   }
 
   openShareRoomModal(room: TestRoomAdminItem) {
-    this.activeShareRoom.set(room);
-    this.showRoomShareModal.set(true);
+    this.router.navigate(['/present', room.room_code]);
   }
 
   closeShareRoomModal() {
