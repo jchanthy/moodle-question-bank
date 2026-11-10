@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import {
@@ -49,6 +49,9 @@ export class RoomPresenterComponent implements OnInit, OnDestroy {
   avgPercentage = computed(() => this.adminRoom()?.avg_percentage ?? null);
 
   async ngOnInit() {
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
     this.route.paramMap.subscribe(async params => {
       const code = (params.get('code') || '').trim().toUpperCase();
       this.roomCode.set(code);
@@ -63,6 +66,8 @@ export class RoomPresenterComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
     this.stopLivePolling();
   }
 
@@ -159,6 +164,11 @@ export class RoomPresenterComponent implements OnInit, OnDestroy {
     } catch {}
   }
 
+  @HostListener('document:fullscreenchange')
+  onFullscreenChange() {
+    this.isFullscreen.set(!!document.fullscreenElement);
+  }
+
   toggleFullscreen() {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen?.().then(() => {
@@ -172,6 +182,9 @@ export class RoomPresenterComponent implements OnInit, OnDestroy {
   }
 
   goBackToAdmin() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {});
+    }
     this.router.navigate(['/admin']);
   }
 }
