@@ -173,51 +173,48 @@
     <!-- QUESTIONS VIEW -->
     <div *ngIf="currentView() === 'questions'" class="animate-in fade-in duration-500">
 
-      <!-- Question Types Overview -->
-      <div class="mb-10 bg-white rounded-none border border-gray-100 shadow-sm overflow-hidden">
-        <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-          <div>
-            <h2 class="text-lg font-extrabold text-gray-900 tracking-tight">Question Types</h2>
-            <p class="text-xs text-gray-400 mt-0.5">Distribution across the entire question bank</p>
-          </div>
-          <div class="flex items-center gap-3">
-            <a routerLink="/teacher/guide" target="_blank"
-              class="h-9 px-3 flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50/60 hover:bg-blue-100/80 transition-colors border border-blue-100"
-              title="View Moodle Question Type Documentation">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-              </svg>
-              <span>View Type Guide</span>
-            </a>
-            <div class="bg-blue-50 px-4 py-2 rounded-none">
-              <span class="text-2xl font-black text-blue-600">{{ totalQuestions() }}</span>
-              <span class="text-xs font-bold text-blue-400 ml-1">Total</span>
-            </div>
+      <!-- Question Types Summary Strip (full breakdown lives in the Question Types dialog) -->
+      <div class="mb-6 bg-white rounded-none border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-4 flex-wrap">
+        <!-- Total -->
+        <div class="flex items-center gap-2 pr-4 border-r border-gray-100">
+          <span class="text-2xl font-black text-blue-600 leading-none">{{ totalQuestions() }}</span>
+          <div class="leading-tight">
+            <div class="text-[10px] font-black text-gray-700 uppercase tracking-wider">Questions</div>
+            <div class="text-[10px] text-gray-400">{{ questionTypeCounts().length }} types</div>
           </div>
         </div>
-        <div class="p-6">
-          <div *ngIf="questionTypeCounts().length === 0 && !loading()" class="text-center py-8 text-gray-400 text-sm">
-            No questions in the bank yet.
-          </div>
-          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            <div *ngFor="let tc of questionTypeCounts()"
-              (click)="toggleQtypeFilter(tc.type)"
-              role="button" tabindex="0" (keydown.enter)="toggleQtypeFilter(tc.type)"
-              [title]="filterQtype() === tc.type ? 'Click to clear filter' : 'Click to filter by ' + tc.label"
-              class="flex items-center gap-3 px-4 py-3 rounded-none border cursor-pointer transition-all group"
-              [ngClass]="filterQtype() === tc.type ? 'border-blue-400 bg-blue-50 shadow-sm ring-2 ring-blue-200' : 'border-gray-100 hover:border-blue-200 hover:bg-blue-50/30'">
-              <span class="text-xl">{{ tc.icon }}</span>
-              <div class="flex-1 min-w-0">
-                <div class="text-xs font-bold text-gray-700 truncate group-hover:text-blue-700 transition-colors">{{
-                  tc.label }}</div>
-                <div class="text-[10px] text-gray-400">{{ tc.type }}</div>
-              </div>
-              <div class="text-lg font-black group-hover:text-blue-600 transition-colors"
-                [ngClass]="filterQtype() === tc.type ? 'text-blue-600' : 'text-gray-300'">{{ tc.count }}
-              </div>
-            </div>
-          </div>
+
+        <!-- Top types as compact chips (click to filter) -->
+        <div class="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+          <button type="button" *ngFor="let tc of topQuestionTypes()"
+            (click)="toggleQtypeFilter(tc.type)"
+            [title]="filterQtype() === tc.type ? 'Click to clear filter' : 'Filter by ' + tc.label"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none border text-xs font-bold transition cursor-pointer"
+            [ngClass]="filterQtype() === tc.type ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-blue-200 hover:bg-blue-50/40'">
+            <span>{{ tc.icon }}</span>
+            <span class="truncate max-w-[120px]">{{ tc.label }}</span>
+            <span class="font-black" [ngClass]="filterQtype() === tc.type ? 'text-blue-600' : 'text-gray-400'">{{ tc.count }}</span>
+          </button>
+
+          <!-- Active filter chip when it's not among the top types -->
+          <button type="button" *ngIf="activeQtypeInfo() && !topQuestionTypes().includes(activeQtypeInfo()!)"
+            (click)="toggleQtypeFilter(activeQtypeInfo()!.type)" title="Click to clear filter"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none border border-blue-400 bg-blue-50 text-blue-700 text-xs font-bold cursor-pointer">
+            <span>{{ activeQtypeInfo()!.icon }}</span>
+            <span>{{ activeQtypeInfo()!.label }}</span>
+            <span class="font-black text-blue-600">{{ activeQtypeInfo()!.count }}</span>
+            <span class="ml-0.5">✕</span>
+          </button>
         </div>
+
+        <!-- Open full breakdown -->
+        <button type="button" (click)="showTypeSummaryModal.set(true)"
+          class="h-8 px-3 flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50/60 hover:bg-blue-100/80 transition-colors border border-blue-100 rounded-none cursor-pointer">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <span>All Types ({{ questionTypeCounts().length }})</span>
+        </button>
       </div>
 
       <!-- Tabs -->
@@ -4339,6 +4336,74 @@
 </div>
 
 <!-- Import Questions Dialog -->
+<!-- Question Types Summary Dialog -->
+<p-dialog [visible]="showTypeSummaryModal()" (visibleChange)="showTypeSummaryModal.set($event)" [modal]="true"
+  [dismissableMask]="true" [style]="{ width: '48rem' }" [breakpoints]="{ '1199px': '75vw', '575px': '95vw' }"
+  [draggable]="false" [resizable]="false">
+  <ng-template pTemplate="header">
+    <div class="flex items-center justify-between w-full pr-4 gap-4">
+      <div>
+        <h2 class="text-xl font-extrabold text-gray-900">Question Types</h2>
+        <p class="text-xs text-gray-400 mt-0.5">Distribution across the entire question bank</p>
+      </div>
+      <div class="bg-blue-50 px-4 py-2 rounded-none shrink-0">
+        <span class="text-2xl font-black text-blue-600">{{ totalQuestions() }}</span>
+        <span class="text-xs font-bold text-blue-400 ml-1">Total</span>
+      </div>
+    </div>
+  </ng-template>
+
+  <div *ngIf="questionTypeCounts().length === 0" class="text-center py-8 text-gray-400 text-sm">
+    No questions in the bank yet.
+  </div>
+
+  <div class="divide-y divide-gray-100">
+    <button type="button" *ngFor="let tc of questionTypeCounts()"
+      (click)="applyTypeFilterFromSummary(tc.type)"
+      [title]="filterQtype() === tc.type ? 'Click to clear filter' : 'Click to filter by ' + tc.label"
+      class="w-full flex items-center gap-3 px-3 py-2.5 text-left transition cursor-pointer group"
+      [ngClass]="filterQtype() === tc.type ? 'bg-blue-50' : 'hover:bg-gray-50'">
+      <span class="text-lg w-6 text-center shrink-0">{{ tc.icon }}</span>
+      <div class="w-44 shrink-0 min-w-0">
+        <div class="text-xs font-bold text-gray-800 truncate group-hover:text-blue-700">{{ tc.label }}</div>
+        <div class="text-[10px] text-gray-400">{{ tc.type }}</div>
+      </div>
+      <div class="flex-1 h-2 bg-gray-100 rounded-none overflow-hidden">
+        <div class="h-full transition-all"
+          [ngClass]="filterQtype() === tc.type ? 'bg-blue-600' : 'bg-blue-400 group-hover:bg-blue-500'"
+          [style.width.%]="typePercent(tc.count)"></div>
+      </div>
+      <div class="w-24 text-right shrink-0">
+        <span class="text-sm font-black text-gray-800">{{ tc.count }}</span>
+        <span class="text-[10px] font-bold text-gray-400 ml-1">{{ typePercent(tc.count) }}%</span>
+      </div>
+    </button>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="flex items-center justify-between w-full">
+      <a routerLink="/teacher/guide" target="_blank"
+        class="h-9 px-3 flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50/60 hover:bg-blue-100/80 transition-colors border border-blue-100"
+        title="View Moodle Question Type Documentation">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+        </svg>
+        <span>View Type Guide</span>
+      </a>
+      <div class="flex items-center gap-2">
+        <button type="button" *ngIf="filterQtype()" (click)="toggleQtypeFilter(filterQtype()); showTypeSummaryModal.set(false)"
+          class="h-9 px-3 text-xs font-bold text-rose-600 border border-rose-200 hover:bg-rose-50 rounded-none transition cursor-pointer">
+          Clear Type Filter
+        </button>
+        <button type="button" (click)="showTypeSummaryModal.set(false)"
+          class="h-9 px-4 text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 rounded-none transition cursor-pointer">
+          Close
+        </button>
+      </div>
+    </div>
+  </ng-template>
+</p-dialog>
+
 <p-dialog [visible]="showImportModal()" (visibleChange)="showImportModal.set($event)" [modal]="true" [style]="{ width: '50rem' }" [breakpoints]="{ '1199px': '75vw', '575px': '90vw' }" [draggable]="false" [resizable]="false">
   <ng-template pTemplate="header">
     <div>

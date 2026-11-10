@@ -743,6 +743,15 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   loading = signal(true);
   questionTypeCounts = signal<TypeCount[]>([]);
   totalQuestions = signal(0);
+  // Question Types summary dialog (moved out of the main page to reduce clutter)
+  showTypeSummaryModal = signal(false);
+  /** Top question types shown as compact chips in the summary strip */
+  topQuestionTypes = computed(() => this.questionTypeCounts().slice(0, 4));
+  /** Active qtype filter info (for showing the active chip in the summary strip) */
+  activeQtypeInfo = computed(() => {
+    const t = this.filterQtype();
+    return t ? this.questionTypeCounts().find(tc => tc.type === t) || null : null;
+  });
   // Tabs
   activeTab = signal<'pending' | 'approved' | 'rejected' | 'draft' | 'testing'>(
     (sessionStorage.getItem('admin_active_tab') as any) || 'pending'
@@ -1932,6 +1941,18 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   toggleQtypeFilter(type: string) {
     this.filterQtype.set(this.filterQtype() === type ? '' : type);
     this.currentPage.set(1);
+  }
+
+  /** Percentage share of a question type across the whole bank */
+  typePercent(count: number): number {
+    const total = this.totalQuestions();
+    return total > 0 ? Math.round((count / total) * 1000) / 10 : 0;
+  }
+
+  /** Apply a type filter from the summary dialog and close it */
+  applyTypeFilterFromSummary(type: string) {
+    this.toggleQtypeFilter(type);
+    this.showTypeSummaryModal.set(false);
   }
 
   toggleMisspelledFilter() {
