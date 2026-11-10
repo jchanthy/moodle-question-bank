@@ -4395,6 +4395,28 @@ export class TeacherDashboardComponent implements OnInit, OnDestroy {
     }
   }
 
+  isPageSelected() {
+    const page = this.paginatedQuestions();
+    return page.length > 0 && page.every(q => this.selectedIds().has(q.id));
+  }
+
+  toggleSelectPage() {
+    const page = this.paginatedQuestions();
+    const current = new Set(this.selectedIds());
+    const allOnPage = page.length > 0 && page.every(q => current.has(q.id));
+    if (allOnPage) {
+      page.forEach(q => current.delete(q.id));
+    } else {
+      page.forEach(q => current.add(q.id));
+    }
+    this.selectedIds.set(current);
+  }
+
+  loadAllQuestionsToView() {
+    const totalPages = Math.ceil(this.filteredQuestions().length / this.pageSize());
+    this.currentPage.set(Math.max(1, totalPages));
+  }
+
   isAllSelected() {
     return this.filteredQuestions().length > 0 && this.selectedIds().size === this.filteredQuestions().length;
   }

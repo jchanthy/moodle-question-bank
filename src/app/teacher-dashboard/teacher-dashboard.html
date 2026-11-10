@@ -541,10 +541,10 @@
     <!-- Floating Bulk Actions Bar (Modern Fixed Bottom) -->
     <div *ngIf="selectedIds().size > 0" 
          class="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-8 duration-300 w-full max-w-fit px-4">
-      <div class="bg-brand-dark text-white rounded-none shadow-2xl px-6 py-4 flex items-center gap-6 border border-white/20 backdrop-blur-xl bg-opacity-98">
+      <div class="bg-brand-dark text-white rounded-none shadow-2xl px-6 py-4 flex flex-wrap items-center gap-4 sm:gap-6 border border-white/20 backdrop-blur-xl bg-opacity-98">
         
         <!-- Selection Info -->
-        <div class="flex items-center gap-3 border-r border-white/10 pr-6">
+        <div class="flex items-center gap-3 border-r border-white/10 pr-4 sm:pr-6">
           <div class="w-9 h-9 rounded-none bg-blue-500 flex items-center justify-center font-black text-sm shadow-lg shadow-blue-500/20">
             {{ selectedIds().size }}
           </div>
@@ -552,6 +552,18 @@
             <span class="text-[11px] font-black uppercase tracking-widest text-blue-400">Selected</span>
             <span class="text-[11px] text-gray-400 font-bold">Questions</span>
           </div>
+          <button *ngIf="selectedIds().size < filteredQuestions().length" (click)="selectAllQuestions()"
+            class="ml-2 text-xs font-bold text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-none border border-white/20 transition flex items-center gap-1.5 cursor-pointer">
+            <span>Select All ({{ filteredQuestions().length }})</span>
+          </button>
+          <span class="text-xs text-slate-400 font-medium ml-2">
+            Showing {{ paginatedQuestions().length }} of {{ filteredQuestions().length }}
+            <button *ngIf="paginatedQuestions().length < filteredQuestions().length" type="button"
+              (click)="loadAllQuestionsToView()"
+              class="ml-1 text-blue-400 hover:text-blue-300 hover:underline font-bold text-[11px] cursor-pointer">
+              (Load all)
+            </button>
+          </span>
         </div>
 
         <!-- Bulk Move -->
@@ -603,8 +615,8 @@
           </p-button>
 
           <button (click)="clearSelection()" 
-                  class="px-4 py-2 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 rounded-none transition-all">
-            Cancel
+                  class="px-3 py-1.5 text-xs font-bold text-rose-300 hover:text-white bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 rounded-none transition-all cursor-pointer">
+            Clear Selection
           </button>
         </div>
       </div>
@@ -848,17 +860,18 @@
         <div class="h-full animate-progress-bar"></div>
       </div>
 
+
       <!-- Select All Across Pages Banner -->
-      <div *ngIf="isAllSelected() && totalCount() > paginatedQuestions().length && selectedIds().size < totalCount() && currentView() !== 'assigned'" class="bg-blue-50 border border-blue-200 p-4 mb-4 rounded-3xl flex items-center justify-center text-xs font-bold text-blue-800 animate-in fade-in duration-200">
+      <div *ngIf="isPageSelected() && filteredQuestions().length > paginatedQuestions().length && selectedIds().size < filteredQuestions().length && currentView() !== 'assigned'" class="bg-blue-50 border border-blue-200 p-4 mb-4 rounded-3xl flex items-center justify-center text-xs font-bold text-blue-800 animate-in fade-in duration-200">
         <span class="bg-blue-100 px-2.5 py-1 rounded-full mr-2">Tip</span>
         All {{ paginatedQuestions().length }} questions on this page are selected.
-        <button (click)="selectAllQuestions()" class="ml-1 text-blue-600 underline hover:text-blue-900 transition-colors">
+        <button (click)="selectAllQuestions()" class="ml-1 text-blue-600 underline hover:text-blue-900 transition-colors cursor-pointer">
           Select all {{ filteredQuestions().length }} questions
         </button>
       </div>
       <div *ngIf="selectedIds().size === filteredQuestions().length && filteredQuestions().length > paginatedQuestions().length && currentView() !== 'assigned'" class="bg-blue-600 p-4 mb-4 rounded-3xl flex items-center justify-center text-xs font-bold text-white shadow-lg animate-in fade-in duration-200">
         All {{ filteredQuestions().length }} questions are selected.
-        <button (click)="clearSelection()" class="ml-4 text-blue-100 underline hover:text-white transition-colors">
+        <button (click)="clearSelection()" class="ml-4 text-blue-100 underline hover:text-white transition-colors cursor-pointer">
           Clear selection
         </button>
       </div>

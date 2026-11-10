@@ -2384,7 +2384,16 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       const next = new Set(current);
       visible.forEach(q => next.add(q.id));
       this.selectedQuestionIds.set(next);
+      const totalPages = Math.ceil(visible.length / this.pageSize());
+      if (totalPages > this.currentPage()) {
+        this.currentPage.set(totalPages);
+      }
     }
+  }
+
+  loadAllQuestionsToView() {
+    const totalPages = Math.ceil(this.filteredQuestions().length / this.pageSize());
+    this.currentPage.set(Math.max(1, totalPages));
   }
 
   isAllSelected = computed(() => {
@@ -2835,6 +2844,71 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     this.showRoomQuestionsModal.set(false);
     this.activeManageRoom.set(null);
     this.roomBankSelectedIds.set(new Set());
+    this.roomActiveSelectedIds.set(new Set());
+  }
+
+  roomActiveSelectedIds = signal<Set<string>>(new Set());
+
+  toggleActiveQuestionSelect(id: string) {
+    const next = new Set(this.roomActiveSelectedIds());
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    this.roomActiveSelectedIds.set(next);
+  }
+
+  toggleSelectAllActiveQuestions() {
+    const active = this.roomActiveQuestions();
+    const current = this.roomActiveSelectedIds();
+    const allSelected = active.length > 0 && active.every(q => current.has(q.id));
+    if (allSelected) {
+      this.roomActiveSelectedIds.set(new Set());
+    } else {
+      this.roomActiveSelectedIds.set(new Set(active.map(q => q.id)));
+    }
+  }
+
+  async bulkRemoveSelectedFromRoom() {
+    const ids = Array.from(this.roomActiveSelectedIds());
+    if (ids.length === 0) return;
+    const room = this.activeManageRoom();
+    if (!room) return;
+
+    this.updatingRoomQuestions.set(true);
+    try {
+      const { error } = await this.supabaseService.db
+        .from('questions')
+        .update({ status: 'pending_review' })
+        .in('id', ids);
+
+      if (error) throw error;
+
+      this.allQuestions.set(
+        this.allQuestions().map(item =>
+          ids.includes(item.id) ? { ...item, status: 'pending_review' } : item
+        )
+      );
+
+      this.roomActiveSelectedIds.set(new Set());
+
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Questions Removed',
+        detail: `Removed ${ids.length} question(s) from Room #${room.room_code}.`
+      });
+
+      this.loadQuestionsForActiveTab();
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Bulk Remove Failed',
+        detail: err.message || 'Could not remove selected questions'
+      });
+    } finally {
+      this.updatingRoomQuestions.set(false);
+    }
   }
 
   toggleBankQuestionSelect(id: string) {
