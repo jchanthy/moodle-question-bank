@@ -19,7 +19,17 @@
           'Detailed teacher performance and settlement log.' }}
         </p>
       </div>
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-3">
+        <!-- Type Guide Documentation Link (moved next to Profile) -->
+        <a routerLink="/teacher/guide" target="_blank"
+          class="hidden sm:inline-flex items-center gap-1.5 h-10 px-3.5 bg-white hover:bg-blue-50/70 text-slate-700 hover:text-blue-600 border border-gray-200 rounded-none shadow-sm transition-all text-xs font-bold cursor-pointer group"
+          title="Open Moodle Question Type Documentation">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500 group-hover:scale-110 transition-transform shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+          </svg>
+          <span>Type Guide</span>
+        </a>
+
         <!-- User Profile -->
         <div class="hidden md:flex items-center gap-3 pr-4 border-r border-gray-200">
           <a routerLink="/teacher/profile" class="text-right hover:opacity-80 transition cursor-pointer">
@@ -126,180 +136,170 @@
       </div>
     </div>
 
-    <!-- View Switcher -->
-    <div class="flex items-center gap-2 mb-8 bg-gray-200/50 p-1 rounded-none w-fit">
-      <button (click)="currentView.set('questions')" [class.bg-white]="currentView() === 'questions'"
-        [class.shadow-md]="currentView() === 'questions'" [class.text-blue-600]="currentView() === 'questions'"
-        class="px-6 py-2.5 rounded-none font-bold text-sm transition-all flex items-center gap-2"
-        [class.text-gray-500]="currentView() !== 'questions'">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
-            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-        </svg>
-        Question Bank
-      </button>
-      <button (click)="currentView.set('team')" [class.bg-white]="currentView() === 'team'"
-        [class.shadow-md]="currentView() === 'team'" [class.text-blue-600]="currentView() === 'team'"
-        class="px-6 py-2.5 rounded-none font-bold text-sm transition-all flex items-center gap-2"
-        [class.text-gray-500]="currentView() !== 'team'">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
-            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-        </svg>
-        Team & Performance
-      </button>
-      <button (click)="currentView.set('categories')" [class.bg-white]="currentView() === 'categories'"
-        [class.shadow-md]="currentView() === 'categories'" [class.text-blue-600]="currentView() === 'categories'"
-        class="px-6 py-2.5 rounded-none font-bold text-sm transition-all flex items-center gap-2"
-        [class.text-gray-500]="currentView() !== 'categories'">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
-            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-        </svg>
-        Categories
-      </button>
-      <button (click)="currentView.set('tags')" [class.bg-white]="currentView() === 'tags'"
-        [class.shadow-md]="currentView() === 'tags'" [class.text-blue-600]="currentView() === 'tags'"
-        class="px-6 py-2.5 rounded-none font-bold text-sm transition-all flex items-center gap-2"
-        [class.text-gray-500]="currentView() !== 'tags'">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
-            d="M7 7h.01M6 20l6.5-6.5A2.5 2.5 0 0011 11a2.5 2.5 0 00-2.5-2.5L2 15v5h4z" />
-        </svg>
-        Tags
-      </button>
+    <!-- Top Bar: View Switcher (Left) + Global Bank Summary Trigger (Right) -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+      <!-- View Switcher -->
+      <div class="flex items-center gap-1 bg-slate-200/70 p-1 rounded-none w-fit border border-slate-200/80">
+        <button (click)="currentView.set('questions')" [class.bg-white]="currentView() === 'questions'"
+          [class.shadow-sm]="currentView() === 'questions'" [class.text-blue-600]="currentView() === 'questions'"
+          class="px-5 py-2 rounded-none font-bold text-xs sm:text-sm transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer"
+          [class.text-slate-600]="currentView() !== 'questions'">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
+              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+          Question Bank
+        </button>
+        <button (click)="currentView.set('team')" [class.bg-white]="currentView() === 'team'"
+          [class.shadow-sm]="currentView() === 'team'" [class.text-blue-600]="currentView() === 'team'"
+          class="px-5 py-2 rounded-none font-bold text-xs sm:text-sm transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer"
+          [class.text-slate-600]="currentView() !== 'team'">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
+              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          Team &amp; Performance
+        </button>
+        <button (click)="currentView.set('categories')" [class.bg-white]="currentView() === 'categories'"
+          [class.shadow-sm]="currentView() === 'categories'" [class.text-blue-600]="currentView() === 'categories'"
+          class="px-5 py-2 rounded-none font-bold text-xs sm:text-sm transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer"
+          [class.text-slate-600]="currentView() !== 'categories'">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
+              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+          Categories
+        </button>
+        <button (click)="currentView.set('tags')" [class.bg-white]="currentView() === 'tags'"
+          [class.shadow-sm]="currentView() === 'tags'" [class.text-blue-600]="currentView() === 'tags'"
+          class="px-5 py-2 rounded-none font-bold text-xs sm:text-sm transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer"
+          [class.text-slate-600]="currentView() !== 'tags'">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
+              d="M7 7h.01M6 20l6.5-6.5A2.5 2.5 0 0011 11a2.5 2.5 0 00-2.5-2.5L2 15v5h4z" />
+          </svg>
+          Tags
+        </button>
+      </div>
+
+      <!-- Right: Compact Bank Summary & Question Types Modal Trigger -->
+      <div *ngIf="currentView() === 'questions'" class="flex items-center gap-2 flex-wrap">
+        <!-- Active Type Filter Pill (shown when a specific question type is filtered) -->
+        <button type="button" *ngIf="activeQtypeInfo()"
+          (click)="toggleQtypeFilter(activeQtypeInfo()!.type)"
+          title="Click to clear question type filter"
+          class="h-10 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-none text-xs font-bold flex items-center gap-2 shadow-sm transition cursor-pointer">
+          <span>{{ activeQtypeInfo()!.icon }}</span>
+          <span>{{ activeQtypeInfo()!.label }}</span>
+          <span class="px-1.5 py-0.5 bg-white/20 text-[10px] font-black">{{ activeQtypeInfo()!.count }}</span>
+          <span class="text-white/80 hover:text-white ml-0.5">✕</span>
+        </button>
+
+        <!-- Unified Bank Summary Button (Opens Question Types Breakdown Dialog) -->
+        <button type="button" (click)="showTypeSummaryModal.set(true)"
+          class="h-10 px-4 bg-white hover:bg-blue-50/50 border border-slate-200/90 hover:border-blue-300 rounded-none shadow-sm transition-all flex items-center gap-3.5 group cursor-pointer"
+          title="View complete Question Bank distribution by type">
+          <div class="flex items-baseline gap-2 pr-3.5 border-r border-slate-200">
+            <span class="text-lg font-black text-blue-600 tracking-tight">{{ totalQuestions() }}</span>
+            <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Total Questions</span>
+          </div>
+          <div class="flex items-center gap-2 text-xs font-bold text-slate-700 group-hover:text-blue-600 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span class="whitespace-nowrap font-extrabold">Question Types ({{ questionTypeCounts().length }})</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-600 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </button>
+
+        <!-- QA & Maintenance Tools Dropdown -->
+        <div class="relative" #qaToolsContainer>
+          <button type="button" (click)="showQaToolsMenu.set(!showQaToolsMenu())"
+            class="h-10 px-3.5 bg-white hover:bg-slate-50 border border-slate-200/90 hover:border-slate-300 rounded-none shadow-sm transition-all flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer"
+            [ngClass]="{ 'border-indigo-400 ring-2 ring-indigo-100 bg-indigo-50/30': showQaToolsMenu() }"
+            title="Quality assurance, Khmer spellcheck, and metrics tools">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>QA Tools</span>
+            <span *ngIf="spellCheckActive()" class="w-2 h-2 rounded-full bg-emerald-500" title="Khmer spellcheck is active"></span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-slate-400 transition-transform" [ngClass]="{ 'rotate-180': showQaToolsMenu() }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <!-- Dropdown Menu Panel -->
+          <div *ngIf="showQaToolsMenu()"
+            class="absolute right-0 mt-2 w-80 bg-white border border-slate-200 shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150 p-4 space-y-3.5 text-left">
+            
+            <div class="border-b border-slate-100 pb-2.5 flex items-center justify-between">
+              <div>
+                <h4 class="text-xs font-black text-slate-900 uppercase tracking-wider">Quality &amp; Maintenance</h4>
+                <p class="text-[10px] text-slate-400">Quality audits, spellchecker, and metrics</p>
+              </div>
+              <button type="button" (click)="showQaToolsMenu.set(false)" class="text-slate-400 hover:text-slate-600 text-xs cursor-pointer">✕</button>
+            </div>
+
+            <!-- Khmer Spell Check Setting -->
+            <div class="space-y-1.5 bg-slate-50 p-3 border border-slate-100">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <span>🔍</span> ពិនិត្យអក្ខរាវិរុទ្ធ (Khmer Spell Check)
+                </span>
+                <button type="button" (click)="toggleSpellCheck()"
+                  class="px-2.5 py-1 text-[11px] font-black rounded-none border transition cursor-pointer"
+                  [ngClass]="spellCheckActive() ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'">
+                  {{ spellCheckActive() ? 'ON' : 'OFF' }}
+                </button>
+              </div>
+              <p class="text-[10px] text-slate-500 leading-relaxed">
+                Highlights potential spelling errors in Khmer question text and answer choices using Chuon Nath &amp; MPTC dictionary.
+              </p>
+            </div>
+
+            <!-- Recalculate Quality Metrics Action -->
+            <div class="space-y-1.5 bg-slate-50 p-3 border border-slate-100">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <span>📊</span> Psychometric Metrics
+                </span>
+                <button type="button" (click)="recalculateQualityMetrics()" [disabled]="loading()"
+                  class="px-2.5 py-1 text-[11px] font-black bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-none transition flex items-center gap-1 cursor-pointer disabled:opacity-50">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-indigo-600" [ngClass]="{ 'animate-spin': loading() }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span>Recalculate</span>
+                </button>
+              </div>
+              <p class="text-[10px] text-slate-500 leading-relaxed">
+                Recomputes Difficulty index (p) and Discrimination (D) across questions using student attempt data.
+              </p>
+            </div>
+
+            <!-- Bulk Selection Utility -->
+            <div class="pt-1 flex items-center justify-between border-t border-slate-100">
+              <span class="text-[11px] font-bold text-slate-600">Bulk Selection</span>
+              <button type="button" (click)="toggleSelectAll()"
+                class="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer">
+                <span>{{ isAllSelected() ? 'Deselect All' : 'Select All (' + filteredQuestions().length + ')' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- QUESTIONS VIEW -->
     <div *ngIf="currentView() === 'questions'" class="animate-in fade-in duration-500">
 
-      <!-- Question Types Summary Strip (full breakdown lives in the Question Types dialog) -->
-      <div class="mb-6 bg-white rounded-none border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-4 flex-wrap">
-        <!-- Total -->
-        <div class="flex items-center gap-2 pr-4 border-r border-gray-100">
-          <span class="text-2xl font-black text-blue-600 leading-none">{{ totalQuestions() }}</span>
-          <div class="leading-tight">
-            <div class="text-[10px] font-black text-gray-700 uppercase tracking-wider">Questions</div>
-            <div class="text-[10px] text-gray-400">{{ questionTypeCounts().length }} types</div>
-          </div>
-        </div>
-
-        <!-- Top types as compact chips (click to filter) -->
-        <div class="flex items-center gap-2 flex-wrap flex-1 min-w-0">
-          <button type="button" *ngFor="let tc of topQuestionTypes()"
-            (click)="toggleQtypeFilter(tc.type)"
-            [title]="filterQtype() === tc.type ? 'Click to clear filter' : 'Filter by ' + tc.label"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none border text-xs font-bold transition cursor-pointer"
-            [ngClass]="filterQtype() === tc.type ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-blue-200 hover:bg-blue-50/40'">
-            <span>{{ tc.icon }}</span>
-            <span class="truncate max-w-[120px]">{{ tc.label }}</span>
-            <span class="font-black" [ngClass]="filterQtype() === tc.type ? 'text-blue-600' : 'text-gray-400'">{{ tc.count }}</span>
-          </button>
-
-          <!-- Active filter chip when it's not among the top types -->
-          <button type="button" *ngIf="activeQtypeInfo() && !topQuestionTypes().includes(activeQtypeInfo()!)"
-            (click)="toggleQtypeFilter(activeQtypeInfo()!.type)" title="Click to clear filter"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none border border-blue-400 bg-blue-50 text-blue-700 text-xs font-bold cursor-pointer">
-            <span>{{ activeQtypeInfo()!.icon }}</span>
-            <span>{{ activeQtypeInfo()!.label }}</span>
-            <span class="font-black text-blue-600">{{ activeQtypeInfo()!.count }}</span>
-            <span class="ml-0.5">✕</span>
-          </button>
-        </div>
-
-        <!-- Open full breakdown -->
-        <button type="button" (click)="showTypeSummaryModal.set(true)"
-          class="h-8 px-3 flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50/60 hover:bg-blue-100/80 transition-colors border border-blue-100 rounded-none cursor-pointer">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-          <span>All Types ({{ questionTypeCounts().length }})</span>
-        </button>
-      </div>
-
-      <!-- Tabs -->
-      <div
-        class="flex items-center justify-between gap-1 mb-6 bg-white rounded-none p-1.5 border border-gray-100 shadow-sm">
-        <div class="flex items-center gap-1 flex-1">
-          <button (click)="activeTab.set('pending')"
-            class="flex-1 px-5 py-3 rounded-none font-bold text-sm transition-all flex items-center justify-center gap-2"
-            [ngClass]="activeTab() === 'pending' ? 'bg-yellow-50 text-yellow-700 shadow-sm' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Pending Review
-            <span *ngIf="totalCounts().pending > 0"
-              class="bg-yellow-500 text-white text-[10px] font-black px-2 py-0.5 rounded-none">
-              {{ totalCounts().pending }}
-            </span>
-          </button>
-          <button (click)="activeTab.set('approved')"
-            class="flex-1 px-5 py-3 rounded-none font-bold text-sm transition-all flex items-center justify-center gap-2"
-            [ngClass]="activeTab() === 'approved' ? 'bg-green-50 text-green-700 shadow-sm' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Ready
-            <span *ngIf="totalCounts().approved > 0"
-              class="bg-green-500 text-white text-[10px] font-black px-2 py-0.5 rounded-none">
-              {{ totalCounts().approved }}
-            </span>
-          </button>
-          <button (click)="activeTab.set('rejected')"
-            class="flex-1 px-5 py-3 rounded-none font-bold text-sm transition-all flex items-center justify-center gap-2"
-            [ngClass]="activeTab() === 'rejected' ? 'bg-red-50 text-red-700 shadow-sm' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
-                d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Rejected
-            <span *ngIf="totalCounts().rejected > 0"
-              class="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-none">
-              {{ totalCounts().rejected }}
-            </span>
-          </button>
-          <button (click)="activeTab.set('draft')"
-            class="flex-1 px-5 py-3 rounded-none font-bold text-sm transition-all flex items-center justify-center gap-2"
-            [ngClass]="activeTab() === 'draft' ? 'bg-gray-100 text-gray-700 shadow-sm' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            Teacher Drafts
-            <span *ngIf="totalCounts().draft > 0"
-              class="bg-gray-500 text-white text-[10px] font-black px-2 py-0.5 rounded-none">
-              {{ totalCounts().draft }}
-            </span>
-          </button>
-          <!-- Pre-Testing Pool Tab -->
-          <button (click)="activeTab.set('testing')"
-            class="flex-1 px-5 py-3 rounded-none font-bold text-sm transition-all flex items-center justify-center gap-2"
-            [ngClass]="activeTab() === 'testing' ? 'bg-indigo-50 text-indigo-700 shadow-sm border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
-                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-            </svg>
-            Pre-Testing Pool
-            <span *ngIf="totalCounts().testing > 0"
-              class="bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-none">
-              {{ totalCounts().testing }}
-            </span>
-          </button>
-        </div>
-      </div>
-
-
       <!-- Filter Bar (Hidden in Pre-Testing Pool as requested) -->
       <div *ngIf="activeTab() !== 'testing'" class="mb-6 bg-white rounded-none border border-gray-100 shadow-sm p-5 space-y-4">
-        <!-- Top Row: Section Header & Action Controls -->
+        <!-- Top Row: Section Header & Active Filter Clear -->
         <div class="flex items-center justify-between pb-3 border-b border-gray-100 flex-wrap gap-3">
-          <!-- Left: Clear Header Label -->
+          <!-- Left: Clean Title -->
           <div class="flex items-center gap-2.5">
             <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -309,52 +309,21 @@
             </div>
             <div>
               <h3 class="text-xs font-black text-gray-900 uppercase tracking-wider">
-                Filters &amp; Quality Engine
+                Search &amp; Filters
               </h3>
-              <p class="text-[11px] text-gray-400">Search and filter questions across subjects, types, and quality checks</p>
+              <p class="text-[11px] text-gray-400">Search keywords or filter by teacher, type, category, and tags</p>
             </div>
           </div>
 
-          <!-- Right: Toggles and Bulk Tools -->
-          <div class="flex items-center gap-2 flex-wrap">
-            <!-- Khmer Spell Check Toggle -->
-            <button type="button"
-              (click)="toggleSpellCheck()"
-              class="px-3 py-1.5 rounded-none text-xs font-bold transition flex items-center gap-1.5 border shadow-sm cursor-pointer select-none"
-              [ngClass]="spellCheckActive() ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'"
-              title="បើក/បិទ ការត្រួតពិនិត្យអក្ខរាវិរុទ្ធភាសាខ្មែរ">
-              <span>🔍 ពិនិត្យអក្ខរាវិរុទ្ធ (Khmer Spell Check)</span>
-              <span *ngIf="spellCheckActive()" class="px-1.5 py-0.2 rounded text-[9px] font-black bg-indigo-600 text-white">
-                ON
-              </span>
-            </button>
-
-            <!-- Select All Visible Questions -->
-            <button (click)="toggleSelectAll()"
-              class="text-xs font-bold text-slate-700 hover:text-blue-600 flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-slate-50 hover:bg-slate-100 border border-slate-200 transition">
-              <input type="checkbox" [checked]="isAllSelected()" class="rounded pointer-events-none" />
-              <span>{{ isAllSelected() ? 'Deselect All' : 'Select All Visible' }}</span>
-            </button>
-
-            <!-- Recalculate Quality Metrics Button -->
-            <button (click)="recalculateQualityMetrics()" [disabled]="loading()"
-              class="text-xs font-black text-indigo-700 hover:bg-indigo-100 flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-indigo-50 border border-indigo-200 transition shadow-sm"
-              title="Re-run Difficulty (p) and Discrimination (D) calculations across all questions">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              <span>Recalculate Metrics</span>
-            </button>
-
-            <!-- Clear Filters Button -->
-            <button *ngIf="hasActiveFilters()" (click)="clearFilters()"
-              class="text-xs font-black text-rose-600 hover:text-rose-700 flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-rose-50 hover:bg-rose-100 border border-rose-200 transition">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              <span>Clear</span>
-            </button>
-          </div>
+          <!-- Right: Only Clear Filters button when filters are active -->
+          <button *ngIf="hasActiveFilters()" (click)="clearFilters()"
+            class="text-xs font-black text-rose-600 hover:text-rose-700 flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-rose-50 hover:bg-rose-100 border border-rose-200 transition cursor-pointer"
+            title="Reset all active filters">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span>Clear Filters</span>
+          </button>
         </div>
 
         <div class="flex flex-col gap-3 w-full">
@@ -431,18 +400,112 @@
             </div>
 
             <!-- Filtered Breakdown row -->
-            <div *ngIf="filteredQuestionTypeCounts().length > 0" class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-center gap-2">
-              <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Type Breakdown:</span>
-              <div class="flex flex-wrap gap-1.5">
-                <span *ngFor="let tc of filteredQuestionTypeCounts()" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-50 border border-slate-200 text-slate-600 text-[10px] font-bold">
+            <div *ngIf="filteredQuestionTypeCounts().length > 0" class="mt-4 pt-3.5 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-1">Tab Breakdown:</span>
+                <button type="button" *ngFor="let tc of filteredQuestionTypeCounts()"
+                  (click)="toggleQtypeFilter(tc.type)"
+                  [title]="filterQtype() === tc.type ? 'Click to clear filter' : 'Filter by ' + tc.label"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none border text-[11px] font-bold transition cursor-pointer"
+                  [ngClass]="filterQtype() === tc.type ? 'bg-blue-600 border-blue-600 text-white shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-blue-50/50'">
                   <span>{{ tc.icon }}</span>
-                  <span class="text-gray-500">{{ tc.label }}:</span>
-                  <span class="font-extrabold text-slate-800">{{ tc.count }}</span>
-                </span>
+                  <span [ngClass]="filterQtype() === tc.type ? 'text-white/90' : 'text-gray-500'">{{ tc.label }}:</span>
+                  <span class="font-extrabold" [ngClass]="filterQtype() === tc.type ? 'text-white' : 'text-slate-800'">{{ tc.count }}</span>
+                </button>
               </div>
+              <button type="button" (click)="showTypeSummaryModal.set(true)"
+                class="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 cursor-pointer">
+                <span>View Full Bank Distribution ({{ totalQuestions() }})</span>
+                <span>→</span>
+              </button>
             </div>
           </div>
         </div>
+
+      <!-- Workflow Pipeline Tabs (Moved below Filter Box) -->
+      <div class="mb-6 bg-white rounded-none border border-slate-200/90 shadow-sm overflow-x-auto">
+        <div class="grid grid-cols-5 min-w-[640px] divide-x divide-slate-100">
+          <!-- Pending Review -->
+          <button (click)="activeTab.set('pending')"
+            class="px-4 py-3.5 font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap border-b-2 cursor-pointer"
+            [ngClass]="activeTab() === 'pending' ? 'bg-amber-50/70 text-amber-800 border-amber-500' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50/80'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0"
+              [ngClass]="activeTab() === 'pending' ? 'text-amber-600' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Pending Review</span>
+            <span *ngIf="totalCounts().pending > 0"
+              class="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-none leading-none">
+              {{ totalCounts().pending }}
+            </span>
+          </button>
+
+          <!-- Ready -->
+          <button (click)="activeTab.set('approved')"
+            class="px-4 py-3.5 font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap border-b-2 cursor-pointer"
+            [ngClass]="activeTab() === 'approved' ? 'bg-emerald-50/70 text-emerald-800 border-emerald-500' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50/80'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0"
+              [ngClass]="activeTab() === 'approved' ? 'text-emerald-600' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Ready</span>
+            <span *ngIf="totalCounts().approved > 0"
+              class="bg-emerald-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-none leading-none">
+              {{ totalCounts().approved }}
+            </span>
+          </button>
+
+          <!-- Rejected -->
+          <button (click)="activeTab.set('rejected')"
+            class="px-4 py-3.5 font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap border-b-2 cursor-pointer"
+            [ngClass]="activeTab() === 'rejected' ? 'bg-rose-50/70 text-rose-800 border-rose-500' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50/80'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0"
+              [ngClass]="activeTab() === 'rejected' ? 'text-rose-600' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
+                d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Rejected</span>
+            <span *ngIf="totalCounts().rejected > 0"
+              class="bg-rose-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-none leading-none">
+              {{ totalCounts().rejected }}
+            </span>
+          </button>
+
+          <!-- Teacher Drafts -->
+          <button (click)="activeTab.set('draft')"
+            class="px-4 py-3.5 font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap border-b-2 cursor-pointer"
+            [ngClass]="activeTab() === 'draft' ? 'bg-slate-100 text-slate-800 border-slate-600' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50/80'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0"
+              [ngClass]="activeTab() === 'draft' ? 'text-slate-700' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            <span>Teacher Drafts</span>
+            <span *ngIf="totalCounts().draft > 0"
+              class="bg-slate-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-none leading-none">
+              {{ totalCounts().draft }}
+            </span>
+          </button>
+
+          <!-- Pre-Testing Pool -->
+          <button (click)="activeTab.set('testing')"
+            class="px-4 py-3.5 font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap border-b-2 cursor-pointer"
+            [ngClass]="activeTab() === 'testing' ? 'bg-indigo-50/70 text-indigo-800 border-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50/80'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0"
+              [ngClass]="activeTab() === 'testing' ? 'text-indigo-600' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2"
+                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+            <span>Pre-Testing Pool</span>
+            <span *ngIf="totalCounts().testing > 0"
+              class="bg-indigo-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-none leading-none">
+              {{ totalCounts().testing }}
+            </span>
+          </button>
+        </div>
+      </div>
 
       <!-- ===== PENDING TAB ===== -->
       <div *ngIf="activeTab() === 'pending'" class="space-y-6">
@@ -503,48 +566,46 @@
             filters</button>
         </div>
 
-        <!-- Fixed Bottom Bulk Action Bar -->
+        <!-- Fixed Bottom Bulk Action Bar (Compact Single-Line Toolbar) -->
         <div *ngIf="selectedQuestionIds().size > 0"
-          class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-4xl p-4 bg-slate-950/95 backdrop-blur-md text-white rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-4 border border-slate-700/80 animate-in fade-in slide-in-from-bottom-6 duration-200">
-          <div class="flex items-center gap-3 flex-wrap">
-            <span class="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center font-black text-sm text-white shadow-md">
+          class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-fit max-w-[96vw] px-3 py-1.5 bg-slate-900/95 backdrop-blur-md text-white rounded-none shadow-xl flex flex-wrap sm:flex-nowrap items-center gap-2 border border-slate-700/80 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 bg-blue-600 font-black text-xs text-white">
               {{ selectedQuestionIds().size }}
             </span>
-            <div>
-              <h4 class="text-sm font-black tracking-tight">Questions Selected</h4>
-              <p class="text-[11px] text-slate-400">Apply bulk status action:</p>
-            </div>
+            <span class="text-xs font-bold text-slate-200 whitespace-nowrap">Selected</span>
             <button type="button" (click)="toggleSelectAll()"
-              class="ml-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-none text-xs font-bold text-white transition flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" [checked]="isAllSelected()" class="rounded-none pointer-events-none" />
+              class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-none text-[11px] font-bold text-slate-200 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
+              <input type="checkbox" [checked]="isAllSelected()" class="w-3 h-3 rounded-none pointer-events-none" />
               <span>{{ isAllSelected() ? 'Deselect All' : 'Select All (' + filteredQuestions().length + ')' }}</span>
             </button>
-            <span class="text-xs text-slate-400 font-medium ml-2">
-              Showing {{ paginatedQuestions().length }} of {{ filteredQuestions().length }}
-              <button *ngIf="paginatedQuestions().length < filteredQuestions().length" type="button"
-                (click)="loadAllQuestionsToView()"
-                class="ml-1 text-blue-400 hover:text-blue-300 hover:underline font-bold text-[11px] cursor-pointer">
-                (Load all)
-              </button>
-            </span>
+            <button *ngIf="paginatedQuestions().length < filteredQuestions().length" type="button"
+              (click)="loadAllQuestionsToView()"
+              class="text-blue-400 hover:text-blue-300 hover:underline font-bold text-[11px] cursor-pointer whitespace-nowrap"
+              title="Showing {{ paginatedQuestions().length }} of {{ filteredQuestions().length }}">
+              (Load all {{ filteredQuestions().length }})
+            </button>
           </div>
 
-          <div class="flex items-center gap-2 flex-wrap">
+          <div class="h-4 w-px bg-slate-700 hidden sm:block shrink-0"></div>
+
+          <div class="flex items-center gap-1.5">
             <button (click)="bulkUpdateStatus('testing')"
-              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black rounded-none shadow transition flex items-center gap-1.5">
+              class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold rounded-none transition whitespace-nowrap cursor-pointer">
               Move to Test Pool
             </button>
             <button (click)="bulkUpdateStatus('approved')"
-              class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-none shadow transition flex items-center gap-1.5">
-              Approve for Production
+              class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-none transition whitespace-nowrap cursor-pointer">
+              Approve
             </button>
             <button (click)="bulkUpdateStatus('rejected')"
-              class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black rounded-none shadow transition flex items-center gap-1.5">
-              Reject / Revision Needed
+              class="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold rounded-none transition whitespace-nowrap cursor-pointer">
+              Reject
             </button>
             <button (click)="clearSelection()"
-              class="px-3 py-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 text-xs font-bold rounded-none transition flex items-center gap-1 cursor-pointer">
-              Clear Selection
+              title="Clear Selection"
+              class="px-2 py-1 bg-slate-800 hover:bg-rose-950 text-rose-300 border border-slate-700 hover:border-rose-800 text-[11px] font-bold rounded-none transition flex items-center gap-1 cursor-pointer whitespace-nowrap">
+              ✕ Clear
             </button>
           </div>
         </div>
@@ -1210,44 +1271,42 @@
             filters</button>
         </div>
 
-        <!-- Fixed Bottom Bulk Action Bar -->
+        <!-- Fixed Bottom Bulk Action Bar (Compact Single-Line Toolbar) -->
         <div *ngIf="selectedQuestionIds().size > 0"
-          class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-4xl p-4 bg-slate-950/95 backdrop-blur-md text-white rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-4 border border-slate-700/80 animate-in fade-in slide-in-from-bottom-6 duration-200">
-          <div class="flex items-center gap-3 flex-wrap">
-            <span class="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center font-black text-sm text-white shadow-md">
+          class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-fit max-w-[96vw] px-3 py-1.5 bg-slate-900/95 backdrop-blur-md text-white rounded-none shadow-xl flex flex-wrap sm:flex-nowrap items-center gap-2 border border-slate-700/80 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 bg-blue-600 font-black text-xs text-white">
               {{ selectedQuestionIds().size }}
             </span>
-            <div>
-              <h4 class="text-sm font-black tracking-tight">Questions Selected</h4>
-              <p class="text-[11px] text-slate-400">Apply action to selected questions:</p>
-            </div>
+            <span class="text-xs font-bold text-slate-200 whitespace-nowrap">Selected</span>
             <button type="button" (click)="toggleSelectAll()"
-              class="ml-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-none text-xs font-bold text-white transition flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" [checked]="isAllSelected()" class="rounded-none pointer-events-none" />
+              class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-none text-[11px] font-bold text-slate-200 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
+              <input type="checkbox" [checked]="isAllSelected()" class="w-3 h-3 rounded-none pointer-events-none" />
               <span>{{ isAllSelected() ? 'Deselect All' : 'Select All (' + filteredQuestions().length + ')' }}</span>
             </button>
-            <span class="text-xs text-slate-400 font-medium ml-2">
-              Showing {{ paginatedQuestions().length }} of {{ filteredQuestions().length }}
-              <button *ngIf="paginatedQuestions().length < filteredQuestions().length" type="button"
-                (click)="loadAllQuestionsToView()"
-                class="ml-1 text-blue-400 hover:text-blue-300 hover:underline font-bold text-[11px] cursor-pointer">
-                (Load all)
-              </button>
-            </span>
+            <button *ngIf="paginatedQuestions().length < filteredQuestions().length" type="button"
+              (click)="loadAllQuestionsToView()"
+              class="text-blue-400 hover:text-blue-300 hover:underline font-bold text-[11px] cursor-pointer whitespace-nowrap"
+              title="Showing {{ paginatedQuestions().length }} of {{ filteredQuestions().length }}">
+              (Load all {{ filteredQuestions().length }})
+            </button>
           </div>
 
-          <div class="flex items-center gap-2 flex-wrap">
+          <div class="h-4 w-px bg-slate-700 hidden sm:block shrink-0"></div>
+
+          <div class="flex items-center gap-1.5">
             <button (click)="bulkUpdateStatus('testing')"
-              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black rounded-none shadow transition flex items-center gap-1.5">
+              class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold rounded-none transition flex items-center gap-1 whitespace-nowrap cursor-pointer">
               <span>🧪</span> Move to Test Pool
             </button>
             <button (click)="bulkUpdateStatus('rejected')"
-              class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black rounded-none shadow transition flex items-center gap-1.5">
-              Revoke / Revision Needed
+              class="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold rounded-none transition whitespace-nowrap cursor-pointer">
+              Revoke / Revision
             </button>
             <button (click)="clearSelection()"
-              class="px-3 py-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 text-xs font-bold rounded-none transition flex items-center gap-1 cursor-pointer">
-              Clear Selection
+              title="Clear Selection"
+              class="px-2 py-1 bg-slate-800 hover:bg-rose-950 text-rose-300 border border-slate-700 hover:border-rose-800 text-[11px] font-bold rounded-none transition flex items-center gap-1 cursor-pointer whitespace-nowrap">
+              ✕ Clear
             </button>
           </div>
         </div>
@@ -2771,48 +2830,46 @@
             </div>
           </div>
 
-        <!-- Fixed Bottom Bulk Action Bar -->
+        <!-- Fixed Bottom Bulk Action Bar (Compact Single-Line Toolbar) -->
         <div *ngIf="selectedQuestionIds().size > 0"
-          class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-4xl p-4 bg-slate-950/95 backdrop-blur-md text-white rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-4 border border-slate-700/80 animate-in fade-in slide-in-from-bottom-6 duration-200">
-          <div class="flex items-center gap-3 flex-wrap">
-            <span class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center font-black text-sm text-white shadow-md">
+          class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-fit max-w-[96vw] px-3 py-1.5 bg-slate-900/95 backdrop-blur-md text-white rounded-none shadow-xl flex flex-wrap sm:flex-nowrap items-center gap-2 border border-slate-700/80 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 bg-indigo-600 font-black text-xs text-white">
               {{ selectedQuestionIds().size }}
             </span>
-            <div>
-              <h4 class="text-sm font-black tracking-tight">Questions Selected</h4>
-              <p class="text-[11px] text-slate-400">Apply bulk status action to selected items:</p>
-            </div>
+            <span class="text-xs font-bold text-slate-200 whitespace-nowrap">Selected</span>
             <button type="button" (click)="toggleSelectAll()"
-              class="ml-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-none text-xs font-bold text-white transition flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" [checked]="isAllSelected()" class="rounded-none pointer-events-none" />
+              class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-none text-[11px] font-bold text-slate-200 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
+              <input type="checkbox" [checked]="isAllSelected()" class="w-3 h-3 rounded-none pointer-events-none" />
               <span>{{ isAllSelected() ? 'Deselect All' : 'Select All (' + filteredQuestions().length + ')' }}</span>
             </button>
-            <span class="text-xs text-slate-400 font-medium ml-2">
-              Showing {{ paginatedQuestions().length }} of {{ filteredQuestions().length }}
-              <button *ngIf="paginatedQuestions().length < filteredQuestions().length" type="button"
-                (click)="loadAllQuestionsToView()"
-                class="ml-1 text-indigo-400 hover:text-indigo-300 hover:underline font-bold text-[11px] cursor-pointer">
-                (Load all)
-              </button>
-            </span>
+            <button *ngIf="paginatedQuestions().length < filteredQuestions().length" type="button"
+              (click)="loadAllQuestionsToView()"
+              class="text-indigo-400 hover:text-indigo-300 hover:underline font-bold text-[11px] cursor-pointer whitespace-nowrap"
+              title="Showing {{ paginatedQuestions().length }} of {{ filteredQuestions().length }}">
+              (Load all {{ filteredQuestions().length }})
+            </button>
           </div>
 
-          <div class="flex items-center gap-2 flex-wrap">
+          <div class="h-4 w-px bg-slate-700 hidden sm:block shrink-0"></div>
+
+          <div class="flex items-center gap-1.5">
             <button (click)="createRoomWithSelectedQuestions()"
-              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black rounded-none shadow transition flex items-center gap-1.5">
-              <span>🚀</span> Create Room With Selected
+              class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold rounded-none transition flex items-center gap-1 whitespace-nowrap cursor-pointer">
+              <span>🚀</span> Create Room
             </button>
             <button (click)="bulkUpdateStatus('approved')"
-              class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-none shadow transition flex items-center gap-1.5">
-              <span>✓</span> Return to Ready (Release)
+              class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-none transition flex items-center gap-1 whitespace-nowrap cursor-pointer">
+              <span>✓</span> Return to Ready
             </button>
             <button (click)="bulkUpdateStatus('rejected')"
-              class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black rounded-none shadow transition flex items-center gap-1.5">
-              Reject / Revision Needed
+              class="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold rounded-none transition whitespace-nowrap cursor-pointer">
+              Reject
             </button>
             <button (click)="clearSelection()"
-              class="px-3 py-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 text-xs font-bold rounded-none transition flex items-center gap-1 cursor-pointer">
-              Clear Selection
+              title="Clear Selection"
+              class="px-2 py-1 bg-slate-800 hover:bg-rose-950 text-rose-300 border border-slate-700 hover:border-rose-800 text-[11px] font-bold rounded-none transition flex items-center gap-1 cursor-pointer whitespace-nowrap">
+              ✕ Clear
             </button>
           </div>
         </div>
@@ -4338,17 +4395,23 @@
 <!-- Import Questions Dialog -->
 <!-- Question Types Summary Dialog -->
 <p-dialog [visible]="showTypeSummaryModal()" (visibleChange)="showTypeSummaryModal.set($event)" [modal]="true"
-  [dismissableMask]="true" [style]="{ width: '48rem' }" [breakpoints]="{ '1199px': '75vw', '575px': '95vw' }"
+  [dismissableMask]="true" [style]="{ width: '54rem' }" [breakpoints]="{ '1199px': '80vw', '575px': '95vw' }"
   [draggable]="false" [resizable]="false">
   <ng-template pTemplate="header">
     <div class="flex items-center justify-between w-full pr-4 gap-4">
       <div>
-        <h2 class="text-xl font-extrabold text-gray-900">Question Types</h2>
-        <p class="text-xs text-gray-400 mt-0.5">Distribution across the entire question bank</p>
+        <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">Question Bank Distribution</h2>
+        <p class="text-xs text-slate-400 mt-0.5">Click any question type below to filter the active view</p>
       </div>
-      <div class="bg-blue-50 px-4 py-2 rounded-none shrink-0">
-        <span class="text-2xl font-black text-blue-600">{{ totalQuestions() }}</span>
-        <span class="text-xs font-bold text-blue-400 ml-1">Total</span>
+      <div class="flex items-center gap-3 shrink-0">
+        <div class="bg-blue-50 border border-blue-100 px-3.5 py-1.5 rounded-none text-right">
+          <span class="text-xl font-black text-blue-600">{{ totalQuestions() }}</span>
+          <span class="text-[10px] font-extrabold text-blue-500 uppercase tracking-wider ml-1">Total</span>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 px-3.5 py-1.5 rounded-none text-right">
+          <span class="text-xl font-black text-slate-700">{{ questionTypeCounts().length }}</span>
+          <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider ml-1">Types</span>
+        </div>
       </div>
     </div>
   </ng-template>
@@ -4357,33 +4420,37 @@
     No questions in the bank yet.
   </div>
 
-  <div class="divide-y divide-gray-100">
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
     <button type="button" *ngFor="let tc of questionTypeCounts()"
       (click)="applyTypeFilterFromSummary(tc.type)"
       [title]="filterQtype() === tc.type ? 'Click to clear filter' : 'Click to filter by ' + tc.label"
-      class="w-full flex items-center gap-3 px-3 py-2.5 text-left transition cursor-pointer group"
-      [ngClass]="filterQtype() === tc.type ? 'bg-blue-50' : 'hover:bg-gray-50'">
-      <span class="text-lg w-6 text-center shrink-0">{{ tc.icon }}</span>
-      <div class="w-44 shrink-0 min-w-0">
-        <div class="text-xs font-bold text-gray-800 truncate group-hover:text-blue-700">{{ tc.label }}</div>
-        <div class="text-[10px] text-gray-400">{{ tc.type }}</div>
+      class="w-full p-3.5 text-left rounded-none border transition-all cursor-pointer group flex flex-col gap-2"
+      [ngClass]="filterQtype() === tc.type ? 'border-blue-500 bg-blue-50/70 ring-2 ring-blue-200' : 'border-slate-200/90 bg-white hover:border-blue-300 hover:bg-blue-50/20'">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span class="w-8 h-8 bg-slate-50 border border-slate-200/80 flex items-center justify-center text-base shrink-0 group-hover:bg-white transition">{{ tc.icon }}</span>
+          <div class="min-w-0">
+            <div class="text-xs font-extrabold text-slate-800 truncate group-hover:text-blue-700 transition-colors">{{ tc.label }}</div>
+            <div class="text-[10px] font-mono text-slate-400">{{ tc.type }}</div>
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="text-base font-black leading-none" [ngClass]="filterQtype() === tc.type ? 'text-blue-600' : 'text-slate-800'">{{ tc.count }}</div>
+          <div class="text-[10px] font-bold text-slate-400 mt-0.5">{{ typePercent(tc.count) }}%</div>
+        </div>
       </div>
-      <div class="flex-1 h-2 bg-gray-100 rounded-none overflow-hidden">
+      <div class="w-full h-1.5 bg-slate-100 rounded-none overflow-hidden">
         <div class="h-full transition-all"
-          [ngClass]="filterQtype() === tc.type ? 'bg-blue-600' : 'bg-blue-400 group-hover:bg-blue-500'"
+          [ngClass]="filterQtype() === tc.type ? 'bg-blue-600' : 'bg-blue-500/80 group-hover:bg-blue-600'"
           [style.width.%]="typePercent(tc.count)"></div>
-      </div>
-      <div class="w-24 text-right shrink-0">
-        <span class="text-sm font-black text-gray-800">{{ tc.count }}</span>
-        <span class="text-[10px] font-bold text-gray-400 ml-1">{{ typePercent(tc.count) }}%</span>
       </div>
     </button>
   </div>
 
   <ng-template pTemplate="footer">
-    <div class="flex items-center justify-between w-full">
+    <div class="flex items-center justify-between w-full pt-2">
       <a routerLink="/teacher/guide" target="_blank"
-        class="h-9 px-3 flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50/60 hover:bg-blue-100/80 transition-colors border border-blue-100"
+        class="h-9 px-3 flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50/60 hover:bg-blue-100/80 transition-colors border border-blue-100 rounded-none"
         title="View Moodle Question Type Documentation">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />

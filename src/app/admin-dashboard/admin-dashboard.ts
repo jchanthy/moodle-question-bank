@@ -145,8 +145,10 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   choiceSpellErrorsCount = computed(() => this.choiceSpellReport()?.errorCount || 0);
   
   @ViewChild('notificationContainer') notificationContainer?: ElementRef;
+  @ViewChild('qaToolsContainer') qaToolsContainer?: ElementRef;
   
   showNotifications = signal(false);
+  showQaToolsMenu = signal(false);
   showAllNotifications = signal(false);
   allNotificationsFilter = signal<'all' | 'unread'>('all');
   dropdownFilter = signal<'all' | 'unread'>('unread');
@@ -177,6 +179,12 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       const clickedInside = this.notificationContainer.nativeElement.contains(event.target);
       if (!clickedInside) {
         this.showNotifications.set(false);
+      }
+    }
+    if (this.qaToolsContainer) {
+      const clickedInsideQa = this.qaToolsContainer.nativeElement.contains(event.target);
+      if (!clickedInsideQa) {
+        this.showQaToolsMenu.set(false);
       }
     }
     if (this.activeSpellSuggestion()) {
@@ -756,7 +764,9 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   activeTab = signal<'pending' | 'approved' | 'rejected' | 'draft' | 'testing'>(
     (sessionStorage.getItem('admin_active_tab') as any) || 'pending'
   );
-  selectedQuestionIds = signal<Set<string>>(new Set());
+  selectedQuestionIds = signal<Set<string>>(
+    new Set<string>(JSON.parse(sessionStorage.getItem('admin_selected_question_ids') || '[]'))
+  );
   showTypeHelp = signal(false);
 
   // Import properties
@@ -1383,7 +1393,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       }
     });
 
-    // Effect to persist filters
+    // Effect to persist filters and selection state
     effect(() => {
       sessionStorage.setItem('admin_filter_teacher', this.filterTeacher());
       sessionStorage.setItem('admin_filter_qtype', this.filterQtype());
@@ -1393,6 +1403,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       sessionStorage.setItem('admin_filter_selected_tags', JSON.stringify(this.filterSelectedTags()));
       sessionStorage.setItem('admin_active_tab', this.activeTab());
       sessionStorage.setItem('admin_current_view', this.currentView());
+      sessionStorage.setItem('admin_selected_question_ids', JSON.stringify(Array.from(this.selectedQuestionIds())));
     });
   }
 
@@ -1704,6 +1715,24 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
         .map(q => this.sanitizeQuestionGlyphs(q));
       this.allQuestions.set(questions);
 
+      // Keep only selected question IDs that still exist in the active tab
+      const currentSelected = this.selectedQuestionIds();
+      if (currentSelected.size > 0) {
+        const expectedStatus = this.activeTab() === 'pending' ? 'pending_review' :
+                               this.activeTab() === 'approved' ? 'approved' :
+                               this.activeTab() === 'rejected' ? 'rejected' :
+                               this.activeTab() === 'testing' ? 'testing' : 'draft';
+        const validIds = new Set<string>();
+        questions.forEach(item => {
+          if (currentSelected.has(item.id) && item.status === expectedStatus) {
+            validIds.add(item.id);
+          }
+        });
+        if (validIds.size !== currentSelected.size) {
+          this.selectedQuestionIds.set(validIds);
+        }
+      }
+
       // Also sync type counts
       this.loadQuestionTypeCounts();
 
@@ -1717,7 +1746,10 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
                       q.status === 'rejected' ? 'rejected' :
                       q.status === 'testing' ? 'testing' : 'draft';
           
-          this.activeTab.set(tab);
+          // Only auto-switch tab if there is no active selection in the current tab
+          if (this.selectedQuestionIds().size === 0) {
+            this.activeTab.set(tab);
+          }
 
           setTimeout(() => {
             const list = this.filteredQuestions();
@@ -2371,6 +2403,12 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
                 status === 'approved' ? 'Question approved for production' :
                 status === 'rejected' ? 'Question marked as revision needed' : 'Status updated'
       });
+
+      if (this.selectedQuestionIds().has(id)) {
+        const next = new Set(this.selectedQuestionIds());
+        next.delete(id);
+        this.selectedQuestionIds.set(next);
+      }
 
       this.loadQuestionsForActiveTab();
       this.loadAllQuestionsData();
@@ -3340,10 +3378,17 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
 
   async addReviewer(question: Question, event: any) {
     const teacher: Teacher = event.value || event;
-    const admin = this.supabaseService.currentUser();
-    const adminName = this.supabaseService.currentUserName;
+    const admin = this.supabaseService.currentUser() || (await this.supabaseService.db.auth.getUser()).data.user;
+    const adminName = this.supabaseService.currentUserName || this.supabaseService.currentUserProfile()?.full_name || admin?.email || 'Admin';
 
-    if (!admin) return;
+    if (!admin) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Authentication Required',
+        detail: 'You must be logged in as an administrator to assign reviewers.'
+      });
+      return;
+    }
 
     // VALIDATION 1: Cannot assign to self (author)
     if (question.created_by === teacher.id) {
@@ -3529,6 +3574,12 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       if (error) throw error;
 
       this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Question moved to trash' });
+      if (this.selectedQuestionIds().has(id)) {
+        const next = new Set(this.selectedQuestionIds());
+        next.delete(id);
+        this.selectedQuestionIds.set(next);
+      }
+
       this.loadQuestionsForActiveTab();
       this.loadAllQuestionsData();
       this.loadQuestionTypeCounts();
