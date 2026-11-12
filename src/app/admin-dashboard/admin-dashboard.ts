@@ -1697,6 +1697,10 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
 
   onTeacherFilterChange(value: string) {
     this.filterTeacher.set(value);
+    const currentCat = this.filterCategory();
+    if (currentCat && (this.categoryFilterCounts().counts.get(currentCat) || 0) === 0) {
+      this.filterCategory.set('');
+    }
     this.currentPage.set(1);
   }
 
@@ -1880,6 +1884,99 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     const base = this.baseFilteredQuestions();
     if (!this.spellCheckService.isLoaded()) return 0;
     return base.filter(q => this.getQuestionSpellErrors(q) > 0).length;
+  });
+
+  categoryFilterCounts = computed(() => {
+    const allQs = this.allQuestions();
+    const status = this.activeTab() === 'pending' ? 'pending_review' : 
+                   this.activeTab() === 'approved' ? 'approved' :
+                   this.activeTab() === 'rejected' ? 'rejected' :
+                   this.activeTab() === 'testing' ? 'testing' : 'draft';
+
+    const familyMap = new Map<string, Question>();
+    allQs.forEach(q => {
+      const familyId = q.parent_id || q.id;
+      const existing = familyMap.get(familyId);
+      if (!existing || q.version > existing.version) {
+        familyMap.set(familyId, q);
+      }
+    });
+
+    let result = Array.from(familyMap.values()).filter(q => q.status === status);
+
+    if (this.filterQtype()) result = result.filter(q => q.qtype === this.filterQtype());
+    if (this.filterTeacher()) {
+      const teacher = this.filterTeacher().toLowerCase();
+      result = result.filter(q => q.metadata?.author_name?.toLowerCase().includes(teacher));
+    }
+
+    if (this.activeTab() === 'testing') {
+      const subTab = this.pretestSubTab();
+      if (subTab === 'from_ready') {
+        result = result.filter(q => q.metadata && q.metadata['pretest_origin'] === 'ready');
+      } else if (subTab === 'needs_data') {
+        result = result.filter(q => !q.total_attempts || q.total_attempts === 0);
+      } else if (subTab === 'in_progress') {
+        result = result.filter(q => (q.total_attempts || 0) > 0 && (q.total_attempts || 0) < 20);
+      } else if (subTab === 'ready_release') {
+        result = result.filter(q => {
+          const attempts = q.total_attempts || 0;
+          const p = q.difficulty_index !== null && q.difficulty_index !== undefined ? Number(q.difficulty_index) : null;
+          const d = q.discrimination_index !== null && q.discrimination_index !== undefined ? Number(q.discrimination_index) : null;
+          return attempts >= 20 && p !== null && p >= 0.30 && p <= 0.85 && d !== null && d >= 0.25;
+        });
+      }
+
+      if (this.filterPretestRoom()) {
+        const room = this.testRooms().find(r => r.id === this.filterPretestRoom());
+        if (room) {
+          result = result.filter(q => q.category_id === room.subject_id);
+        }
+      }
+    }
+
+    const search = this.debouncedSearch().toLowerCase().trim();
+    if (search) {
+      result = result.filter(q => {
+        const nameMatch = q.name.toLowerCase().includes(search);
+        const textMatch = q.question_text.toLowerCase().includes(search);
+        return nameMatch || textMatch;
+      });
+    }
+
+    const selectedTags = this.filterSelectedTags();
+    if (selectedTags && selectedTags.length > 0) {
+      result = result.filter(q => {
+        const qTags = (q.metadata?.tags || []).map((t: string) => t.toLowerCase());
+        return selectedTags.every(tag => qTags.includes(tag.toLowerCase()));
+      });
+    }
+
+    if (this.filterMisspelledOnly() && this.spellCheckService.isLoaded()) {
+      result = result.filter(q => this.getQuestionSpellErrors(q) > 0);
+    }
+
+    const counts = new Map<string, number>();
+    let total = 0;
+    result.forEach(q => {
+      total++;
+      if (q.category_id) {
+        counts.set(q.category_id, (counts.get(q.category_id) || 0) + 1);
+      }
+    });
+
+    return { counts, total };
+  });
+
+  getCategoryFilterCount(catId: string): number {
+    return this.categoryFilterCounts().counts.get(catId) || 0;
+  }
+
+  totalCategoryFilterCount = computed(() => this.categoryFilterCounts().total);
+
+  filterableCategories = computed(() => {
+    const counts = this.categoryFilterCounts().counts;
+    return this.categories().filter(cat => (counts.get(cat.id) || 0) > 0);
   });
 
   filteredQuestions = computed(() => {
